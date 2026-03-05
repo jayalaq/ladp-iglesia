@@ -800,19 +800,10 @@ const Login = ({ onSuccess, onBack }) => {
     setError("");
     if (!email || !password) { setError("Completa todos los campos"); return; }
     setLoading(true);
-    // Try Supabase auth first, fallback to hardcoded
-    if (isSupabaseConfigured()) {
-      const result = await signIn(email, password);
-      setLoading(false);
-      if (result) { onSuccess(); return; }
-      setError("Credenciales incorrectas");
-    } else {
-      setTimeout(() => {
-        setLoading(false);
-        if (email === "admin@ladp.pe" && password === "admin123") onSuccess();
-        else setError("Credenciales incorrectas. Usa: admin@ladp.pe / admin123");
-      }, 700);
-    }
+    const result = await signIn(email, password);
+    setLoading(false);
+    if (result) { onSuccess(); return; }
+    setError("Correo o contraseña incorrectos");
   };
 
   return (
@@ -857,11 +848,6 @@ const Login = ({ onSuccess, onBack }) => {
               <Button variant="primary" size="lg" onClick={handleLogin} disabled={loading} fullWidth>
                 {loading ? "Iniciando sesión…" : "Iniciar Sesión"}
               </Button>
-            </div>
-            <div style={{ marginTop: 20, padding: "12px 14px", background: G.grayLight, borderRadius: 10, textAlign: "center" }}>
-              <p style={{ margin: 0, fontSize: 12.5, color: G.gray }}>
-                <strong style={{ color: G.dark }}>Demo:</strong> admin@ladp.pe / admin123
-              </p>
             </div>
           </div>
         </div>
