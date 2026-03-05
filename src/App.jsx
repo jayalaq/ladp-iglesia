@@ -417,7 +417,7 @@ const LandingPage = ({ onLogin, onTienda }) => {
             <div><div style={{ fontSize: 18, fontWeight: 800, color: "#fff", fontFamily: fontTitle }}>LADP</div><div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 3, marginTop: -1 }}>Iglesia - ICV</div></div>
           </div>
           <div style={{ display: "flex", gap: 4 }}>
-            {[{ l: "Visítanos", h: "visitanos" },{ l: "Sermones", h: "sermones" },{ l: "Ministerios", h: "ministerios" },{ l: "Eventos", h: "eventos" }].map(item => (
+            {[{ l: "Visítanos", h: "visitanos" },{ l: "Sermones", h: "sermones" },{ l: "Ministerios", h: "ministerios" },{ l: "Cómo Funciona", h: "como-funciona" },{ l: "Eventos", h: "eventos" }].map(item => (
               <button key={item.l} onClick={() => scrollTo(item.h)} className="nbtn" style={{ background: "none", border: "none", fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.75)", cursor: "pointer", padding: "10px 18px", fontFamily: font, transition: "color 0.2s" }} onMouseEnter={e => e.currentTarget.style.color = "#fff"} onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.75)"}>{item.l}</button>
             ))}
             <button onClick={onTienda} className="nbtn" style={{ background: "none", border: "none", fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.75)", cursor: "pointer", padding: "10px 18px", fontFamily: font, transition: "color 0.2s", display: "flex", alignItems: "center", gap: 5 }} onMouseEnter={e => e.currentTarget.style.color = "#fff"} onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.75)"}><ShoppingCart size={14} /> Tienda</button>          </div>
@@ -546,6 +546,38 @@ const LandingPage = ({ onLogin, onTienda }) => {
               <div key={i} style={{ display: "flex", gap: 14, alignItems: "center", marginBottom: 16 }}><div style={{ width: 28, height: 28, borderRadius: 8, background: G.accent + "14", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Check size={15} color={G.accent} /></div><span style={{ fontSize: 15, color: G.dark, fontWeight: 500 }}>{txt}</span></div>
             ))}
             <button style={{ marginTop: 20, padding: "14px 32px", fontSize: 15, fontWeight: 700, background: `linear-gradient(135deg, ${G.primary}, ${G.primaryLight})`, color: "#fff", border: "none", borderRadius: 12, cursor: "pointer", fontFamily: font, display: "inline-flex", alignItems: "center", gap: 8, transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"} onMouseLeave={e => e.currentTarget.style.transform = "none"}>Encuentra tu Grupo <ArrowRight size={16} /></button>
+          </div>
+        </div>
+      </section>
+      {/* ═══ CÓMO FUNCIONA ═══ */}
+      <section id="como-funciona" style={{ padding: "120px 32px", background: "#fff" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 72 }}>
+            <STag>Cómo Funciona</STag>
+            <h2 style={{ margin: "0 0 16px", fontSize: "clamp(36px, 4vw, 54px)", fontWeight: 800, color: G.dark, letterSpacing: -2, fontFamily: fontTitle }}>Tu camino para <span style={{ color: G.accent }}>conectarte</span></h2>
+            <p style={{ margin: "0 auto", fontSize: 17, color: G.gray, maxWidth: 520, lineHeight: 1.7 }}>Cuatro pasos sencillos para ser parte de nuestra familia y crecer en la fe</p>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 32, position: "relative" }}>
+            {/* Connector line */}
+            <div style={{ position: "absolute", top: 44, left: "12.5%", right: "12.5%", height: 2, background: `linear-gradient(90deg, ${G.accent}40, ${G.accent}, ${G.accent}40)`, zIndex: 0, display: "none" }} />
+            {[
+              { step: "01", emoji: "🚪", title: "Visítanos", desc: "Ven cualquier domingo a las 9:00 AM o 6:00 PM. No necesitas registro previo — ¡solo ven como eres!", color: G.primary },
+              { step: "02", emoji: "🤝", title: "Conéctate", desc: "Únete a un Grupo de Vida cerca de tu hogar. Comparte vida real con personas que te acompañan en la fe.", color: G.accent },
+              { step: "03", emoji: "📖", title: "Crece", desc: "Participa en la Escuela Bíblica, retiros y talleres diseñados para fortalecer tu relación con Dios.", color: G.success },
+              { step: "04", emoji: "✨", title: "Sirve", desc: "Descubre tus dones y úsalos en uno de nuestros ministerios. ¡Hay un lugar especial para ti aquí!", color: G.purple },
+            ].map((item, i) => (
+              <div key={i} className="card-hover" style={{ background: G.grayLight, borderRadius: 24, padding: "40px 32px", textAlign: "center", position: "relative", zIndex: 1, border: `1px solid ${G.grayMid}` }}>
+                <div style={{ width: 72, height: 72, borderRadius: 20, background: item.color + "14", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", fontSize: 36 }}>{item.emoji}</div>
+                <div style={{ fontSize: 11, fontWeight: 800, color: item.color, textTransform: "uppercase", letterSpacing: 2, marginBottom: 10 }}>PASO {item.step}</div>
+                <h3 style={{ margin: "0 0 14px", fontSize: 22, fontWeight: 800, color: G.dark, fontFamily: fontTitle }}>{item.title}</h3>
+                <p style={{ margin: 0, fontSize: 14.5, color: G.gray, lineHeight: 1.7 }}>{item.desc}</p>
+              </div>
+            ))}
+          </div>
+          <div style={{ textAlign: "center", marginTop: 56 }}>
+            <button style={{ padding: "16px 40px", fontSize: 15, fontWeight: 800, background: `linear-gradient(135deg, ${G.accent}, ${G.accentLight})`, color: "#fff", border: "none", borderRadius: 14, cursor: "pointer", fontFamily: font, display: "inline-flex", alignItems: "center", gap: 10, boxShadow: `0 8px 28px ${G.accent}35`, transition: "all 0.25s" }} onMouseEnter={e => e.currentTarget.style.transform = "translateY(-3px)"} onMouseLeave={e => e.currentTarget.style.transform = "none"}>
+              Comenzar mi Camino <ArrowRight size={18} />
+            </button>
           </div>
         </div>
       </section>
