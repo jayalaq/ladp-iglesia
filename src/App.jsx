@@ -414,7 +414,7 @@ const LandingPage = ({ onLogin, onTienda }) => {
         <div style={{ maxWidth: 1300, margin: "0 auto", padding: "0 32px", display: "flex", alignItems: "center", justifyContent: "space-between", height: scrolled ? 64 : 80, transition: "height 0.35s" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }} onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
             <div style={{ width: 44, height: 44, borderRadius: 12, background: `linear-gradient(135deg, ${G.accent}, ${G.accentLight})`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, color: "#fff", fontSize: 22, fontFamily: fontTitle, boxShadow: `0 4px 16px ${G.accent}40` }}>L</div>
-            <div><div style={{ fontSize: 18, fontWeight: 800, color: "#fff", fontFamily: fontTitle }}>LADP</div><div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 3, marginTop: -1 }}>Iglesia</div></div>
+            <div><div style={{ fontSize: 18, fontWeight: 800, color: "#fff", fontFamily: fontTitle }}>LADP</div><div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 3, marginTop: -1 }}>Iglesia - ICV</div></div>
           </div>
           <div style={{ display: "flex", gap: 4 }}>
             {[{ l: "Visítanos", h: "visitanos" },{ l: "Sermones", h: "sermones" },{ l: "Ministerios", h: "ministerios" },{ l: "Eventos", h: "eventos" }].map(item => (
@@ -579,7 +579,7 @@ const LandingPage = ({ onLogin, onTienda }) => {
         <div style={{ maxWidth: 1000, margin: "0 auto", background: `linear-gradient(135deg, ${G.primary}, ${G.primaryLight})`, borderRadius: 28, padding: "56px 48px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 40, flexWrap: "wrap", position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", top: -60, right: -60, width: 240, height: 240, borderRadius: "50%", background: `radial-gradient(circle, ${G.accent}20, transparent)`, pointerEvents: "none" }} />
           <div style={{ flex: 1, minWidth: 280, position: "relative" }}>
-            <h2 style={{ margin: "0 0 12px", fontSize: "clamp(28px, 3.5vw, 40px)", fontWeight: 800, color: "#fff", fontFamily: fontTitle, letterSpacing: -1 }}>Tienda Cristiana LADP</h2>
+            <h2 style={{ margin: "0 0 12px", fontSize: "clamp(28px, 3.5vw, 40px)", fontWeight: 800, color: "#fff", fontFamily: fontTitle, letterSpacing: -1 }}>Tienda Cristiana LADP - ICV</h2>
             <p style={{ margin: 0, fontSize: 16, color: "rgba(255,255,255,0.7)", lineHeight: 1.6 }}>Biblias, libros, devocionales, música y más. Envío a todo el Perú con pago seguro por Yape, Plin o tarjeta.</p>
           </div>
           <div style={{ display: "flex", gap: 36, flexShrink: 0 }}>
@@ -644,7 +644,7 @@ const LandingPage = ({ onLogin, onTienda }) => {
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
                 <div style={{ width: 42, height: 42, borderRadius: 12, background: `linear-gradient(135deg, ${G.accent}, ${G.accentLight})`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 20, fontFamily: fontTitle }}>L</div>
-                <div><span style={{ fontSize: 18, fontWeight: 800, fontFamily: fontTitle }}>LADP</span><div style={{ fontSize: 9, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 2 }}>Las Asambleas de Dios del Perú</div></div>
+                <div><span style={{ fontSize: 18, fontWeight: 800, fontFamily: fontTitle }}>LADP</span><div style={{ fontSize: 9, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 2 }}>Las Asambleas de Dios del Perú - ICV</div></div>
               </div>
               <p style={{ margin: "0 0 24px", fontSize: 14, color: "#64748b", lineHeight: 1.7, maxWidth: 300 }}>Más de 106 años proclamando el evangelio de Jesucristo en el Perú y el mundo.</p>
               <div style={{ display: "flex", gap: 10 }}>
