@@ -118,3 +118,41 @@ export async function getSession() {
   } = await supabase.auth.getSession();
   return session;
 }
+
+export async function signInWithGoogle() {
+  if (!isSupabaseConfigured()) return null;
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: window.location.origin },
+  });
+  if (error) { console.error("Google login error:", error.message); return null; }
+  return data;
+}
+
+export async function signUp(email, password, nombre) {
+  if (!isSupabaseConfigured()) return { error: "Supabase no configurado" };
+  const { data, error } = await supabase.auth.signUp({ email, password });
+  if (error) return { error: error.message };
+  if (data.user) {
+    await supabase.from("user_profiles").insert({ id: data.user.id, nombre, rol: "usuario" });
+  }
+  return { data, needsConfirmation: !data.session };
+}
+
+export async function getUserProfile() {
+  if (!isSupabaseConfigured()) return null;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data, error } = await supabase.from("user_profiles").select("*").eq("id", user.id).single();
+  if (error || !data) {
+    const nombre = user.user_metadata?.full_name || user.email?.split("@")[0] || "Usuario";
+    await supabase.from("user_profiles").insert({ id: user.id, nombre, rol: "usuario" });
+    return { id: user.id, nombre, rol: "usuario", email: user.email };
+  }
+  return { ...data, email: user.email };
+}
+
+export function onAuthStateChange(callback) {
+  if (!isSupabaseConfigured()) return { data: { subscription: { unsubscribe: () => {} } } };
+  return supabase.auth.onAuthStateChange(callback);
+}

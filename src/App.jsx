@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Heart, Users, Target, Calendar, BarChart2, Plus, Search, DollarSign, Award, Clock, Trash2, Menu, ArrowRight, Mail, Lock, Eye, EyeOff, Check, LogOut, Bell, Phone, MapPin, Play, Facebook, Youtube, Instagram, Download, Send, UserPlus, UserCheck, FileText, Activity, MessageCircle, AlertCircle, Edit, Settings, Globe, Palette, Save, ShoppingCart, BookOpen, CreditCard, Package, Grid, List, Share2, Bookmark, ChevronDown, ChevronRight, X, Filter, TrendingUp, PieChart, Home, Layers, Printer, MoreVertical, RefreshCw, ChevronLeft, Star, Upload, Copy, ExternalLink, Mic } from "lucide-react";
 import { isSupabaseConfigured } from "./supabase";
-import { loadAllData, insertRow, updateRow, deleteRow, signIn, signOut } from "./dataService";
+import { loadAllData, insertRow, updateRow, deleteRow, signIn, signOut, signInWithGoogle, signUp, getUserProfile, getSession, onAuthStateChange } from "./dataService";
 
 // ─── PALETA DE COLORES ──────────────────────────────────────────────
 const G = {
@@ -789,21 +789,30 @@ const LandingPage = ({ onLogin, onTienda }) => {
 };
 
 // ─── LOGIN ──────────────────────────────────────────────────────────
-const Login = ({ onSuccess, onBack }) => {
+const Login = ({ onSuccess, onBack, onRegister }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleLogin = async () => {
     setError("");
     if (!email || !password) { setError("Completa todos los campos"); return; }
     setLoading(true);
     const result = await signIn(email, password);
+    if (!result) { setLoading(false); setError("Correo o contraseña incorrectos"); return; }
+    const profile = await getUserProfile();
     setLoading(false);
-    if (result) { onSuccess(); return; }
-    setError("Correo o contraseña incorrectos");
+    onSuccess(profile);
+  };
+
+  const handleGoogle = async () => {
+    setGoogleLoading(true);
+    await signInWithGoogle();
+    // El redireccionamiento OAuth es manejado por onAuthStateChange en App
+    setGoogleLoading(false);
   };
 
   return (
@@ -845,9 +854,22 @@ const Login = ({ onSuccess, onBack }) => {
                 </div>
               </div>
               {error && <div style={{ background: G.dangerLight, border: `1px solid ${G.danger}20`, borderRadius: 10, padding: "10px 14px", fontSize: 13, color: G.danger, fontWeight: 500 }}>{error}</div>}
-              <Button variant="primary" size="lg" onClick={handleLogin} disabled={loading} fullWidth>
+              <Button variant="primary" size="lg" onClick={handleLogin} disabled={loading || googleLoading} fullWidth>
                 {loading ? "Iniciando sesión…" : "Iniciar Sesión"}
               </Button>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "4px 0" }}>
+                <div style={{ flex: 1, height: 1, background: G.grayMid + "60" }} />
+                <span style={{ fontSize: 12, color: G.gray, fontWeight: 500 }}>o continúa con</span>
+                <div style={{ flex: 1, height: 1, background: G.grayMid + "60" }} />
+              </div>
+              <button onClick={handleGoogle} disabled={loading || googleLoading} style={{ width: "100%", padding: "11px 16px", borderRadius: 10, border: `1.5px solid ${G.grayMid}`, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, fontSize: 13.5, fontWeight: 600, color: G.dark, fontFamily: font, transition: "border-color 0.2s" }}>
+                <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3C33.6 33.1 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34.1 6.5 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c11 0 19.6-7.9 19.6-20 0-1.3-.1-2.7-.4-4z" /><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.1 19 12 24 12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34.1 6.5 29.3 4 24 4 16.3 4 9.6 8.3 6.3 14.7z" /><path fill="#4CAF50" d="M24 44c5.2 0 9.9-1.9 13.5-5l-6.2-5.2C29.4 35.5 26.8 36 24 36c-5.2 0-9.6-2.9-11.3-7.2L6 33.7C9.3 39.5 16.2 44 24 44z" /><path fill="#1976D2" d="M43.6 20H24v8h11.3c-.8 2.2-2.3 4-4.3 5.2l6.2 5.2C40.8 35.5 44 30.2 44 24c0-1.3-.1-2.7-.4-4z" /></svg>
+                {googleLoading ? "Redirigiendo…" : "Continuar con Google"}
+              </button>
+            </div>
+            <div style={{ marginTop: 20, textAlign: "center" }}>
+              <span style={{ fontSize: 13, color: G.gray }}>¿No tienes cuenta? </span>
+              <button onClick={onRegister} style={{ background: "none", border: "none", color: G.primary, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: font }}>Crear cuenta</button>
             </div>
           </div>
         </div>
@@ -1253,7 +1275,7 @@ const ProyectosView = ({ data, setData, toast }) => {
 };
 
 // ─── EVENTOS ────────────────────────────────────────────────────────
-const EventosView = ({ data, setData, toast }) => {
+const EventosView = ({ data, setData, toast, readOnly = false }) => {
   const [modal, setModal] = useState(false);
   const [editando, setEditando] = useState(null);
   const blank = { nombre: "", fecha: today(), hora: "19:00", lugar: "", capacidad: 100, inscritos: 0, tipo: "Conferencia", descripcion: "", estado: "planificado" };
@@ -1274,7 +1296,7 @@ const EventosView = ({ data, setData, toast }) => {
 
   return (
     <div className="fadein">
-      <PageHeader title="Eventos" subtitle="Calendario de actividades y celebraciones" actions={<Button variant="primary" size="md" icon={Plus} onClick={() => { setEditando({ ...blank, id: uid() }); setModal(true); }}>Nuevo Evento</Button>} />
+      <PageHeader title="Eventos" subtitle="Calendario de actividades y celebraciones" actions={!readOnly && <Button variant="primary" size="md" icon={Plus} onClick={() => { setEditando({ ...blank, id: uid() }); setModal(true); }}>Nuevo Evento</Button>} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20 }}>
         {data.eventos.sort((a, b) => a.fecha.localeCompare(b.fecha)).map(e => (
           <Card key={e.id} hover>
@@ -1304,14 +1326,16 @@ const EventosView = ({ data, setData, toast }) => {
                 </div>
               </div>
             )}
-            <div style={{ display: "flex", gap: 8 }}>
-              <Button variant="outline" size="sm" icon={Edit} onClick={() => { setEditando({ ...e }); setModal(true); }} fullWidth>Editar</Button>
-              <Button variant="ghost" size="sm" icon={Trash2} onClick={() => eliminar(e.id)} style={{ color: G.danger }}>Eliminar</Button>
-            </div>
+            {!readOnly && (
+              <div style={{ display: "flex", gap: 8 }}>
+                <Button variant="outline" size="sm" icon={Edit} onClick={() => { setEditando({ ...e }); setModal(true); }} fullWidth>Editar</Button>
+                <Button variant="ghost" size="sm" icon={Trash2} onClick={() => eliminar(e.id)} style={{ color: G.danger }}>Eliminar</Button>
+              </div>
+            )}
           </Card>
         ))}
       </div>
-      {modal && editando && (
+      {!readOnly && modal && editando && (
         <Modal title={data.eventos.find(e => e.id === editando.id) ? "Editar Evento" : "Nuevo Evento"} onClose={() => { setModal(false); setEditando(null); }} width={600}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <div style={{ gridColumn: "1/-1" }}><Input label="Nombre" value={editando.nombre} onChange={e => setEditando({ ...editando, nombre: e.target.value })} required /></div>
@@ -1598,7 +1622,7 @@ const TiendaView = ({ data, setData, toast }) => {
 };
 
 // ─── BLOG ───────────────────────────────────────────────────────────
-const BlogView = ({ data, setData, toast }) => {
+const BlogView = ({ data, setData, toast, readOnly = false }) => {
   const [modal, setModal] = useState(false);
   const [editando, setEditando] = useState(null);
   const blank = { titulo: "", autor: "Admin LADP", fecha: today(), categoria: "Enseñanza", imagen: "📝", extracto: "", visitas: 0, comentarios: 0, estado: "borrador" };
@@ -1614,7 +1638,7 @@ const BlogView = ({ data, setData, toast }) => {
 
   return (
     <div className="fadein">
-      <PageHeader title="Blog" subtitle="Gestión de publicaciones y artículos" actions={<Button variant="primary" size="md" icon={Plus} onClick={() => { setEditando({ ...blank, id: uid() }); setModal(true); }}>Nueva Publicación</Button>} />
+      <PageHeader title="Blog" subtitle={readOnly ? "Publicaciones de la iglesia" : "Gestión de publicaciones y artículos"} actions={!readOnly && <Button variant="primary" size="md" icon={Plus} onClick={() => { setEditando({ ...blank, id: uid() }); setModal(true); }}>Nueva Publicación</Button>} />
       <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
         <StatCard label="Publicaciones" value={data.publicaciones.length} icon={FileText} color={G.primary} />
         <StatCard label="Total Visitas" value={fmt(data.publicaciones.reduce((a, p) => a + p.visitas, 0))} icon={Activity} color={G.success} />
@@ -1633,11 +1657,11 @@ const BlogView = ({ data, setData, toast }) => {
             <div style={{ display: "flex", gap: 10, fontSize: 11.5, color: G.gray, paddingTop: 10, borderTop: `1px solid ${G.grayMid}20`, marginBottom: 12 }}>
               <span style={{ fontWeight: 600 }}>{pub.autor}</span><span>·</span><span>{fmt(pub.visitas)} vistas</span><span>·</span><span>{pub.comentarios} comentarios</span>
             </div>
-            <Button variant="outline" size="sm" icon={Edit} onClick={() => { setEditando({ ...pub }); setModal(true); }} fullWidth>Editar</Button>
+            {!readOnly && <Button variant="outline" size="sm" icon={Edit} onClick={() => { setEditando({ ...pub }); setModal(true); }} fullWidth>Editar</Button>}
           </Card>
         ))}
       </div>
-      {modal && editando && (
+      {!readOnly && modal && editando && (
         <Modal title={data.publicaciones.find(p => p.id === editando.id) ? "Editar Publicación" : "Nueva Publicación"} onClose={() => { setModal(false); setEditando(null); }} width={640}>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <Input label="Título" value={editando.titulo} onChange={e => setEditando({ ...editando, titulo: e.target.value })} required />
@@ -1724,11 +1748,178 @@ const ConfiguracionView = ({ config, setConfig, toast }) => {
   );
 };
 
+// ─── REGISTER ───────────────────────────────────────────────────────
+const Register = ({ onSuccess, onBack }) => {
+  const [nombre, setNombre] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [showPass, setShowPass] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  const handleRegister = async () => {
+    setError("");
+    if (!nombre || !email || !password || !confirm) { setError("Completa todos los campos"); return; }
+    if (password !== confirm) { setError("Las contraseñas no coinciden"); return; }
+    if (password.length < 6) { setError("La contraseña debe tener al menos 6 caracteres"); return; }
+    setLoading(true);
+    const result = await signUp(email, password, nombre);
+    setLoading(false);
+    if (result.error) { setError(result.error); return; }
+    if (result.needsConfirmation) { setSuccess(true); } else { onSuccess(); }
+  };
+
+  return (
+    <div className="login-split" style={{ minHeight: "100vh", display: "flex", fontFamily: font }}>
+      <GlobalStyles />
+      <div className="login-left" style={{ flex: "0 0 44%", background: `linear-gradient(150deg, ${G.primaryDark}, ${G.primary} 60%, ${G.primaryLight})`, display: "flex", alignItems: "center", justifyContent: "center", padding: 48, position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
+        <div style={{ position: "relative", color: "#fff", textAlign: "center", maxWidth: 360 }} className="fadeup">
+          <div style={{ width: 72, height: 72, borderRadius: 18, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", fontFamily: fontTitle, fontWeight: 900, fontSize: 40 }}>L</div>
+          <h1 style={{ margin: "0 0 14px", fontSize: 28, fontWeight: 700, fontFamily: fontTitle }}>Únete a la comunidad</h1>
+          <p style={{ fontSize: 14, opacity: 0.85, lineHeight: 1.7 }}>Crea tu cuenta para acceder a tu perfil, eventos y publicaciones de la iglesia.</p>
+        </div>
+      </div>
+      <div className="login-right" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 40, background: G.bg }}>
+        <div style={{ width: "100%", maxWidth: 400 }} className="fadeup">
+          <button onClick={onBack} style={{ background: "none", border: "none", color: G.gray, fontSize: 13, fontWeight: 600, cursor: "pointer", marginBottom: 36, display: "flex", alignItems: "center", gap: 6, fontFamily: font }}>
+            <ChevronLeft size={16} /> Volver al inicio de sesión
+          </button>
+          <div style={{ background: "#fff", padding: 36, borderRadius: 18, border: `1px solid ${G.grayMid}40`, boxShadow: `0 8px 32px ${G.primary}08` }}>
+            {success ? (
+              <div style={{ textAlign: "center", padding: "24px 0" }}>
+                <div style={{ width: 56, height: 56, borderRadius: "50%", background: G.successLight, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                  <Check size={28} color={G.success} />
+                </div>
+                <h2 style={{ margin: "0 0 10px", fontSize: 22, fontWeight: 800, color: G.dark, fontFamily: fontTitle }}>¡Cuenta creada!</h2>
+                <p style={{ margin: "0 0 24px", color: G.gray, fontSize: 13.5, lineHeight: 1.6 }}>Revisa tu correo electrónico y confirma tu cuenta para poder iniciar sesión.</p>
+                <Button variant="primary" size="md" onClick={onBack} fullWidth>Ir a Iniciar Sesión</Button>
+              </div>
+            ) : (
+              <>
+                <h2 style={{ margin: "0 0 6px", fontSize: 26, fontWeight: 800, color: G.dark, fontFamily: fontTitle }}>Crear Cuenta</h2>
+                <p style={{ margin: "0 0 28px", color: G.gray, fontSize: 13.5 }}>Completa el formulario para registrarte</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  <Input label="Nombre completo" value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Tu nombre" icon={UserPlus} required />
+                  <Input label="Correo electrónico" value={email} onChange={e => setEmail(e.target.value)} placeholder="tu@email.com" type="email" icon={Mail} required />
+                  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                    <label style={{ fontSize: 12.5, color: G.dark, fontWeight: 600, fontFamily: font }}>Contraseña <span style={{ color: G.danger }}>*</span></label>
+                    <div style={{ position: "relative" }}>
+                      <Lock size={14} color={G.gray} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+                      <input type={showPass ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" style={{ width: "100%", padding: "10px 40px 10px 36px", borderRadius: 10, border: `1.5px solid ${G.grayMid}`, fontSize: 13.5, outline: "none", fontFamily: font, boxSizing: "border-box" }} />
+                      <button onClick={() => setShowPass(!showPass)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+                        {showPass ? <EyeOff size={16} color={G.gray} /> : <Eye size={16} color={G.gray} />}
+                      </button>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                    <label style={{ fontSize: 12.5, color: G.dark, fontWeight: 600, fontFamily: font }}>Confirmar contraseña <span style={{ color: G.danger }}>*</span></label>
+                    <div style={{ position: "relative" }}>
+                      <Lock size={14} color={G.gray} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+                      <input type={showPass ? "text" : "password"} value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="Repite la contraseña" onKeyDown={e => e.key === "Enter" && handleRegister()} style={{ width: "100%", padding: "10px 36px", borderRadius: 10, border: `1.5px solid ${G.grayMid}`, fontSize: 13.5, outline: "none", fontFamily: font, boxSizing: "border-box" }} />
+                    </div>
+                  </div>
+                  {error && <div style={{ background: G.dangerLight, border: `1px solid ${G.danger}20`, borderRadius: 10, padding: "10px 14px", fontSize: 13, color: G.danger, fontWeight: 500 }}>{error}</div>}
+                  <Button variant="primary" size="lg" onClick={handleRegister} disabled={loading} fullWidth>
+                    {loading ? "Creando cuenta…" : "Crear Cuenta"}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── PORTAL USUARIO (vista restringida) ─────────────────────────────
+const PortalUsuario = ({ userProfile, data }) => {
+  const miembro = data.miembros?.find(m => m.email?.toLowerCase() === userProfile?.email?.toLowerCase());
+  const proximosEventos = data.eventos
+    ?.filter(e => e.fecha >= today())
+    .sort((a, b) => a.fecha.localeCompare(b.fecha))
+    .slice(0, 3);
+
+  return (
+    <div className="fadein">
+      <PageHeader
+        title={`Bienvenido, ${userProfile?.nombre?.split(" ")[0] || "Usuario"}`}
+        subtitle="Tu espacio personal en la plataforma"
+      />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20, marginBottom: 28 }}>
+        {/* Perfil */}
+        <Card hover={false}>
+          <div style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 20 }}>
+            <Avatar initials={(userProfile?.nombre || "U").slice(0, 2).toUpperCase()} size={56} color={G.primary} />
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 18, color: G.dark, fontFamily: fontTitle }}>{userProfile?.nombre}</div>
+              <div style={{ fontSize: 12.5, color: G.gray, marginTop: 2 }}>{userProfile?.email}</div>
+              <Badge variant="default" style={{ marginTop: 6 }}>{miembro?.rol || "Miembro"}</Badge>
+            </div>
+          </div>
+          {miembro ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {miembro.telefono && <div style={{ display: "flex", gap: 8, fontSize: 13, color: G.gray, alignItems: "center" }}><Phone size={13} />{miembro.telefono}</div>}
+              {miembro.desde && <div style={{ display: "flex", gap: 8, fontSize: 13, color: G.gray, alignItems: "center" }}><Calendar size={13} />Miembro desde {miembro.desde}</div>}
+              {miembro.celula && <div style={{ display: "flex", gap: 8, fontSize: 13, color: G.gray, alignItems: "center" }}><Home size={13} />Célula: {miembro.celula}</div>}
+              <div style={{ marginTop: 4 }}>
+                <Badge variant={miembro.estado === "Activo" ? "success" : "warning"}>{miembro.estado}</Badge>
+                {miembro.bautizado && <Badge variant="default" style={{ marginLeft: 6 }}>Bautizado</Badge>}
+              </div>
+            </div>
+          ) : (
+            <div style={{ textAlign: "center", padding: "20px 0", color: G.gray, fontSize: 13, lineHeight: 1.6 }}>
+              Tu perfil aún no está vinculado a un registro de miembro.<br />
+              Contacta al administrador para vincularlo.
+            </div>
+          )}
+        </Card>
+
+        {/* Próximos eventos */}
+        <Card hover={false}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: G.dark, marginBottom: 16, fontFamily: fontTitle }}>Próximos Eventos</div>
+          {proximosEventos?.length > 0 ? proximosEventos.map(e => (
+            <div key={e.id} style={{ display: "flex", gap: 14, marginBottom: 14, paddingBottom: 14, borderBottom: `1px solid ${G.grayMid}20` }}>
+              <div style={{ width: 44, height: 44, borderRadius: 10, background: `linear-gradient(135deg, ${G.primary}, ${G.primaryLight})`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", flexShrink: 0 }}>
+                <div style={{ fontSize: 16, fontWeight: 800, lineHeight: 1 }}>{new Date(e.fecha + "T12:00").getDate()}</div>
+                <div style={{ fontSize: 8, fontWeight: 700, textTransform: "uppercase" }}>{monthName(new Date(e.fecha + "T12:00").getMonth())}</div>
+              </div>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 14, color: G.dark }}>{e.nombre}</div>
+                <div style={{ fontSize: 12, color: G.gray }}>{e.hora} · {e.lugar}</div>
+              </div>
+            </div>
+          )) : (
+            <div style={{ color: G.gray, fontSize: 13, textAlign: "center", padding: 24 }}>No hay eventos próximos</div>
+          )}
+        </Card>
+      </div>
+
+      {/* Publicaciones recientes */}
+      <div style={{ fontWeight: 700, fontSize: 16, color: G.dark, marginBottom: 16, fontFamily: fontTitle }}>Publicaciones Recientes</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
+        {data.publicaciones?.filter(p => p.estado === "publicado").slice(0, 3).map(pub => (
+          <Card key={pub.id} hover>
+            <div style={{ fontSize: 36, marginBottom: 10 }}>{pub.imagen}</div>
+            <Badge variant="default">{pub.categoria}</Badge>
+            <h3 style={{ margin: "8px 0 6px", fontSize: 14.5, fontWeight: 700, color: G.dark, fontFamily: fontTitle }}>{pub.titulo}</h3>
+            <p style={{ margin: 0, fontSize: 12.5, color: G.gray, lineHeight: 1.5 }}>{pub.extracto?.slice(0, 90)}…</p>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 // ═══════════════════════════════════════════════════════════════════
 // ─── DASHBOARD PRINCIPAL ────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════
-const Dashboard = ({ onLogout }) => {
-  const [seccion, setSeccion] = useState("dashboard");
+const Dashboard = ({ onLogout, userProfile }) => {
+  const isAdmin = userProfile?.rol === "admin";
+  const [seccion, setSeccion] = useState(isAdmin ? "dashboard" : "mi-perfil");
   const [collapsed, setCollapsed] = useState(false);
   const [toastMsg, setToastMsg] = useState(null);
   const [config, setConfig] = useState(CHURCH_DEFAULT);
@@ -1765,7 +1956,7 @@ const Dashboard = ({ onLogout }) => {
 
   const showToast = useCallback((msg, type = "success") => { setToastMsg({ msg, type }); }, []);
 
-  const menuItems = [
+  const menuItems = isAdmin ? [
     { id: "dashboard", label: "Dashboard", icon: BarChart2 },
     { id: "miembros", label: "Miembros", icon: Users },
     { id: "finanzas", label: "Finanzas", icon: DollarSign },
@@ -1777,19 +1968,24 @@ const Dashboard = ({ onLogout }) => {
     { id: "tienda", label: "Tienda", icon: ShoppingCart },
     { id: "blog", label: "Blog", icon: FileText },
     { id: "configuracion", label: "Configuración", icon: Settings },
+  ] : [
+    { id: "mi-perfil", label: "Mi Perfil", icon: UserCheck },
+    { id: "eventos", label: "Eventos", icon: Calendar },
+    { id: "blog", label: "Blog", icon: FileText },
   ];
 
   const views = {
+    "mi-perfil": <PortalUsuario userProfile={userProfile} data={data} />,
     dashboard: <DashboardView data={data} />,
     miembros: <MiembrosView data={data} setData={setData} toast={showToast} />,
     finanzas: <FinanzasView data={data} setData={setData} toast={showToast} />,
     proyectos: <ProyectosView data={data} setData={setData} toast={showToast} />,
-    eventos: <EventosView data={data} setData={setData} toast={showToast} />,
+    eventos: <EventosView data={data} setData={setData} toast={showToast} readOnly={!isAdmin} />,
     asistencia: <AsistenciaView data={data} setData={setData} toast={showToast} />,
     celulas: <CelulasView data={data} setData={setData} toast={showToast} />,
     ministerios: <MinisteriosView data={data} setData={setData} toast={showToast} />,
     tienda: <TiendaView data={data} setData={setData} toast={showToast} />,
-    blog: <BlogView data={data} setData={setData} toast={showToast} />,
+    blog: <BlogView data={data} setData={setData} toast={showToast} readOnly={!isAdmin} />,
     configuracion: <ConfiguracionView config={config} setConfig={setConfig} toast={showToast} />,
   };
 
@@ -1836,10 +2032,10 @@ const Dashboard = ({ onLogout }) => {
               <div style={{ position: "absolute", top: 7, right: 7, width: 6, height: 6, borderRadius: "50%", background: G.danger }} />
             </button>
             <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 12px", background: G.grayLight, borderRadius: 10 }}>
-              <Avatar initials="AD" size={28} color={G.primary} />
+              <Avatar initials={(userProfile?.nombre || "U").slice(0, 2).toUpperCase()} size={28} color={G.primary} />
               <div>
-                <div style={{ fontSize: 12.5, fontWeight: 700, color: G.dark, lineHeight: 1.2 }}>Administrador</div>
-                <div style={{ fontSize: 10.5, color: G.gray }}>admin@ladp.pe</div>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: G.dark, lineHeight: 1.2 }}>{userProfile?.nombre || "Usuario"}</div>
+                <div style={{ fontSize: 10.5, color: G.gray }}>{isAdmin ? "Administrador" : "Miembro"}</div>
               </div>
             </div>
           </div>
@@ -2190,11 +2386,48 @@ const TiendaPage = ({ onBack }) => {
 // ─── APP ROOT ────────────────────────────────────────────────────────
 export default function App() {
   const [page, setPage] = useState("landing");
+  const [userProfile, setUserProfile] = useState(null);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+
+    // Restaurar sesión existente al cargar la app
+    getSession().then(session => {
+      if (session) {
+        getUserProfile().then(profile => {
+          setUserProfile(profile);
+          setPage("dashboard");
+        });
+      }
+    });
+
+    // Escuchar cambios de auth (login con Google OAuth redirect)
+    const { data: { subscription } } = onAuthStateChange(async (event, session) => {
+      if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session) {
+        const profile = await getUserProfile();
+        setUserProfile(profile);
+        setPage("dashboard");
+      } else if (event === "SIGNED_OUT") {
+        setUserProfile(null);
+        setPage("landing");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleLogout = async () => {
+    await signOut();
+    setUserProfile(null);
+    setPage("landing");
+  };
+
   return (
     <div>
       {page === "landing" && <LandingPage onLogin={() => setPage("login")} onTienda={() => setPage("tienda")} />}
-      {page === "login" && <Login onSuccess={() => setPage("dashboard")} onBack={() => setPage("landing")} />}
-      {page === "dashboard" && <Dashboard onLogout={() => setPage("landing")} />}
+      {page === "login" && <Login onSuccess={(profile) => { setUserProfile(profile); setPage("dashboard"); }} onBack={() => setPage("landing")} onRegister={() => setPage("register")} />}
+      {page === "register" && <Register onSuccess={() => setPage("login")} onBack={() => setPage("login")} />}
+      {page === "dashboard" && <Dashboard onLogout={handleLogout} userProfile={userProfile} />}
       {page === "tienda" && <TiendaPage onBack={() => setPage("landing")} />}
     </div>
   );

@@ -207,3 +207,30 @@ CREATE POLICY "Public read" ON publicaciones FOR SELECT USING (true);
 CREATE POLICY "Auth insert" ON publicaciones FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 CREATE POLICY "Auth update" ON publicaciones FOR UPDATE USING (auth.role() = 'authenticated');
 CREATE POLICY "Auth delete" ON publicaciones FOR DELETE USING (auth.role() = 'authenticated');
+
+-- ─── USER PROFILES ──────────────────────────────────────────────────
+-- Tabla para perfiles de usuario con roles (admin / usuario)
+-- EJECUTAR en Supabase SQL Editor después del schema principal
+
+CREATE TABLE IF NOT EXISTS user_profiles (
+  id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+  nombre TEXT NOT NULL DEFAULT 'Usuario',
+  rol TEXT NOT NULL DEFAULT 'usuario' CHECK (rol IN ('admin', 'usuario')),
+  miembro_id UUID REFERENCES miembros(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
+
+-- Cada usuario solo ve/edita su propio perfil
+CREATE POLICY "Ver propio perfil" ON user_profiles FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "Crear propio perfil" ON user_profiles FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "Editar propio perfil" ON user_profiles FOR UPDATE USING (auth.uid() = id);
+
+-- NOTA: Para promover a un usuario a admin, ejecutar en Supabase SQL Editor:
+-- UPDATE user_profiles SET rol = 'admin' WHERE id = '<uuid-del-usuario>';
+
+-- NOTA: Para habilitar Google OAuth:
+-- 1. Ve a Supabase Dashboard → Authentication → Providers → Google → Enable
+-- 2. Añade las credenciales de tu Google OAuth App (Client ID + Secret)
+-- 3. En Google Console, agrega como redirect URI: https://<tu-proyecto>.supabase.co/auth/v1/callback
