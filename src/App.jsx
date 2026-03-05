@@ -695,7 +695,7 @@ const Login = ({ onSuccess, onBack }) => {
         <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
         <div style={{ position: "relative", color: "#fff", textAlign: "center", maxWidth: 360 }} className="fadeup">
           <div style={{ width: 72, height: 72, borderRadius: 18, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", fontFamily: fontTitle, fontWeight: 900, fontSize: 40 }}>L</div>
-          <h1 style={{ margin: "0 0 14px", fontSize: 28, fontWeight: 700, fontFamily: fontTitle }}>Las Asambleas de Dios del Perú ICV</h1>
+          <h1 style={{ margin: "0 0 14px", fontSize: 28, fontWeight: 700, fontFamily: fontTitle }}>Las Asambleas de Dios del Perú - ICV</h1>
           <p style={{ fontSize: 14, opacity: 0.85, lineHeight: 1.7 }}>Plataforma de administración integral para la iglesia local</p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 36 }}>
             {["Gestión de miembros", "Control financiero", "Células y ministerios", "Reportes y métricas"].map((f, i) => (
