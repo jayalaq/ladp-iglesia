@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Heart, Users, Target, Calendar, BarChart2, Plus, Search, DollarSign, Award, Clock, Trash2, Menu, ArrowRight, Mail, Lock, Eye, EyeOff, Check, LogOut, Bell, Phone, MapPin, Play, Facebook, Youtube, Instagram, Download, Send, UserPlus, UserCheck, FileText, Activity, MessageCircle, AlertCircle, Edit, Settings, Globe, Palette, Save, ShoppingCart, BookOpen, CreditCard, Package, Grid, List, Share2, Bookmark, ChevronDown, ChevronRight, X, Filter, TrendingUp, PieChart, Home, Layers, Printer, MoreVertical, RefreshCw, ChevronLeft, Star, Upload, Copy, ExternalLink, Mic } from "lucide-react";
+import { isSupabaseConfigured } from "./supabase";
+import { loadAllData, insertRow, updateRow, deleteRow, signIn, signOut } from "./dataService";
 
 // ─── PALETA DE COLORES ──────────────────────────────────────────────
 const G = {
@@ -62,6 +64,75 @@ const GlobalStyles = () => (
     @media print {
       .no-print { display: none !important; }
     }
+    /* ═══ RESPONSIVE: TABLET (max 1024px) ═══ */
+    @media (max-width: 1024px) {
+      .nav-links { gap: 0 !important; }
+      .nav-links .nbtn { padding: 8px 10px !important; font-size: 12.5px !important; }
+      .nav-actions { gap: 6px !important; }
+      .nav-actions button { padding: 8px 14px !important; font-size: 12px !important; }
+      .landing-section { padding: 80px 24px !important; }
+      .grid-2col { grid-template-columns: 1fr !important; gap: 40px !important; }
+      .events-grid { grid-template-columns: 1fr !important; }
+      .footer-grid { grid-template-columns: 1fr 1fr !important; gap: 32px !important; }
+      .dashboard-sidebar { width: 68px !important; }
+      .dashboard-sidebar .sidebar-label { display: none; }
+      .sidebar-item { justify-content: center !important; }
+    }
+    /* ═══ RESPONSIVE: MOBILE (max 768px) ═══ */
+    @media (max-width: 768px) {
+      .nav-links { display: none !important; }
+      .nav-actions .donar-btn { display: none !important; }
+      .hamburger-btn { display: flex !important; }
+      .mobile-menu { display: flex !important; }
+      .landing-section { padding: 60px 16px !important; }
+      .section-title { font-size: 28px !important; letter-spacing: -1px !important; }
+      .section-subtitle { font-size: 14px !important; }
+      .hero-section { min-height: 90vh !important; padding: 100px 16px 60px !important; }
+      .hero-title { font-size: 36px !important; letter-spacing: -1px !important; }
+      .hero-subtitle { font-size: 15px !important; }
+      .hero-buttons { flex-direction: column !important; align-items: stretch !important; }
+      .hero-buttons button { justify-content: center !important; }
+      .visit-cards { flex-direction: column !important; }
+      .visit-features { grid-template-columns: repeat(2, 1fr) !important; gap: 12px !important; }
+      .sermon-grid { grid-template-columns: 1fr !important; }
+      .ministry-grid { grid-template-columns: repeat(2, 1fr) !important; }
+      .como-grid { grid-template-columns: 1fr 1fr !important; gap: 16px !important; }
+      .groups-grid { grid-template-columns: 1fr !important; gap: 32px !important; }
+      .tienda-cta { flex-direction: column !important; text-align: center !important; padding: 36px 24px !important; }
+      .tienda-cta-stats { justify-content: center !important; }
+      .testimonials-grid { grid-template-columns: 1fr !important; }
+      .donar-section h2 { font-size: 32px !important; }
+      .contacto-grid { grid-template-columns: 1fr !important; gap: 24px !important; }
+      .footer-grid { grid-template-columns: 1fr !important; gap: 28px !important; }
+      .footer-bottom { flex-direction: column !important; text-align: center !important; }
+      .login-split { flex-direction: column !important; }
+      .login-left { display: none !important; }
+      .login-right { padding: 24px 16px !important; }
+      .dashboard-layout { flex-direction: column !important; height: auto !important; min-height: 100vh !important; }
+      .dashboard-sidebar { width: 100% !important; flex-direction: row !important; border-right: none !important; border-bottom: 1px solid ${G.grayMid}40 !important; overflow-x: auto !important; overflow-y: hidden !important; }
+      .dashboard-sidebar nav { flex-direction: row !important; padding: 6px 8px !important; flex: 1 !important; }
+      .dashboard-sidebar .sidebar-bottom { flex-direction: row !important; border-top: none !important; border-left: 1px solid ${G.grayMid}40 !important; padding: 6px 8px !important; }
+      .sidebar-item { padding: 8px 10px !important; font-size: 0 !important; justify-content: center !important; min-width: 40px !important; }
+      .sidebar-item svg { margin: 0 !important; }
+      .dashboard-header { padding: 10px 16px !important; }
+      .dashboard-header .search-box { display: none !important; }
+      .dashboard-main { padding: 16px !important; }
+      .stat-grid { grid-template-columns: 1fr 1fr !important; gap: 12px !important; }
+      .admin-table { overflow-x: auto !important; }
+      .shop-product-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)) !important; }
+      .shop-header { flex-direction: column !important; gap: 16px !important; }
+    }
+    /* ═══ RESPONSIVE: SMALL MOBILE (max 480px) ═══ */
+    @media (max-width: 480px) {
+      .hero-title { font-size: 28px !important; }
+      .ministry-grid { grid-template-columns: 1fr !important; }
+      .como-grid { grid-template-columns: 1fr !important; }
+      .visit-features { grid-template-columns: 1fr !important; }
+      .stat-grid { grid-template-columns: 1fr !important; }
+      .shop-product-grid { grid-template-columns: 1fr !important; }
+    }
+    .hamburger-btn { display: none; align-items: center; justify-content: center; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; padding: 8px; cursor: pointer; color: #fff; }
+    .hamburger-btn:hover { background: rgba(255,255,255,0.2); }
   `}</style>
 );
 
@@ -358,6 +429,7 @@ const PageHeader = ({ title, subtitle, actions }) => (
 const LandingPage = ({ onLogin, onTienda }) => {
   const [scrolled, setScrolled] = useState(false);
   const [hoveredMin, setHoveredMin] = useState(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   useEffect(() => {
     const h = () => setScrolled(window.scrollY > 50);
     window.addEventListener("scroll", h);
@@ -409,26 +481,41 @@ const LandingPage = ({ onLogin, onTienda }) => {
         .tcard { transition: all 0.3s ease; border: 2px solid transparent; }
         .tcard:hover { border-color: ${G.accent}40; transform: translateY(-4px); }
       `}</style>
-      {/* ═══ NAV — Elevation style: dark, minimal ═══ */}
+      {/* ═══ NAV — Elevation style: dark, minimal + responsive ═══ */}
       <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 999, background: scrolled ? "rgba(15,25,35,0.96)" : "transparent", backdropFilter: scrolled ? "blur(20px)" : "none", transition: "all 0.45s cubic-bezier(.4,0,.2,1)", borderBottom: scrolled ? "1px solid rgba(255,255,255,0.08)" : "none" }}>
         <div style={{ maxWidth: 1300, margin: "0 auto", padding: "0 32px", display: "flex", alignItems: "center", justifyContent: "space-between", height: scrolled ? 64 : 80, transition: "height 0.35s" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }} onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
             <div style={{ width: 44, height: 44, borderRadius: 12, background: `linear-gradient(135deg, ${G.accent}, ${G.accentLight})`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, color: "#fff", fontSize: 22, fontFamily: fontTitle, boxShadow: `0 4px 16px ${G.accent}40` }}>L</div>
             <div><div style={{ fontSize: 18, fontWeight: 800, color: "#fff", fontFamily: fontTitle }}>LADP</div><div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 3, marginTop: -1 }}>Iglesia - ICV</div></div>
           </div>
-          <div style={{ display: "flex", gap: 4 }}>
+          <div className="nav-links" style={{ display: "flex", gap: 4 }}>
             {[{ l: "Visítanos", h: "visitanos" },{ l: "Sermones", h: "sermones" },{ l: "Ministerios", h: "ministerios" },{ l: "Cómo Funciona", h: "como-funciona" },{ l: "Eventos", h: "eventos" }].map(item => (
               <button key={item.l} onClick={() => scrollTo(item.h)} className="nbtn" style={{ background: "none", border: "none", fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.75)", cursor: "pointer", padding: "10px 18px", fontFamily: font, transition: "color 0.2s" }} onMouseEnter={e => e.currentTarget.style.color = "#fff"} onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.75)"}>{item.l}</button>
             ))}
-            <button onClick={onTienda} className="nbtn" style={{ background: "none", border: "none", fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.75)", cursor: "pointer", padding: "10px 18px", fontFamily: font, transition: "color 0.2s", display: "flex", alignItems: "center", gap: 5 }} onMouseEnter={e => e.currentTarget.style.color = "#fff"} onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.75)"}><ShoppingCart size={14} /> Tienda</button>          </div>
-          <div style={{ display: "flex", gap: 10 }}>
-            <button onClick={() => scrollTo("donar")} style={{ padding: "10px 22px", fontSize: 13.5, fontWeight: 700, background: G.accent, color: "#fff", border: "none", borderRadius: 10, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 7, transition: "all 0.2s", boxShadow: `0 4px 16px ${G.accent}30` }} onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"} onMouseLeave={e => e.currentTarget.style.transform = "none"}><Heart size={15} /> Donar</button>
+            <button onClick={onTienda} className="nbtn" style={{ background: "none", border: "none", fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.75)", cursor: "pointer", padding: "10px 18px", fontFamily: font, transition: "color 0.2s", display: "flex", alignItems: "center", gap: 5 }} onMouseEnter={e => e.currentTarget.style.color = "#fff"} onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.75)"}><ShoppingCart size={14} /> Tienda</button>
+          </div>
+          <div className="nav-actions" style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <button className="donar-btn" onClick={() => scrollTo("donar")} style={{ padding: "10px 22px", fontSize: 13.5, fontWeight: 700, background: G.accent, color: "#fff", border: "none", borderRadius: 10, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 7, transition: "all 0.2s", boxShadow: `0 4px 16px ${G.accent}30` }} onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"} onMouseLeave={e => e.currentTarget.style.transform = "none"}><Heart size={15} /> Donar</button>
             <button onClick={onLogin} style={{ padding: "10px 22px", fontSize: 13.5, fontWeight: 700, background: "rgba(255,255,255,0.1)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 10, cursor: "pointer", fontFamily: font, transition: "all 0.2s", backdropFilter: "blur(8px)" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.2)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}>Ingresar</button>
+            <button className="hamburger-btn" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>{mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}</button>
           </div>
         </div>
+        {/* ═══ MOBILE MENU OVERLAY ═══ */}
+        {mobileMenuOpen && (
+          <div className="fadein" style={{ background: "rgba(15,25,35,0.98)", backdropFilter: "blur(20px)", padding: "20px 24px 28px", borderTop: "1px solid rgba(255,255,255,0.08)", display: "flex", flexDirection: "column", gap: 6 }}>
+            {[{ l: "Visítanos", h: "visitanos" },{ l: "Sermones", h: "sermones" },{ l: "Ministerios", h: "ministerios" },{ l: "Cómo Funciona", h: "como-funciona" },{ l: "Eventos", h: "eventos" }].map(item => (
+              <button key={item.l} onClick={() => { scrollTo(item.h); setMobileMenuOpen(false); }} style={{ background: "rgba(255,255,255,0.04)", border: "none", fontSize: 15, fontWeight: 600, color: "rgba(255,255,255,0.85)", cursor: "pointer", padding: "14px 18px", fontFamily: font, textAlign: "left", borderRadius: 12, transition: "background 0.2s" }}>{item.l}</button>
+            ))}
+            <button onClick={() => { onTienda(); setMobileMenuOpen(false); }} style={{ background: "rgba(255,255,255,0.04)", border: "none", fontSize: 15, fontWeight: 600, color: "rgba(255,255,255,0.85)", cursor: "pointer", padding: "14px 18px", fontFamily: font, textAlign: "left", borderRadius: 12, display: "flex", alignItems: "center", gap: 8 }}><ShoppingCart size={16} /> Tienda</button>
+            <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+              <button onClick={() => { scrollTo("donar"); setMobileMenuOpen(false); }} style={{ flex: 1, padding: "12px", fontSize: 14, fontWeight: 700, background: G.accent, color: "#fff", border: "none", borderRadius: 10, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}><Heart size={15} /> Donar</button>
+              <button onClick={() => { onLogin(); setMobileMenuOpen(false); }} style={{ flex: 1, padding: "12px", fontSize: 14, fontWeight: 700, background: "rgba(255,255,255,0.1)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 10, cursor: "pointer", fontFamily: font }}>Ingresar</button>
+            </div>
+          </div>
+        )}
       </nav>
       {/* ═══ HERO — Hillsong/Vous dark cinematic fullscreen ═══ */}
-      <section style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden", background: `linear-gradient(160deg, ${G.primaryDark} 0%, #0a1628 30%, #111827 60%, ${G.primaryDark} 100%)` }}>
+      <section className="hero-section" style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden", background: `linear-gradient(160deg, ${G.primaryDark} 0%, #0a1628 30%, #111827 60%, ${G.primaryDark} 100%)` }}>
         <div className="hero-float" style={{ position: "absolute", top: "10%", right: "8%", width: 500, height: 500, borderRadius: "50%", background: `radial-gradient(circle, ${G.accent}15, transparent 70%)`, pointerEvents: "none" }} />
         <div className="hero-float" style={{ position: "absolute", bottom: "5%", left: "5%", width: 400, height: 400, borderRadius: "50%", background: `radial-gradient(circle, ${G.primaryLight}12, transparent 70%)`, pointerEvents: "none", animationDelay: "-2.5s" }} />
         <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)", backgroundSize: "60px 60px", pointerEvents: "none" }} />
@@ -437,9 +524,9 @@ const LandingPage = ({ onLogin, onTienda }) => {
             <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444", animation: "pulse 1.5s ease infinite", boxShadow: "0 0 8px #ef4444" }} />
             <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.8)", letterSpacing: 2, textTransform: "uppercase" }}>En Vivo · Domingos 9:00 AM & 6:00 PM</span>
           </div>
-          <h1 style={{ margin: "0 0 28px", fontSize: "clamp(48px, 7vw, 96px)", fontWeight: 800, lineHeight: 1.02, letterSpacing: -4, color: "#fff", fontFamily: fontTitle }}>Un lugar donde<br /><span className="gradient-animate" style={{ background: `linear-gradient(135deg, ${G.accent}, ${G.accentLight}, #fff, ${G.accent})`, backgroundSize: "200% 200%", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>todo cambia</span></h1>
-          <p style={{ margin: "0 auto 48px", fontSize: "clamp(16px, 2vw, 20px)", lineHeight: 1.7, color: "rgba(255,255,255,0.6)", maxWidth: 580 }}>Somos una iglesia llena del Espíritu Santo donde cualquier persona puede encontrar esperanza, comunidad y propósito.</p>
-          <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap", marginBottom: 64 }}>
+          <h1 className="hero-title" style={{ margin: "0 0 28px", fontSize: "clamp(48px, 7vw, 96px)", fontWeight: 800, lineHeight: 1.02, letterSpacing: -4, color: "#fff", fontFamily: fontTitle }}>Un lugar donde<br /><span className="gradient-animate" style={{ background: `linear-gradient(135deg, ${G.accent}, ${G.accentLight}, #fff, ${G.accent})`, backgroundSize: "200% 200%", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>todo cambia</span></h1>
+          <p className="hero-subtitle" style={{ margin: "0 auto 48px", fontSize: "clamp(16px, 2vw, 20px)", lineHeight: 1.7, color: "rgba(255,255,255,0.6)", maxWidth: 580 }}>Somos una iglesia llena del Espíritu Santo donde cualquier persona puede encontrar esperanza, comunidad y propósito.</p>
+          <div className="hero-buttons" style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap", marginBottom: 64 }}>
             <button onClick={() => scrollTo("visitanos")} style={{ padding: "16px 40px", fontSize: 16, fontWeight: 800, background: G.accent, color: "#fff", border: "none", borderRadius: 14, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 10, transition: "all 0.3s", boxShadow: `0 8px 32px ${G.accent}40` }} onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-3px) scale(1.03)"; }} onMouseLeave={e => { e.currentTarget.style.transform = "none"; }}>Planifica tu Visita <ArrowRight size={18} /></button>
             <button onClick={() => scrollTo("sermones")} style={{ padding: "16px 40px", fontSize: 16, fontWeight: 700, background: "rgba(255,255,255,0.08)", color: "#fff", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 14, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 10, backdropFilter: "blur(10px)", transition: "all 0.3s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.14)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.08)"}><Play size={18} /> Ver Último Sermón</button>
           </div>
@@ -458,8 +545,8 @@ const LandingPage = ({ onLogin, onTienda }) => {
         </div>
       </section>
       {/* ═══ VISIT — Bethel/Life.Church Plan a Visit ═══ */}
-      <section id="visitanos" style={{ padding: "120px 32px", background: "#fff" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center" }}>
+      <section id="visitanos" className="landing-section" style={{ padding: "120px 32px", background: "#fff" }}>
+        <div className="grid-2col" style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center" }}>
           <div>
             <STag>Visítanos</STag>
             <h2 style={{ margin: "0 0 20px", fontSize: "clamp(36px, 4vw, 56px)", fontWeight: 800, color: G.dark, lineHeight: 1.08, letterSpacing: -2, fontFamily: fontTitle }}>Tu primera visita será <span style={{ color: G.accent }}>inolvidable</span></h2>
@@ -472,7 +559,7 @@ const LandingPage = ({ onLogin, onTienda }) => {
             ))}
             <button onClick={() => scrollTo("contacto")} style={{ marginTop: 16, padding: "16px 36px", fontSize: 15, fontWeight: 800, background: `linear-gradient(135deg, ${G.primary}, ${G.primaryLight})`, color: "#fff", border: "none", borderRadius: 14, cursor: "pointer", fontFamily: font, display: "inline-flex", alignItems: "center", gap: 10, transition: "all 0.3s", boxShadow: `0 8px 24px ${G.primary}25` }} onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"} onMouseLeave={e => e.currentTarget.style.transform = "none"}>Planifica tu Visita <ArrowRight size={17} /></button>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div className="visit-features" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             {[{ emoji: "⛪", title: "Ambiente\nAcogedor", bg: `linear-gradient(135deg, ${G.primary}, ${G.primaryLight})`, col: "#fff" },{ emoji: "🎶", title: "Alabanza\nQue Inspira", bg: `linear-gradient(135deg, ${G.accent}, ${G.accentLight})`, col: "#fff" },{ emoji: "📖", title: "Mensaje\nRelevante", bg: G.grayLight, col: G.dark },{ emoji: "👶", title: "Ministerio\nInfantil", bg: G.grayLight, col: G.dark }].map((c, i) => (
               <div key={i} className="lcard" style={{ background: c.bg, borderRadius: 20, padding: "40px 28px", textAlign: "center", cursor: "default" }}><div style={{ fontSize: 48, marginBottom: 14 }}>{c.emoji}</div><div style={{ fontSize: 16, fontWeight: 800, color: c.col, fontFamily: fontTitle, lineHeight: 1.3, whiteSpace: "pre-line" }}>{c.title}</div></div>
             ))}
@@ -480,7 +567,7 @@ const LandingPage = ({ onLogin, onTienda }) => {
         </div>
       </section>
       {/* ═══ SERMONS — Elevation style: content first ═══ */}
-      <section id="sermones" style={{ padding: "120px 32px", background: G.dark, position: "relative", overflow: "hidden" }}>
+      <section id="sermones" className="landing-section" style={{ padding: "120px 32px", background: G.dark, position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", inset: 0, backgroundImage: `radial-gradient(rgba(200,145,58,0.04) 1px, transparent 1px)`, backgroundSize: "40px 40px", pointerEvents: "none" }} />
         <div style={{ maxWidth: 1200, margin: "0 auto", position: "relative" }}>
           <div style={{ textAlign: "center", marginBottom: 64 }}>
@@ -488,7 +575,7 @@ const LandingPage = ({ onLogin, onTienda }) => {
             <h2 style={{ margin: "0 0 16px", fontSize: "clamp(36px, 4.5vw, 56px)", fontWeight: 800, color: "#fff", letterSpacing: -2, fontFamily: fontTitle }}>La Palabra que transforma</h2>
             <p style={{ margin: "0 auto", fontSize: 17, color: "rgba(255,255,255,0.5)", maxWidth: 500 }}>Mira nuestros mensajes más recientes</p>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 24 }}>
+          <div className="sermon-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 24 }}>
             {sermons.map((s, i) => (
               <div key={i} className="scard" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 20, cursor: "pointer", overflow: "hidden" }}>
                 <div style={{ background: `linear-gradient(135deg, ${G.primaryDark}, ${G.primary}80)`, padding: "48px 32px 40px", position: "relative" }}>
@@ -509,10 +596,10 @@ const LandingPage = ({ onLogin, onTienda }) => {
         </div>
       </section>
       {/* ═══ MINISTRIES — Life.Church/Saddleback pathways ═══ */}
-      <section id="ministerios" style={{ padding: "120px 32px", background: "#fff" }}>
+      <section id="ministerios" className="landing-section" style={{ padding: "120px 32px", background: "#fff" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 64 }}><STag>Ministerios</STag><h2 style={{ margin: "0 0 16px", fontSize: "clamp(36px, 4vw, 54px)", fontWeight: 800, color: G.dark, letterSpacing: -2, fontFamily: fontTitle }}>Hay un lugar para <span style={{ color: G.accent }}>ti</span></h2><p style={{ margin: "0 auto", fontSize: 17, color: G.gray, maxWidth: 520 }}>Encuentra tu comunidad, descubre tus dones y sirve con propósito</p></div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(175px, 1fr))", gap: 18 }}>
+          <div className="ministry-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(175px, 1fr))", gap: 18 }}>
             {minis.map((m, i) => (
               <div key={i} className="lcard" style={{ background: "#fff", border: `1px solid ${G.grayMid}40`, borderRadius: 20, padding: "36px 24px", textAlign: "center", cursor: "pointer", position: "relative", overflow: "hidden" }} onMouseEnter={() => setHoveredMin(i)} onMouseLeave={() => setHoveredMin(null)}>
                 <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 4, background: hoveredMin === i ? m.color : "transparent", transition: "all 0.3s", borderRadius: "20px 20px 0 0" }} />
@@ -525,8 +612,8 @@ const LandingPage = ({ onLogin, onTienda }) => {
         </div>
       </section>
       {/* ═══ GROUPS — Transformation/Elevation community ═══ */}
-      <section style={{ padding: "100px 32px", background: G.grayLight }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center" }}>
+      <section className="landing-section" style={{ padding: "100px 32px", background: G.grayLight }}>
+        <div className="groups-grid" style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center" }}>
           <div style={{ position: "relative" }}>
             <div style={{ background: `linear-gradient(135deg, ${G.primaryDark}, ${G.primary})`, borderRadius: 24, padding: "64px 48px", textAlign: "center", color: "#fff", position: "relative", overflow: "hidden" }}>
               <div style={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", background: `radial-gradient(circle, ${G.accent}20, transparent)` }} />
@@ -550,14 +637,14 @@ const LandingPage = ({ onLogin, onTienda }) => {
         </div>
       </section>
       {/* ═══ CÓMO FUNCIONA ═══ */}
-      <section id="como-funciona" style={{ padding: "120px 32px", background: "#fff" }}>
+      <section id="como-funciona" className="landing-section" style={{ padding: "120px 32px", background: "#fff" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 72 }}>
             <STag>Cómo Funciona</STag>
             <h2 style={{ margin: "0 0 16px", fontSize: "clamp(36px, 4vw, 54px)", fontWeight: 800, color: G.dark, letterSpacing: -2, fontFamily: fontTitle }}>Tu camino para <span style={{ color: G.accent }}>conectarte</span></h2>
             <p style={{ margin: "0 auto", fontSize: 17, color: G.gray, maxWidth: 520, lineHeight: 1.7 }}>Cuatro pasos sencillos para ser parte de nuestra familia y crecer en la fe</p>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 32, position: "relative" }}>
+          <div className="como-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 32, position: "relative" }}>
             {/* Connector line */}
             <div style={{ position: "absolute", top: 44, left: "12.5%", right: "12.5%", height: 2, background: `linear-gradient(90deg, ${G.accent}40, ${G.accent}, ${G.accent}40)`, zIndex: 0, display: "none" }} />
             {[
@@ -582,10 +669,10 @@ const LandingPage = ({ onLogin, onTienda }) => {
         </div>
       </section>
       {/* ═══ EVENTS ═══ */}
-      <section id="eventos" style={{ padding: "120px 32px", background: "#fff" }}>
+      <section id="eventos" className="landing-section" style={{ padding: "120px 32px", background: "#fff" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 64 }}><STag>Eventos</STag><h2 style={{ margin: "0 0 16px", fontSize: "clamp(36px, 4vw, 54px)", fontWeight: 800, color: G.dark, letterSpacing: -2, fontFamily: fontTitle }}>Lo que se viene</h2><p style={{ margin: "0 auto", fontSize: 17, color: G.gray, maxWidth: 480 }}>No te pierdas las actividades que Dios tiene preparadas</p></div>
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20 }}>
+          <div className="events-grid" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20 }}>
             {events.filter(e => e.featured).map((e, i) => (
               <div key={i} className="lcard" style={{ background: `linear-gradient(135deg, ${G.primaryDark}, ${G.primary})`, borderRadius: 24, padding: "56px 48px", color: "#fff", position: "relative", overflow: "hidden", cursor: "pointer", display: "flex", flexDirection: "column", justifyContent: "flex-end", minHeight: 380 }}>
                 <div style={{ position: "absolute", top: "10%", right: "8%", fontSize: 120, opacity: 0.12, pointerEvents: "none" }}>{e.emoji}</div>
@@ -607,14 +694,14 @@ const LandingPage = ({ onLogin, onTienda }) => {
         </div>
       </section>
       {/* ═══ TIENDA CTA ═══ */}
-      <section style={{ padding: "80px 32px", background: G.grayLight }}>
-        <div style={{ maxWidth: 1000, margin: "0 auto", background: `linear-gradient(135deg, ${G.primary}, ${G.primaryLight})`, borderRadius: 28, padding: "56px 48px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 40, flexWrap: "wrap", position: "relative", overflow: "hidden" }}>
+      <section className="landing-section" style={{ padding: "80px 32px", background: G.grayLight }}>
+        <div className="tienda-cta" style={{ maxWidth: 1000, margin: "0 auto", background: `linear-gradient(135deg, ${G.primary}, ${G.primaryLight})`, borderRadius: 28, padding: "56px 48px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 40, flexWrap: "wrap", position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", top: -60, right: -60, width: 240, height: 240, borderRadius: "50%", background: `radial-gradient(circle, ${G.accent}20, transparent)`, pointerEvents: "none" }} />
           <div style={{ flex: 1, minWidth: 280, position: "relative" }}>
             <h2 style={{ margin: "0 0 12px", fontSize: "clamp(28px, 3.5vw, 40px)", fontWeight: 800, color: "#fff", fontFamily: fontTitle, letterSpacing: -1 }}>Tienda Cristiana LADP - ICV</h2>
             <p style={{ margin: 0, fontSize: 16, color: "rgba(255,255,255,0.7)", lineHeight: 1.6 }}>Biblias, libros, devocionales, música y más. Envío a todo el Perú con pago seguro por Yape, Plin o tarjeta.</p>
           </div>
-          <div style={{ display: "flex", gap: 36, flexShrink: 0 }}>
+          <div className="tienda-cta-stats" style={{ display: "flex", gap: 36, flexShrink: 0 }}>
             {[{ n: "50+", l: "Productos" },{ n: "4.8★", l: "Valoración" }].map((s,i) => (<div key={i} style={{ textAlign: "center" }}><div style={{ fontSize: 28, fontWeight: 800, color: G.accent, fontFamily: fontTitle }}>{s.n}</div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600 }}>{s.l}</div></div>))}
           </div>
           <button onClick={onTienda} style={{ padding: "16px 36px", fontSize: 15, fontWeight: 800, background: G.accent, color: "#fff", border: "none", borderRadius: 14, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 10, transition: "all 0.3s", boxShadow: `0 6px 24px ${G.accent}40`, flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.transform = "translateY(-3px)"} onMouseLeave={e => e.currentTarget.style.transform = "none"}>
@@ -623,10 +710,10 @@ const LandingPage = ({ onLogin, onTienda }) => {
         </div>
       </section>
       {/* ═══ TESTIMONIALS ═══ */}
-      <section style={{ padding: "100px 32px", background: G.grayLight }}>
+      <section className="landing-section" style={{ padding: "100px 32px", background: G.grayLight }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 56 }}><STag>Testimonios</STag><h2 style={{ margin: "0 0 16px", fontSize: "clamp(32px, 3.5vw, 48px)", fontWeight: 800, color: G.dark, letterSpacing: -1.5, fontFamily: fontTitle }}>Historias que inspiran</h2></div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }}>
+          <div className="testimonials-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }}>
             {testimonials.map((t, i) => (
               <div key={i} className="tcard" style={{ background: "#fff", borderRadius: 20, padding: "36px 32px", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
                 <div style={{ display: "flex", gap: 4, marginBottom: 20 }}>{[1,2,3,4,5].map(s => <Star key={s} size={16} color={G.accent} fill={G.accent} />)}</div>
@@ -638,7 +725,7 @@ const LandingPage = ({ onLogin, onTienda }) => {
         </div>
       </section>
       {/* ═══ GIVING — Elevation/Hillsong bold CTA ═══ */}
-      <section id="donar" style={{ padding: "120px 32px", position: "relative", overflow: "hidden", background: `linear-gradient(150deg, ${G.primaryDark}, #0a1628 40%, ${G.primaryDark})` }}>
+      <section id="donar" className="landing-section donar-section" style={{ padding: "120px 32px", position: "relative", overflow: "hidden", background: `linear-gradient(150deg, ${G.primaryDark}, #0a1628 40%, ${G.primaryDark})` }}>
         <div style={{ position: "absolute", inset: 0, backgroundImage: `radial-gradient(rgba(200,145,58,0.06) 1px, transparent 1px)`, backgroundSize: "32px 32px" }} />
         <div className="hero-float" style={{ position: "absolute", top: "-10%", left: "10%", width: 400, height: 400, borderRadius: "50%", background: `radial-gradient(circle, ${G.accent}10, transparent 70%)`, pointerEvents: "none" }} />
         <div style={{ maxWidth: 760, margin: "0 auto", textAlign: "center", position: "relative", color: "#fff" }}>
@@ -654,10 +741,10 @@ const LandingPage = ({ onLogin, onTienda }) => {
         </div>
       </section>
       {/* ═══ CONTACT ═══ */}
-      <section id="contacto" style={{ padding: "100px 32px", background: "#fff" }}>
+      <section id="contacto" className="landing-section" style={{ padding: "100px 32px", background: "#fff" }}>
         <div style={{ maxWidth: 800, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 48 }}><STag>Contáctanos</STag><h2 style={{ margin: "0 0 14px", fontSize: "clamp(32px, 3.5vw, 48px)", fontWeight: 800, color: G.dark, letterSpacing: -1.5, fontFamily: fontTitle }}>¿Tienes preguntas?</h2><p style={{ margin: 0, fontSize: 17, color: G.gray }}>Nos encantaría saber de ti</p></div>
-          <div style={{ background: G.grayLight, borderRadius: 24, padding: "48px 44px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+          <div className="contacto-grid" style={{ background: G.grayLight, borderRadius: 24, padding: "48px 44px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
             <Input label="Nombre" placeholder="Tu nombre" />
             <Input label="Email" placeholder="tu@email.com" type="email" icon={Mail} />
             <Input label="Teléfono" placeholder="+51 999 123 456" icon={Phone} />
@@ -672,7 +759,7 @@ const LandingPage = ({ onLogin, onTienda }) => {
       {/* ═══ FOOTER ═══ */}
       <footer style={{ background: G.dark, color: "#fff", padding: "72px 32px 36px" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "2.5fr 1fr 1fr 1fr", gap: 48, marginBottom: 52 }}>
+          <div className="footer-grid" style={{ display: "grid", gridTemplateColumns: "2.5fr 1fr 1fr 1fr", gap: 48, marginBottom: 52 }}>
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
                 <div style={{ width: 42, height: 42, borderRadius: 12, background: `linear-gradient(135deg, ${G.accent}, ${G.accentLight})`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 20, fontFamily: fontTitle }}>L</div>
@@ -691,7 +778,7 @@ const LandingPage = ({ onLogin, onTienda }) => {
               </div>
             ))}
           </div>
-          <div style={{ paddingTop: 28, borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5, color: "#475569", flexWrap: "wrap", gap: 12 }}>
+          <div className="footer-bottom" style={{ paddingTop: 28, borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5, color: "#475569", flexWrap: "wrap", gap: 12 }}>
             <span>© {new Date().getFullYear()} Las Asambleas de Dios del Perú</span>
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>Hecho con <Heart size={12} color={G.accent} fill={G.accent} /> en Lima, Perú</span>
           </div>
@@ -709,21 +796,29 @@ const Login = ({ onSuccess, onBack }) => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setError("");
     if (!email || !password) { setError("Completa todos los campos"); return; }
     setLoading(true);
-    setTimeout(() => {
+    // Try Supabase auth first, fallback to hardcoded
+    if (isSupabaseConfigured()) {
+      const result = await signIn(email, password);
       setLoading(false);
-      if (email === "admin@ladp.pe" && password === "admin123") onSuccess();
-      else setError("Credenciales incorrectas. Usa: admin@ladp.pe / admin123");
-    }, 700);
+      if (result) { onSuccess(); return; }
+      setError("Credenciales incorrectas");
+    } else {
+      setTimeout(() => {
+        setLoading(false);
+        if (email === "admin@ladp.pe" && password === "admin123") onSuccess();
+        else setError("Credenciales incorrectas. Usa: admin@ladp.pe / admin123");
+      }, 700);
+    }
   };
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", fontFamily: font }}>
+    <div className="login-split" style={{ minHeight: "100vh", display: "flex", fontFamily: font }}>
       <GlobalStyles />
-      <div style={{ flex: "0 0 44%", background: `linear-gradient(150deg, ${G.primaryDark}, ${G.primary} 60%, ${G.primaryLight})`, display: "flex", alignItems: "center", justifyContent: "center", padding: 48, position: "relative", overflow: "hidden" }}>
+      <div className="login-left" style={{ flex: "0 0 44%", background: `linear-gradient(150deg, ${G.primaryDark}, ${G.primary} 60%, ${G.primaryLight})`, display: "flex", alignItems: "center", justifyContent: "center", padding: 48, position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
         <div style={{ position: "relative", color: "#fff", textAlign: "center", maxWidth: 360 }} className="fadeup">
           <div style={{ width: 72, height: 72, borderRadius: 18, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", fontFamily: fontTitle, fontWeight: 900, fontSize: 40 }}>L</div>
@@ -738,7 +833,7 @@ const Login = ({ onSuccess, onBack }) => {
           </div>
         </div>
       </div>
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 40, background: G.bg }}>
+      <div className="login-right" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 40, background: G.bg }}>
         <div style={{ width: "100%", maxWidth: 380 }} className="fadeup">
           <button onClick={onBack} style={{ background: "none", border: "none", color: G.gray, fontSize: 13, fontWeight: 600, cursor: "pointer", marginBottom: 36, display: "flex", alignItems: "center", gap: 6, fontFamily: font }}>
             <ChevronLeft size={16} /> Volver al inicio
@@ -798,7 +893,7 @@ const DashboardView = ({ data }) => {
   return (
     <div className="fadein">
       <PageHeader title="Dashboard" subtitle={`Resumen general — ${CHURCH_DEFAULT.nombre}`} />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
+      <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
         <StatCard label="Miembros Activos" value={activos} icon={Users} color={G.primary} trend={`+${miembros.filter(m => m.desde >= "2025-01").length}`} />
         <StatCard label="Ingresos (S/.)" value={`${(totalIngresos / 1000).toFixed(1)}K`} icon={TrendingUp} color={G.success} trend="+8%" />
         <StatCard label="Balance (S/.)" value={fmtMoney(balance)} icon={DollarSign} color={balance >= 0 ? G.success : G.danger} />
@@ -1008,7 +1103,7 @@ const FinanzasView = ({ data, setData, toast }) => {
         <>{tab === "ingresos" ? <Button variant="primary" size="md" icon={Plus} onClick={() => { setEditando({ ...blankDon, id: uid() }); setModal("donacion"); }}>Nueva Donación</Button> : <Button variant="primary" size="md" icon={Plus} onClick={() => { setEditando({ ...blankGasto, id: uid() }); setModal("gasto"); }}>Nuevo Gasto</Button>}</>
       } />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
+      <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
         <StatCard label="Total Ingresos" value={fmtMoney(totalIngresos)} icon={TrendingUp} color={G.success} />
         <StatCard label="Total Egresos" value={fmtMoney(totalGastos)} icon={CreditCard} color={G.danger} />
         <StatCard label="Balance" value={fmtMoney(balance)} icon={DollarSign} color={balance >= 0 ? G.success : G.danger} />
@@ -1336,7 +1431,7 @@ const CelulasView = ({ data, setData, toast }) => {
   return (
     <div className="fadein">
       <PageHeader title="Células" subtitle="Grupos de vida y discipulado" actions={<Button variant="primary" size="md" icon={Plus} onClick={() => { setEditando({ ...blank, id: uid() }); setModal(true); }}>Nueva Célula</Button>} />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
+      <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
         <StatCard label="Total Células" value={data.celulas.length} icon={Home} color={G.primary} />
         <StatCard label="Activas" value={data.celulas.filter(c => c.estado === "activo").length} icon={Check} color={G.success} />
         <StatCard label="Total en Células" value={data.celulas.reduce((a, c) => a + c.miembros, 0)} icon={Users} color={G.purple} />
@@ -1534,7 +1629,7 @@ const BlogView = ({ data, setData, toast }) => {
   return (
     <div className="fadein">
       <PageHeader title="Blog" subtitle="Gestión de publicaciones y artículos" actions={<Button variant="primary" size="md" icon={Plus} onClick={() => { setEditando({ ...blank, id: uid() }); setModal(true); }}>Nueva Publicación</Button>} />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
+      <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
         <StatCard label="Publicaciones" value={data.publicaciones.length} icon={FileText} color={G.primary} />
         <StatCard label="Total Visitas" value={fmt(data.publicaciones.reduce((a, p) => a + p.visitas, 0))} icon={Activity} color={G.success} />
         <StatCard label="Comentarios" value={fmt(data.publicaciones.reduce((a, p) => a + p.comentarios, 0))} icon={MessageCircle} color={G.purple} />
@@ -1664,6 +1759,24 @@ const Dashboard = ({ onLogout }) => {
     gastos: initGastos,
   });
 
+  const [dbLoading, setDbLoading] = useState(false);
+
+  // Load data from Supabase if configured, otherwise use mock data
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+    setDbLoading(true);
+    loadAllData().then(remoteData => {
+      if (remoteData) {
+        const merged = { ...data };
+        Object.keys(remoteData).forEach(key => {
+          if (remoteData[key] && remoteData[key].length > 0) merged[key] = remoteData[key];
+        });
+        setData(merged);
+      }
+      setDbLoading(false);
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const showToast = useCallback((msg, type = "success") => { setToastMsg({ msg, type }); }, []);
 
   const menuItems = [
@@ -1695,40 +1808,40 @@ const Dashboard = ({ onLogout }) => {
   };
 
   return (
-    <div style={{ display: "flex", height: "100vh", fontFamily: font, background: G.bg }}>
+    <div className="dashboard-layout" style={{ display: "flex", height: "100vh", fontFamily: font, background: G.bg }}>
       <GlobalStyles />
       {toastMsg && <Toast message={toastMsg.msg} type={toastMsg.type} onClose={() => setToastMsg(null)} />}
 
       {/* Sidebar */}
-      <div style={{ width: collapsed ? 68 : 248, background: "#fff", borderRight: `1px solid ${G.grayMid}40`, display: "flex", flexDirection: "column", transition: "width 0.3s cubic-bezier(.4,0,.2,1)", overflow: "hidden", flexShrink: 0 }}>
+      <div className="dashboard-sidebar" style={{ width: collapsed ? 68 : 248, background: "#fff", borderRight: `1px solid ${G.grayMid}40`, display: "flex", flexDirection: "column", transition: "width 0.3s cubic-bezier(.4,0,.2,1)", overflow: "hidden", flexShrink: 0 }}>
         <div style={{ padding: collapsed ? "18px 14px" : "18px 20px", borderBottom: `1px solid ${G.grayMid}40`, display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 36, height: 36, borderRadius: 9, background: `linear-gradient(135deg, ${G.primary}, ${G.primaryLight})`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, color: "#fff", fontSize: 18, flexShrink: 0, fontFamily: fontTitle }}>L</div>
-          {!collapsed && <div style={{ fontSize: 15, fontWeight: 800, color: G.dark, fontFamily: fontTitle, whiteSpace: "nowrap" }}>LADP Admin</div>}
+          {!collapsed && <span className="sidebar-label" style={{ fontSize: 15, fontWeight: 800, color: G.dark, fontFamily: fontTitle, whiteSpace: "nowrap" }}>LADP Admin</span>}
         </div>
         <nav style={{ flex: 1, padding: "10px 8px", overflowY: "auto", overflowX: "hidden" }}>
           {menuItems.map(item => (
             <button key={item.id} onClick={() => setSeccion(item.id)} className={`sidebar-item ${seccion === item.id ? "active" : ""}`} style={{ justifyContent: collapsed ? "center" : "flex-start", marginBottom: 1 }}>
               <item.icon size={18} style={{ flexShrink: 0 }} />
-              {!collapsed && <span style={{ whiteSpace: "nowrap" }}>{item.label}</span>}
+              {!collapsed && <span className="sidebar-label" style={{ whiteSpace: "nowrap" }}>{item.label}</span>}
             </button>
           ))}
         </nav>
-        <div style={{ padding: "10px 8px", borderTop: `1px solid ${G.grayMid}40` }}>
+        <div className="sidebar-bottom" style={{ padding: "10px 8px", borderTop: `1px solid ${G.grayMid}40` }}>
           <button onClick={onLogout} className="sidebar-item" style={{ justifyContent: collapsed ? "center" : "flex-start", marginBottom: 2 }}>
             <LogOut size={18} style={{ flexShrink: 0 }} />
-            {!collapsed && <span>Cerrar Sesión</span>}
+            {!collapsed && <span className="sidebar-label">Cerrar Sesión</span>}
           </button>
           <button onClick={() => setCollapsed(!collapsed)} className="sidebar-item" style={{ justifyContent: collapsed ? "center" : "flex-start" }}>
             <Menu size={18} style={{ flexShrink: 0 }} />
-            {!collapsed && <span>Colapsar</span>}
+            {!collapsed && <span className="sidebar-label">Colapsar</span>}
           </button>
         </div>
       </div>
 
       {/* Main */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
-        <header style={{ background: "#fff", borderBottom: `1px solid ${G.grayMid}40`, padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexShrink: 0 }} className="no-print">
-          <div style={{ flex: 1, maxWidth: 360 }}>
+        <header className="dashboard-header" style={{ background: "#fff", borderBottom: `1px solid ${G.grayMid}40`, padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexShrink: 0 }}>
+          <div className="search-box" style={{ flex: 1, maxWidth: 360 }}>
             <Input placeholder="Buscar en la plataforma..." icon={Search} />
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -1745,7 +1858,7 @@ const Dashboard = ({ onLogout }) => {
             </div>
           </div>
         </header>
-        <main style={{ flex: 1, overflowY: "auto", padding: 24 }}>
+        <main className="dashboard-main" style={{ flex: 1, overflowY: "auto", padding: 24 }}>
           {views[seccion]}
         </main>
       </div>
