@@ -73,6 +73,7 @@ const GlobalStyles = () => (
       .landing-section { padding: 80px 24px !important; }
       .grid-2col { grid-template-columns: 1fr !important; gap: 40px !important; }
       .events-grid { grid-template-columns: 1fr !important; }
+      .digital-grid { grid-template-columns: 1fr !important; gap: 40px !important; }
       .footer-grid { grid-template-columns: 1fr 1fr !important; gap: 32px !important; }
       .dashboard-sidebar { width: 68px !important; }
       .dashboard-sidebar .sidebar-label { display: none; }
@@ -97,6 +98,8 @@ const GlobalStyles = () => (
       .sermon-grid { grid-template-columns: 1fr !important; }
       .ministry-grid { grid-template-columns: repeat(2, 1fr) !important; }
       .como-grid { grid-template-columns: 1fr 1fr !important; gap: 16px !important; }
+      .digital-grid { grid-template-columns: 1fr !important; gap: 32px !important; }
+      .digital-box { padding: 28px 20px !important; }
       .groups-grid { grid-template-columns: 1fr !important; gap: 32px !important; }
       .tienda-cta { flex-direction: column !important; text-align: center !important; padding: 36px 24px !important; }
       .tienda-cta-stats { justify-content: center !important; }
@@ -645,19 +648,18 @@ const LandingPage = ({ onLogin, onTienda }) => {
             <p style={{ margin: "0 auto", fontSize: 17, color: G.gray, maxWidth: 520, lineHeight: 1.7 }}>Cuatro pasos sencillos para ser parte de nuestra familia y crecer en la fe</p>
           </div>
           <div className="como-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 32, position: "relative" }}>
-            {/* Connector line */}
-            <div style={{ position: "absolute", top: 44, left: "12.5%", right: "12.5%", height: 2, background: `linear-gradient(90deg, ${G.accent}40, ${G.accent}, ${G.accent}40)`, zIndex: 0, display: "none" }} />
             {[
-              { step: "01", emoji: "🚪", title: "Visítanos", desc: "Ven cualquier domingo a las 9:00 AM o 6:00 PM. No necesitas registro previo — ¡solo ven como eres!", color: G.primary },
-              { step: "02", emoji: "🤝", title: "Conéctate", desc: "Únete a un Grupo de Vida cerca de tu hogar. Comparte vida real con personas que te acompañan en la fe.", color: G.accent },
-              { step: "03", emoji: "📖", title: "Crece", desc: "Participa en la Escuela Bíblica, retiros y talleres diseñados para fortalecer tu relación con Dios.", color: G.success },
-              { step: "04", emoji: "✨", title: "Sirve", desc: "Descubre tus dones y úsalos en uno de nuestros ministerios. ¡Hay un lugar especial para ti aquí!", color: G.purple },
+              { step: "01", emoji: "🚪", title: "Visítanos", desc: "Ven cualquier domingo a las 9:00 AM o 6:00 PM. No necesitas registro previo — ¡solo ven como eres!", detail: "Estamos ubicados en Av. Principal 123. El ambiente es acogedor y el equipo de recepción te dará la bienvenida.", color: G.primary },
+              { step: "02", emoji: "🤝", title: "Conéctate", desc: "Únete a un Grupo de Vida cerca de tu hogar. Comparte vida real con personas que te acompañan en la fe.", detail: "Los Grupos de Vida se reúnen entre semana en diferentes distritos. Puedes encontrar el más cercano en nuestra plataforma.", color: G.accent },
+              { step: "03", emoji: "📖", title: "Crece", desc: "Participa en la Escuela Bíblica, retiros y talleres diseñados para fortalecer tu relación con Dios.", detail: "La Escuela Bíblica ofrece niveles desde principiante hasta avanzado. Los retiros se realizan trimestralmente.", color: G.success },
+              { step: "04", emoji: "✨", title: "Sirve", desc: "Descubre tus dones y úsalos en uno de nuestros ministerios. ¡Hay un lugar especial para ti aquí!", detail: "Contamos con ministerios de alabanza, jóvenes, niños, ayuda social, comunicaciones y más. Todos son bienvenidos.", color: G.purple },
             ].map((item, i) => (
               <div key={i} className="card-hover" style={{ background: G.grayLight, borderRadius: 24, padding: "40px 32px", textAlign: "center", position: "relative", zIndex: 1, border: `1px solid ${G.grayMid}` }}>
                 <div style={{ width: 72, height: 72, borderRadius: 20, background: item.color + "14", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", fontSize: 36 }}>{item.emoji}</div>
                 <div style={{ fontSize: 11, fontWeight: 800, color: item.color, textTransform: "uppercase", letterSpacing: 2, marginBottom: 10 }}>PASO {item.step}</div>
                 <h3 style={{ margin: "0 0 14px", fontSize: 22, fontWeight: 800, color: G.dark, fontFamily: fontTitle }}>{item.title}</h3>
-                <p style={{ margin: 0, fontSize: 14.5, color: G.gray, lineHeight: 1.7 }}>{item.desc}</p>
+                <p style={{ margin: "0 0 14px", fontSize: 14.5, color: G.gray, lineHeight: 1.7 }}>{item.desc}</p>
+                <p style={{ margin: 0, fontSize: 13, color: G.gray, lineHeight: 1.6, borderTop: `1px solid ${G.grayMid}`, paddingTop: 14, fontStyle: "italic" }}>{item.detail}</p>
               </div>
             ))}
           </div>
@@ -665,6 +667,53 @@ const LandingPage = ({ onLogin, onTienda }) => {
             <button style={{ padding: "16px 40px", fontSize: 15, fontWeight: 800, background: `linear-gradient(135deg, ${G.accent}, ${G.accentLight})`, color: "#fff", border: "none", borderRadius: 14, cursor: "pointer", fontFamily: font, display: "inline-flex", alignItems: "center", gap: 10, boxShadow: `0 8px 28px ${G.accent}35`, transition: "all 0.25s" }} onMouseEnter={e => e.currentTarget.style.transform = "translateY(-3px)"} onMouseLeave={e => e.currentTarget.style.transform = "none"}>
               Comenzar mi Camino <ArrowRight size={18} />
             </button>
+          </div>
+
+          {/* ─── Plataforma Digital ─── */}
+          <div className="digital-box" style={{ marginTop: 96, background: `linear-gradient(135deg, ${G.primary}08, ${G.primaryLight}10)`, borderRadius: 28, padding: "56px 48px", border: `1px solid ${G.primary}15` }}>
+            <div className="digital-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 64, alignItems: "center" }}>
+              <div>
+                <STag>Plataforma Digital</STag>
+                <h3 style={{ margin: "0 0 16px", fontSize: "clamp(26px, 3vw, 38px)", fontWeight: 800, color: G.dark, letterSpacing: -1.5, fontFamily: fontTitle, lineHeight: 1.2 }}>Tu iglesia, <span style={{ color: G.accent }}>siempre contigo</span></h3>
+                <p style={{ margin: "0 0 28px", fontSize: 16, color: G.gray, lineHeight: 1.8 }}>
+                  Accede a la plataforma LADP ICV con tu cuenta de Google o correo electrónico. Gestiona tu membresía, inscríbete a eventos, sigue el blog y mantente conectado desde cualquier dispositivo.
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {[
+                    { icon: "🔐", title: "Acceso seguro", desc: "Inicia sesión con Google o crea una cuenta — sin contraseñas difíciles de recordar." },
+                    { icon: "📋", title: "Tu perfil de miembro", desc: "Visualiza tu carnet digital, historial de diezmos y participación en ministerios." },
+                    { icon: "🗓️", title: "Inscripción a eventos", desc: "Regístrate a retiros, talleres y actividades directamente desde la plataforma." },
+                    { icon: "📣", title: "Blog y anuncios", desc: "Lee las últimas noticias, reflexiones y comunicados de la iglesia en tiempo real." },
+                  ].map((f, i) => (
+                    <div key={i} style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+                      <div style={{ width: 44, height: 44, borderRadius: 12, background: G.accent + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>{f.icon}</div>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: G.dark, marginBottom: 2 }}>{f.title}</div>
+                        <div style={{ fontSize: 13.5, color: G.gray, lineHeight: 1.6 }}>{f.desc}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                <div style={{ background: "#fff", borderRadius: 20, padding: "28px 32px", boxShadow: "0 4px 24px rgba(26,58,92,0.08)", border: `1px solid ${G.grayMid}` }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: G.accent, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 14 }}>Preguntas frecuentes</div>
+                  {[
+                    { q: "¿Necesito una cuenta para visitar la iglesia?", a: "No. Puedes visitar en cualquier momento sin registro. La cuenta es solo para acceder a funciones digitales como eventos e historial." },
+                    { q: "¿Cómo creo mi cuenta?", a: "Haz clic en 'Ingresar' → 'Crear cuenta'. Puedes registrarte con tu correo de Google en un solo clic." },
+                    { q: "¿Mis datos están seguros?", a: "Sí. Usamos Supabase con cifrado en tránsito y en reposo, y Google OAuth para autenticación segura." },
+                    { q: "¿Puedo acceder desde el celular?", a: "La plataforma está diseñada para funcionar perfectamente en cualquier dispositivo — móvil, tablet o computadora." },
+                  ].map((faq, i) => (
+                    <div key={i} style={{ borderBottom: i < 3 ? `1px solid ${G.grayMid}` : "none", paddingBottom: i < 3 ? 16 : 0, marginBottom: i < 3 ? 16 : 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: G.dark, marginBottom: 6, display: "flex", alignItems: "flex-start", gap: 8 }}>
+                        <span style={{ color: G.accent, fontWeight: 800, flexShrink: 0 }}>Q.</span>{faq.q}
+                      </div>
+                      <div style={{ fontSize: 13.5, color: G.gray, lineHeight: 1.65, paddingLeft: 20 }}>{faq.a}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
