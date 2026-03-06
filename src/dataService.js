@@ -146,10 +146,33 @@ export async function getUserProfile() {
   const { data, error } = await supabase.from("user_profiles").select("*").eq("id", user.id).single();
   if (error || !data) {
     const nombre = user.user_metadata?.full_name || user.email?.split("@")[0] || "Usuario";
-    await supabase.from("user_profiles").insert({ id: user.id, nombre, rol: "usuario" });
+    await supabase.from("user_profiles").insert({ id: user.id, nombre, rol: "usuario", email: user.email });
     return { id: user.id, nombre, rol: "usuario", email: user.email };
   }
+  if (data.email !== user.email) {
+    await supabase.from("user_profiles").update({ email: user.email }).eq("id", user.id);
+  }
   return { ...data, email: user.email };
+}
+
+export async function getUsers() {
+  if (!isSupabaseConfigured()) return [];
+  const { data, error } = await supabase
+    .from("user_profiles")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) { console.error("Error fetching users:", error.message); return []; }
+  return data || [];
+}
+
+export async function updateUserRole(userId, rol) {
+  if (!isSupabaseConfigured()) return false;
+  const { error } = await supabase
+    .from("user_profiles")
+    .update({ rol })
+    .eq("id", userId);
+  if (error) { console.error("Error updating role:", error.message); return false; }
+  return true;
 }
 
 export function onAuthStateChange(callback) {

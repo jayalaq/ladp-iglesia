@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Heart, Users, Target, Calendar, BarChart2, Plus, Search, DollarSign, Award, Clock, Trash2, Menu, ArrowRight, Mail, Lock, Eye, EyeOff, Check, LogOut, Bell, Phone, MapPin, Play, Facebook, Youtube, Instagram, Download, Send, UserPlus, UserCheck, FileText, Activity, MessageCircle, AlertCircle, Edit, Settings, Globe, Palette, Save, ShoppingCart, BookOpen, CreditCard, Package, Grid, List, Share2, Bookmark, ChevronDown, ChevronRight, X, Filter, TrendingUp, PieChart, Home, Layers, Printer, MoreVertical, RefreshCw, ChevronLeft, Star, Upload, Copy, ExternalLink, Mic } from "lucide-react";
 import { isSupabaseConfigured } from "./supabase";
-import { loadAllData, insertRow, updateRow, deleteRow, signIn, signOut, signInWithGoogle, signUp, getUserProfile, getSession, onAuthStateChange } from "./dataService";
+import { loadAllData, insertRow, updateRow, deleteRow, signIn, signOut, signInWithGoogle, signUp, getUserProfile, getSession, onAuthStateChange, getUsers, updateUserRole } from "./dataService";
 
 // ─── PALETA DE COLORES ──────────────────────────────────────────────
 const G = {
@@ -1735,9 +1735,31 @@ const BlogView = ({ data, setData, toast, readOnly = false }) => {
 };
 
 // ─── CONFIGURACIÓN ──────────────────────────────────────────────────
-const ConfiguracionView = ({ config, setConfig, toast }) => {
+const ConfiguracionView = ({ config, setConfig, toast, currentUserId }) => {
   const [tab, setTab] = useState("general");
+  const [usuarios, setUsuarios] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [updatingRole, setUpdatingRole] = useState(null);
   const guardar = () => toast("Configuración guardada correctamente");
+
+  useEffect(() => {
+    if (tab !== "usuarios") return;
+    setLoadingUsers(true);
+    getUsers().then(data => { setUsuarios(data); setLoadingUsers(false); });
+  }, [tab]);
+
+  const handleRoleChange = async (userId, newRol) => {
+    if (userId === currentUserId) { toast("No puedes cambiar tu propio rol", "error"); return; }
+    setUpdatingRole(userId);
+    const ok = await updateUserRole(userId, newRol);
+    if (ok) {
+      setUsuarios(prev => prev.map(u => u.id === userId ? { ...u, rol: newRol } : u));
+      toast(`Rol actualizado a "${newRol === "admin" ? "Administrador" : "Usuario"}"`);
+    } else {
+      toast("Error al actualizar el rol", "error");
+    }
+    setUpdatingRole(null);
+  };
 
   return (
     <div className="fadein">
@@ -1771,27 +1793,49 @@ const ConfiguracionView = ({ config, setConfig, toast }) => {
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, fontFamily: fontTitle, color: G.dark }}>Usuarios del Sistema</h3>
-              <Button variant="primary" size="sm" icon={UserPlus}>Nuevo Usuario</Button>
+              <Badge variant="default">{usuarios.length} registrados</Badge>
             </div>
-            {[
-              { nombre: "Admin Principal", email: "admin@ladp.pe", rol: "Administrador" },
-              { nombre: "Pastor Daniel Caballero", email: "pastor@ladp.pe", rol: "Pastor" },
-              { nombre: "Rosario Díaz H.", email: "rosario@ladp.pe", rol: "Tesorera" },
-            ].map((u, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", background: G.grayLight, borderRadius: 11, marginBottom: 10 }}>
-                <Avatar initials={u.nombre.split(" ").map(n => n[0]).join("").slice(0,2)} size={40} color={G.primary} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 700, color: G.dark }}>{u.nombre}</div>
-                  <div style={{ fontSize: 12, color: G.gray }}>{u.email} · {u.rol}</div>
+            {loadingUsers ? (
+              <div style={{ textAlign: "center", padding: 32, color: G.gray }}>Cargando usuarios...</div>
+            ) : usuarios.length === 0 ? (
+              <div style={{ textAlign: "center", padding: 32, color: G.gray, fontSize: 13.5 }}>No hay usuarios registrados aún</div>
+            ) : usuarios.map(u => {
+              const isCurrentUser = u.id === currentUserId;
+              const isAdminUser = u.rol === "admin";
+              return (
+                <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", background: isCurrentUser ? `${G.primary}08` : G.grayLight, borderRadius: 11, marginBottom: 10, border: isCurrentUser ? `1.5px solid ${G.primary}30` : "1.5px solid transparent" }}>
+                  <Avatar initials={(u.nombre || "U").slice(0, 2).toUpperCase()} size={40} color={isAdminUser ? G.primary : G.gray} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: G.dark, display: "flex", alignItems: "center", gap: 6 }}>
+                      {u.nombre}
+                      {isCurrentUser && <Badge variant="default" size="sm">Tú</Badge>}
+                    </div>
+                    <div style={{ fontSize: 12, color: G.gray, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.email || "Sin email registrado"}</div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                    <Badge variant={isAdminUser ? "success" : "default"}>{isAdminUser ? "Administrador" : "Usuario"}</Badge>
+                    {!isCurrentUser && (
+                      <select
+                        value={u.rol}
+                        disabled={updatingRole === u.id}
+                        onChange={e => handleRoleChange(u.id, e.target.value)}
+                        style={{ fontSize: 12, padding: "4px 8px", borderRadius: 7, border: `1.5px solid ${G.grayMid}`, background: "#fff", color: G.dark, cursor: "pointer", fontFamily: "inherit" }}
+                      >
+                        <option value="usuario">Usuario</option>
+                        <option value="admin">Administrador</option>
+                      </select>
+                    )}
+                  </div>
                 </div>
-                <Badge variant="success">activo</Badge>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
-        <div style={{ marginTop: 28, paddingTop: 20, borderTop: `1px solid ${G.grayMid}40`, display: "flex", justifyContent: "flex-end" }}>
-          <Button variant="primary" size="md" onClick={guardar} icon={Save}>Guardar Cambios</Button>
-        </div>
+        {tab !== "usuarios" && (
+          <div style={{ marginTop: 28, paddingTop: 20, borderTop: `1px solid ${G.grayMid}40`, display: "flex", justifyContent: "flex-end" }}>
+            <Button variant="primary" size="md" onClick={guardar} icon={Save}>Guardar Cambios</Button>
+          </div>
+        )}
       </Card>
     </div>
   );
@@ -2035,7 +2079,7 @@ const Dashboard = ({ onLogout, userProfile }) => {
     ministerios: <MinisteriosView data={data} setData={setData} toast={showToast} />,
     tienda: <TiendaView data={data} setData={setData} toast={showToast} />,
     blog: <BlogView data={data} setData={setData} toast={showToast} readOnly={!isAdmin} />,
-    configuracion: <ConfiguracionView config={config} setConfig={setConfig} toast={showToast} />,
+    configuracion: <ConfiguracionView config={config} setConfig={setConfig} toast={showToast} currentUserId={userProfile?.id} />,
   };
 
   return (
