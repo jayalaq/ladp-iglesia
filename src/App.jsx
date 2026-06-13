@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Heart, Users, Target, Calendar, BarChart2, Plus, Search, DollarSign, Award, Clock, Trash2, Menu, ArrowRight, Mail, Lock, Eye, EyeOff, Check, LogOut, Bell, Phone, MapPin, Play, Facebook, Youtube, Instagram, Download, Send, UserPlus, UserCheck, FileText, Activity, MessageCircle, AlertCircle, Edit, Settings, Globe, Palette, Save, ShoppingCart, BookOpen, CreditCard, Package, Grid, List, Share2, Bookmark, ChevronDown, ChevronRight, X, Filter, TrendingUp, PieChart, Home, Layers, Printer, MoreVertical, RefreshCw, ChevronLeft, Star, Upload, Copy, ExternalLink, Mic } from "lucide-react";
 import { isSupabaseConfigured } from "./supabase";
-import { loadAllData, insertRow, updateRow, deleteRow, signIn, signOut, signInWithGoogle, signUp, getUserProfile, getSession, onAuthStateChange, getUsers, updateUserRole } from "./dataService";
+import { loadAllData, insertRow, updateRow, deleteRow, upsertRecord, removeRecord, signIn, signOut, signInWithGoogle, signUp, getUserProfile, getSession, onAuthStateChange, getUsers, updateUserRole } from "./dataService";
 
 // ─── PALETA DE COLORES ──────────────────────────────────────────────
 const G = {
@@ -200,6 +200,14 @@ const initEventos = [
   { id: uid(), nombre: "Retiro de Jóvenes", fecha: "2025-04-15", hora: "08:00", lugar: "Centro de Retiros Cieneguilla", capacidad: 150, inscritos: 98, tipo: "Retiro", descripcion: "Retiro espiritual de fin de semana para jóvenes de 15-30 años", estado: "confirmado" },
   { id: uid(), nombre: "Escuela Bíblica Vacacional", fecha: "2025-07-14", hora: "09:00", lugar: "Templo Central Lima", capacidad: 200, inscritos: 0, tipo: "Educación", descripcion: "Programa de verano para niños de 4-12 años con actividades recreativas y bíblicas", estado: "planificado" },
   { id: uid(), nombre: "Vigilia de Oración", fecha: "2025-03-07", hora: "21:00", lugar: "Templo Central Lima", capacidad: 300, inscritos: 120, tipo: "Oración", descripcion: "Vigilia de oración e intercesión por las naciones", estado: "confirmado" },
+  { id: uid(), nombre: "Enseñanza - Antonella (Teens)", fecha: "2026-06-06", hora: "15:00", lugar: "Templo ICV San Juan de Lurigancho", capacidad: 50, inscritos: 0, tipo: "Enseñanza", descripcion: "Mensaje bíblico para adolescentes a cargo de Antonella", estado: "confirmado" },
+  { id: uid(), nombre: "Salchiteens / Película", fecha: "2026-06-13", hora: "15:00", lugar: "Templo ICV San Juan de Lurigancho", capacidad: 50, inscritos: 0, tipo: "Recreación", descripcion: "Tarde de salchipapas y proyección de película para los adolescentes", estado: "confirmado" },
+  { id: uid(), nombre: "Expresarte / Periódico Mural", fecha: "2026-06-20", hora: "15:00", lugar: "Templo ICV San Juan de Lurigancho", capacidad: 50, inscritos: 0, tipo: "Arte", descripcion: "Actividad de expresión artística y elaboración de periódico mural colaborativo", estado: "confirmado" },
+  { id: uid(), nombre: "Enseñanza - Ps. Miguel (Teens)", fecha: "2026-06-27", hora: "15:00", lugar: "Templo ICV San Juan de Lurigancho", capacidad: 50, inscritos: 0, tipo: "Enseñanza", descripcion: "Mensaje bíblico para adolescentes a cargo del Ps. Miguel", estado: "confirmado" },
+  { id: uid(), nombre: "Karaoke Teens / Reflexión", fecha: "2026-07-04", hora: "15:00", lugar: "Templo ICV San Juan de Lurigancho", capacidad: 50, inscritos: 0, tipo: "Recreación", descripcion: "Tarde de karaoke y reflexión bíblica para adolescentes", estado: "confirmado" },
+  { id: uid(), nombre: "Noche de Talentos y Adoración (Teens)", fecha: "2026-07-11", hora: "15:00", lugar: "Templo ICV San Juan de Lurigancho", capacidad: 50, inscritos: 0, tipo: "Adoración", descripcion: "Propuesto: noche de talentos y adoración interna — sin conflicto con otras actividades. Pendiente de confirmar tema.", estado: "planificado" },
+  { id: uid(), nombre: "Evangelismo Teens / Picnic al Aire Libre", fecha: "2026-07-18", hora: "10:00", lugar: "Parque San Juan de Lurigancho", capacidad: 60, inscritos: 0, tipo: "Evangelismo", descripcion: "Salida de evangelismo con picnic al aire libre para adolescentes y sus amigos", estado: "confirmado" },
+  { id: uid(), nombre: "Tarde de Juegos Evangelística (en Templo)", fecha: "2026-07-25", hora: "15:00", lugar: "Templo ICV San Juan de Lurigancho", capacidad: 60, inscritos: 0, tipo: "Evangelismo", descripcion: "Tarde de juegos DENTRO del templo con enfoque evangelístico — fusión de Tarde de Juegos + Evangelismo, para recibir chicos nuevos en la iglesia sin salir dos sábados seguidos", estado: "confirmado" },
 ];
 
 const initAsistencia = [
@@ -227,6 +235,7 @@ const initMinisterios = [
   { id: uid(), nombre: "Misiones", lider: "Rev. José Martínez", miembros: 12, descripcion: "Coordinación de campañas misioneras nacionales e internacionales", estado: "activo", reuniones: "1er Sábado del mes" },
   { id: uid(), nombre: "Damas de Fe", lider: "Rosario Díaz Huamán", miembros: 30, descripcion: "Ministerio de mujeres con encuentros, retiros y servicio social", estado: "activo", reuniones: "Martes 10:00" },
   { id: uid(), nombre: "Ujieres", lider: "Roberto Flores López", miembros: 15, descripcion: "Servicio de bienvenida, orden y atención durante los cultos", estado: "activo", reuniones: "Domingos 07:30" },
+  { id: uid(), nombre: "Adolescentes ICV", lider: "Jorge / Priscila", miembros: 25, descripcion: "Ministerio de adolescentes con reuniones semanales, actividades de integración, evangelismo y discipulado para chicos de 12-17 años", estado: "activo", reuniones: "Sábados 15:00" },
 ];
 
 const initProductos = [
@@ -1034,21 +1043,19 @@ const MiembrosView = ({ data, setData, toast }) => {
   const openNew = () => { setEditando({ ...blank, id: uid(), foto: "NN" }); setModal(true); };
   const openEdit = (m) => { setEditando({ ...m }); setModal(true); };
 
-  const guardar = () => {
+  const guardar = async () => {
     if (!editando.nombre) return;
-    editando.foto = editando.nombre.split(" ").map(n => n[0]).join("").slice(0,2).toUpperCase();
-    const exists = data.miembros.find(m => m.id === editando.id);
-    if (exists) {
-      setData({ ...data, miembros: data.miembros.map(m => m.id === editando.id ? editando : m) });
-      toast("Miembro actualizado correctamente");
-    } else {
-      setData({ ...data, miembros: [...data.miembros, editando] });
-      toast("Nuevo miembro registrado");
-    }
+    const item = { ...editando, foto: editando.nombre.split(" ").map(n => n[0]).join("").slice(0,2).toUpperCase() };
+    const exists = data.miembros.find(m => m.id === item.id);
+    const saved = await upsertRecord("miembros", item, !exists) || item;
+    if (exists) setData({ ...data, miembros: data.miembros.map(m => m.id === item.id ? saved : m) });
+    else setData({ ...data, miembros: [saved, ...data.miembros] });
+    toast(exists ? "Miembro actualizado correctamente" : "Nuevo miembro registrado");
     setModal(false); setEditando(null);
   };
 
-  const confirmarEliminar = () => {
+  const confirmarEliminar = async () => {
+    await removeRecord("miembros", eliminar.id);
     setData({ ...data, miembros: data.miembros.filter(m => m.id !== eliminar.id) });
     toast("Miembro eliminado");
     setEliminar(null);
@@ -1126,25 +1133,29 @@ const FinanzasView = ({ data, setData, toast }) => {
   const blankDon = { miembro: "", monto: 0, tipo: "Ofrenda", metodo: "Efectivo", fecha: today(), estado: "completado", recibo: "", notas: "" };
   const blankGasto = { concepto: "", monto: 0, categoria: "Operativo", fecha: today(), responsable: "", estado: "pagado" };
 
-  const guardarDon = () => {
+  const guardarDon = async () => {
     if (!editando.miembro || !editando.monto) return;
     const exists = data.donaciones.find(d => d.id === editando.id);
-    if (exists) setData({ ...data, donaciones: data.donaciones.map(d => d.id === editando.id ? editando : d) });
-    else setData({ ...data, donaciones: [editando, ...data.donaciones] });
+    const saved = await upsertRecord("donaciones", editando, !exists) || editando;
+    if (exists) setData({ ...data, donaciones: data.donaciones.map(d => d.id === editando.id ? saved : d) });
+    else setData({ ...data, donaciones: [saved, ...data.donaciones] });
     toast(exists ? "Donación actualizada" : "Donación registrada");
     setModal(null); setEditando(null);
   };
 
-  const guardarGasto = () => {
+  const guardarGasto = async () => {
     if (!editando.concepto || !editando.monto) return;
     const exists = data.gastos.find(g => g.id === editando.id);
-    if (exists) setData({ ...data, gastos: data.gastos.map(g => g.id === editando.id ? editando : g) });
-    else setData({ ...data, gastos: [editando, ...data.gastos] });
+    const saved = await upsertRecord("gastos", editando, !exists) || editando;
+    if (exists) setData({ ...data, gastos: data.gastos.map(g => g.id === editando.id ? saved : g) });
+    else setData({ ...data, gastos: [saved, ...data.gastos] });
     toast(exists ? "Gasto actualizado" : "Gasto registrado");
     setModal(null); setEditando(null);
   };
 
-  const eliminarItem = () => {
+  const eliminarItem = async () => {
+    const key = eliminar.type === "donacion" ? "donaciones" : "gastos";
+    await removeRecord(key, eliminar.id);
     if (eliminar.type === "donacion") {
       setData({ ...data, donaciones: data.donaciones.filter(d => d.id !== eliminar.id) });
     } else {
@@ -1260,11 +1271,12 @@ const ProyectosView = ({ data, setData, toast }) => {
   const [editando, setEditando] = useState(null);
   const blank = { nombre: "", presupuesto: 0, gastado: 0, avance: 0, estado: "en inicio", responsable: "", inicio: today(), fin: "", descripcion: "", prioridad: "media" };
 
-  const guardar = () => {
+  const guardar = async () => {
     if (!editando.nombre) return;
     const exists = data.proyectos.find(p => p.id === editando.id);
-    if (exists) setData({ ...data, proyectos: data.proyectos.map(p => p.id === editando.id ? editando : p) });
-    else setData({ ...data, proyectos: [...data.proyectos, editando] });
+    const saved = await upsertRecord("proyectos", editando, !exists) || editando;
+    if (exists) setData({ ...data, proyectos: data.proyectos.map(p => p.id === editando.id ? saved : p) });
+    else setData({ ...data, proyectos: [saved, ...data.proyectos] });
     toast(exists ? "Proyecto actualizado" : "Proyecto creado");
     setModal(false); setEditando(null);
   };
@@ -1329,16 +1341,18 @@ const EventosView = ({ data, setData, toast, readOnly = false }) => {
   const [editando, setEditando] = useState(null);
   const blank = { nombre: "", fecha: today(), hora: "19:00", lugar: "", capacidad: 100, inscritos: 0, tipo: "Conferencia", descripcion: "", estado: "planificado" };
 
-  const guardar = () => {
+  const guardar = async () => {
     if (!editando.nombre) return;
     const exists = data.eventos.find(e => e.id === editando.id);
-    if (exists) setData({ ...data, eventos: data.eventos.map(e => e.id === editando.id ? editando : e) });
-    else setData({ ...data, eventos: [...data.eventos, editando] });
+    const saved = await upsertRecord("eventos", editando, !exists) || editando;
+    if (exists) setData({ ...data, eventos: data.eventos.map(e => e.id === editando.id ? saved : e) });
+    else setData({ ...data, eventos: [saved, ...data.eventos] });
     toast(exists ? "Evento actualizado" : "Evento creado");
     setModal(false); setEditando(null);
   };
 
-  const eliminar = (id) => {
+  const eliminar = async (id) => {
+    await removeRecord("eventos", id);
     setData({ ...data, eventos: data.eventos.filter(e => e.id !== id) });
     toast("Evento eliminado");
   };
@@ -1416,11 +1430,12 @@ const AsistenciaView = ({ data, setData, toast }) => {
   const totalNuevos = data.asistencia.reduce((a, d) => a + d.nuevos, 0);
   const blank = { fecha: today(), servicio: "Culto Dominical AM", total: 0, nuevos: 0, ninos: 0, jovenes: 0, adultos: 0 };
 
-  const guardar = () => {
+  const guardar = async () => {
     if (!editando.servicio || editando.total <= 0) return;
     const exists = data.asistencia.find(a => a.id === editando.id);
-    if (exists) setData({ ...data, asistencia: data.asistencia.map(a => a.id === editando.id ? editando : a) });
-    else setData({ ...data, asistencia: [editando, ...data.asistencia] });
+    const saved = await upsertRecord("asistencia", editando, !exists) || editando;
+    if (exists) setData({ ...data, asistencia: data.asistencia.map(a => a.id === editando.id ? saved : a) });
+    else setData({ ...data, asistencia: [saved, ...data.asistencia] });
     toast(exists ? "Registro actualizado" : "Asistencia registrada");
     setModal(false); setEditando(null);
   };
@@ -1478,11 +1493,12 @@ const CelulasView = ({ data, setData, toast }) => {
   const [editando, setEditando] = useState(null);
   const blank = { nombre: "", lider: "", dia: "Martes", hora: "19:00", lugar: "", miembros: 0, estado: "activo", zona: "" };
 
-  const guardar = () => {
+  const guardar = async () => {
     if (!editando.nombre) return;
     const exists = data.celulas.find(c => c.id === editando.id);
-    if (exists) setData({ ...data, celulas: data.celulas.map(c => c.id === editando.id ? editando : c) });
-    else setData({ ...data, celulas: [...data.celulas, editando] });
+    const saved = await upsertRecord("celulas", editando, !exists) || editando;
+    if (exists) setData({ ...data, celulas: data.celulas.map(c => c.id === editando.id ? saved : c) });
+    else setData({ ...data, celulas: [saved, ...data.celulas] });
     toast(exists ? "Célula actualizada" : "Célula creada");
     setModal(false); setEditando(null);
   };
@@ -1541,11 +1557,12 @@ const MinisteriosView = ({ data, setData, toast }) => {
   const [editando, setEditando] = useState(null);
   const blank = { nombre: "", lider: "", miembros: 0, descripcion: "", estado: "activo", reuniones: "" };
 
-  const guardar = () => {
+  const guardar = async () => {
     if (!editando.nombre) return;
     const exists = data.ministerios.find(m => m.id === editando.id);
-    if (exists) setData({ ...data, ministerios: data.ministerios.map(m => m.id === editando.id ? editando : m) });
-    else setData({ ...data, ministerios: [...data.ministerios, editando] });
+    const saved = await upsertRecord("ministerios", editando, !exists) || editando;
+    if (exists) setData({ ...data, ministerios: data.ministerios.map(m => m.id === editando.id ? saved : m) });
+    else setData({ ...data, ministerios: [saved, ...data.ministerios] });
     toast(exists ? "Ministerio actualizado" : "Ministerio creado");
     setModal(false); setEditando(null);
   };
@@ -1606,11 +1623,12 @@ const TiendaView = ({ data, setData, toast }) => {
   });
   const blank = { titulo: "", autor: "", precio: 0, imagen: "📖", categoria: "Doctrina", descripcion: "", stock: 0, editorial: "" };
 
-  const guardar = () => {
+  const guardar = async () => {
     if (!editando.titulo) return;
     const exists = data.productos.find(p => p.id === editando.id);
-    if (exists) setData({ ...data, productos: data.productos.map(p => p.id === editando.id ? editando : p) });
-    else setData({ ...data, productos: [...data.productos, editando] });
+    const saved = await upsertRecord("productos", editando, !exists) || editando;
+    if (exists) setData({ ...data, productos: data.productos.map(p => p.id === editando.id ? saved : p) });
+    else setData({ ...data, productos: [saved, ...data.productos] });
     toast(exists ? "Producto actualizado" : "Producto agregado");
     setModal(false); setEditando(null);
   };
@@ -1674,15 +1692,24 @@ const TiendaView = ({ data, setData, toast }) => {
 const BlogView = ({ data, setData, toast, readOnly = false }) => {
   const [modal, setModal] = useState(false);
   const [editando, setEditando] = useState(null);
+  const [eliminar, setEliminar] = useState(null);
   const blank = { titulo: "", autor: "Admin LADP", fecha: today(), categoria: "Enseñanza", imagen: "📝", extracto: "", visitas: 0, comentarios: 0, estado: "borrador" };
 
-  const guardar = () => {
+  const guardar = async () => {
     if (!editando.titulo) return;
     const exists = data.publicaciones.find(p => p.id === editando.id);
-    if (exists) setData({ ...data, publicaciones: data.publicaciones.map(p => p.id === editando.id ? editando : p) });
-    else setData({ ...data, publicaciones: [editando, ...data.publicaciones] });
+    const saved = await upsertRecord("publicaciones", editando, !exists) || editando;
+    if (exists) setData({ ...data, publicaciones: data.publicaciones.map(p => p.id === editando.id ? saved : p) });
+    else setData({ ...data, publicaciones: [saved, ...data.publicaciones] });
     toast(exists ? "Publicación actualizada" : "Publicación creada");
     setModal(false); setEditando(null);
+  };
+
+  const confirmarEliminar = async () => {
+    await removeRecord("publicaciones", eliminar.id);
+    setData({ ...data, publicaciones: data.publicaciones.filter(p => p.id !== eliminar.id) });
+    toast("Publicación eliminada");
+    setEliminar(null);
   };
 
   return (
@@ -1706,7 +1733,10 @@ const BlogView = ({ data, setData, toast, readOnly = false }) => {
             <div style={{ display: "flex", gap: 10, fontSize: 11.5, color: G.gray, paddingTop: 10, borderTop: `1px solid ${G.grayMid}20`, marginBottom: 12 }}>
               <span style={{ fontWeight: 600 }}>{pub.autor}</span><span>·</span><span>{fmt(pub.visitas)} vistas</span><span>·</span><span>{pub.comentarios} comentarios</span>
             </div>
-            {!readOnly && <Button variant="outline" size="sm" icon={Edit} onClick={() => { setEditando({ ...pub }); setModal(true); }} fullWidth>Editar</Button>}
+            {!readOnly && <div style={{ display: "flex", gap: 8 }}>
+              <Button variant="outline" size="sm" icon={Edit} onClick={() => { setEditando({ ...pub }); setModal(true); }} fullWidth>Editar</Button>
+              <button onClick={() => setEliminar(pub)} style={{ background: "none", border: `1.5px solid ${G.grayMid}`, cursor: "pointer", padding: "6px 10px", borderRadius: 8, display: "flex", alignItems: "center" }}><Trash2 size={15} color={G.danger} /></button>
+            </div>}
           </Card>
         ))}
       </div>
@@ -1716,7 +1746,7 @@ const BlogView = ({ data, setData, toast, readOnly = false }) => {
             <Input label="Título" value={editando.titulo} onChange={e => setEditando({ ...editando, titulo: e.target.value })} required />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <Input label="Autor" value={editando.autor} onChange={e => setEditando({ ...editando, autor: e.target.value })} />
-              <Select label="Categoría" value={editando.categoria} onChange={e => setEditando({ ...editando, categoria: e.target.value })} options={["Enseñanza", "Historia", "Ministerio", "Jóvenes", "Adoración", "Devocional", "Testimonio"]} />
+              <Select label="Categoría" value={editando.categoria} onChange={e => setEditando({ ...editando, categoria: e.target.value })} options={["Enseñanza", "Historia", "Ministerio", "Jóvenes", "Adolescentes", "Adoración", "Devocional", "Testimonio"]} />
             </div>
             <TextArea label="Extracto / Contenido" value={editando.extracto} onChange={e => setEditando({ ...editando, extracto: e.target.value })} rows={4} />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
@@ -1730,6 +1760,7 @@ const BlogView = ({ data, setData, toast, readOnly = false }) => {
           </div>
         </Modal>
       )}
+      {eliminar && <ConfirmDialog message={`¿Eliminar "${eliminar.titulo}"? Esta acción no se puede deshacer.`} onConfirm={confirmarEliminar} onCancel={() => setEliminar(null)} />}
     </div>
   );
 };

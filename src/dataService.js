@@ -79,6 +79,18 @@ export async function deleteRow(key, id) {
   return true;
 }
 
+// ─── UPSERT / REMOVE ───────────────────────────────────────────────
+export async function upsertRecord(key, item, isNew) {
+  const { created_at, ...rest } = item;
+  if (isNew) return insertRow(key, rest);
+  const { id, ...updates } = rest;
+  return updateRow(key, id, updates);
+}
+
+export async function removeRecord(key, id) {
+  return deleteRow(key, id);
+}
+
 // ─── LOAD ALL DATA ─────────────────────────────────────────────────
 // Loads all tables at once, returns null values for tables that fail
 export async function loadAllData() {
