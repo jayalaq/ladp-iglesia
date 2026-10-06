@@ -144,6 +144,19 @@ CREATE TABLE IF NOT EXISTS publicaciones (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- ─── CRONOGRAMA MINISTERIO DE ADOLESCENTES ─────────────────────────
+CREATE TABLE IF NOT EXISTS cronograma_adolescentes (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  fecha DATE,
+  actividad TEXT NOT NULL,
+  responsable TEXT,
+  lugar TEXT,
+  tipo TEXT,
+  estado TEXT DEFAULT 'planificado',
+  notas TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ─── ROW LEVEL SECURITY ───────────────────────────────────────────
 -- Habilitar RLS en todas las tablas
 ALTER TABLE miembros ENABLE ROW LEVEL SECURITY;
@@ -156,6 +169,7 @@ ALTER TABLE celulas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ministerios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE productos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE publicaciones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cronograma_adolescentes ENABLE ROW LEVEL SECURITY;
 
 -- Políticas: lectura pública, escritura autenticada
 CREATE POLICY "Public read" ON miembros FOR SELECT USING (true);
@@ -207,6 +221,11 @@ CREATE POLICY "Public read" ON publicaciones FOR SELECT USING (true);
 CREATE POLICY "Auth insert" ON publicaciones FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 CREATE POLICY "Auth update" ON publicaciones FOR UPDATE USING (auth.role() = 'authenticated');
 CREATE POLICY "Auth delete" ON publicaciones FOR DELETE USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Public read" ON cronograma_adolescentes FOR SELECT USING (true);
+CREATE POLICY "Auth insert" ON cronograma_adolescentes FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Auth update" ON cronograma_adolescentes FOR UPDATE USING (auth.role() = 'authenticated');
+CREATE POLICY "Auth delete" ON cronograma_adolescentes FOR DELETE USING (auth.role() = 'authenticated');
 
 -- ─── USER PROFILES ──────────────────────────────────────────────────
 -- Tabla para perfiles de usuario con roles (admin / usuario)

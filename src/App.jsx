@@ -200,14 +200,6 @@ const initEventos = [
   { id: uid(), nombre: "Retiro de Jóvenes", fecha: "2025-04-15", hora: "08:00", lugar: "Centro de Retiros Cieneguilla", capacidad: 150, inscritos: 98, tipo: "Retiro", descripcion: "Retiro espiritual de fin de semana para jóvenes de 15-30 años", estado: "confirmado" },
   { id: uid(), nombre: "Escuela Bíblica Vacacional", fecha: "2025-07-14", hora: "09:00", lugar: "Templo Central Lima", capacidad: 200, inscritos: 0, tipo: "Educación", descripcion: "Programa de verano para niños de 4-12 años con actividades recreativas y bíblicas", estado: "planificado" },
   { id: uid(), nombre: "Vigilia de Oración", fecha: "2025-03-07", hora: "21:00", lugar: "Templo Central Lima", capacidad: 300, inscritos: 120, tipo: "Oración", descripcion: "Vigilia de oración e intercesión por las naciones", estado: "confirmado" },
-  { id: uid(), nombre: "Enseñanza - Antonella (Teens)", fecha: "2026-06-06", hora: "15:00", lugar: "Templo ICV San Juan de Lurigancho", capacidad: 50, inscritos: 0, tipo: "Enseñanza", descripcion: "Mensaje bíblico para adolescentes a cargo de Antonella", estado: "confirmado" },
-  { id: uid(), nombre: "Salchiteens / Película", fecha: "2026-06-13", hora: "15:00", lugar: "Templo ICV San Juan de Lurigancho", capacidad: 50, inscritos: 0, tipo: "Recreación", descripcion: "Tarde de salchipapas y proyección de película para los adolescentes", estado: "confirmado" },
-  { id: uid(), nombre: "Expresarte / Periódico Mural", fecha: "2026-06-20", hora: "15:00", lugar: "Templo ICV San Juan de Lurigancho", capacidad: 50, inscritos: 0, tipo: "Arte", descripcion: "Actividad de expresión artística y elaboración de periódico mural colaborativo", estado: "confirmado" },
-  { id: uid(), nombre: "Enseñanza - Ps. Miguel (Teens)", fecha: "2026-06-27", hora: "15:00", lugar: "Templo ICV San Juan de Lurigancho", capacidad: 50, inscritos: 0, tipo: "Enseñanza", descripcion: "Mensaje bíblico para adolescentes a cargo del Ps. Miguel", estado: "confirmado" },
-  { id: uid(), nombre: "Karaoke Teens / Reflexión", fecha: "2026-07-04", hora: "15:00", lugar: "Templo ICV San Juan de Lurigancho", capacidad: 50, inscritos: 0, tipo: "Recreación", descripcion: "Tarde de karaoke y reflexión bíblica para adolescentes", estado: "confirmado" },
-  { id: uid(), nombre: "Noche de Talentos y Adoración (Teens)", fecha: "2026-07-11", hora: "15:00", lugar: "Templo ICV San Juan de Lurigancho", capacidad: 50, inscritos: 0, tipo: "Adoración", descripcion: "Propuesto: noche de talentos y adoración interna — sin conflicto con otras actividades. Pendiente de confirmar tema.", estado: "planificado" },
-  { id: uid(), nombre: "Evangelismo Teens / Picnic al Aire Libre", fecha: "2026-07-18", hora: "10:00", lugar: "Parque San Juan de Lurigancho", capacidad: 60, inscritos: 0, tipo: "Evangelismo", descripcion: "Salida de evangelismo con picnic al aire libre para adolescentes y sus amigos", estado: "confirmado" },
-  { id: uid(), nombre: "Tarde de Juegos Evangelística (en Templo)", fecha: "2026-07-25", hora: "15:00", lugar: "Templo ICV San Juan de Lurigancho", capacidad: 60, inscritos: 0, tipo: "Evangelismo", descripcion: "Tarde de juegos DENTRO del templo con enfoque evangelístico — fusión de Tarde de Juegos + Evangelismo, para recibir chicos nuevos en la iglesia sin salir dos sábados seguidos", estado: "confirmado" },
 ];
 
 const initAsistencia = [
@@ -252,6 +244,19 @@ const initPublicaciones = [
   { id: uid(), titulo: "106 Años: De la Persecución al Avivamiento", autor: "Dr. Miguel Flores", fecha: "2025-02-10", categoria: "Historia", imagen: "📜", extracto: "Recorrido histórico por más de un siglo de evangelismo en el Perú, desde los misioneros pioneros hasta la iglesia de hoy.", visitas: 890, comentarios: 28, estado: "publicado" },
   { id: uid(), titulo: "Cómo Implementar Células en tu Iglesia Local", autor: "Hna. Carmen López", fecha: "2025-02-05", categoria: "Ministerio", imagen: "🏠", extracto: "Guía práctica para iniciar y mantener grupos celulares efectivos que multipliquen la congregación.", visitas: 2100, comentarios: 67, estado: "publicado" },
   { id: uid(), titulo: "La Nueva Generación: Alcanzando a la Juventud", autor: "Líder Andrés Mendoza", fecha: "2025-01-28", categoria: "Jóvenes", imagen: "🎵", extracto: "Estrategias contemporáneas para conectar el evangelio con los jóvenes del siglo XXI sin perder la esencia bíblica.", visitas: 1450, comentarios: 52, estado: "publicado" },
+];
+
+// ─── CRONOGRAMA MINISTERIO DE ADOLESCENTES ──────────────────────────
+// Cronograma semanal (sábados) del Ministerio de Adolescentes ICV — San Juan de Lurigancho
+const initCronograma = [
+  { id: uid(), fecha: "2026-06-06", actividad: "Enseñanza", responsable: "Antonella", lugar: "Templo ICV", tipo: "Enseñanza", estado: "realizado", notas: "" },
+  { id: uid(), fecha: "2026-06-13", actividad: "Salchiteens / Película", responsable: "Equipo Teens", lugar: "Templo ICV", tipo: "Recreación", estado: "realizado", notas: "Tarde de salchipapas y película" },
+  { id: uid(), fecha: "2026-06-20", actividad: "Expresarte / Periódico Mural", responsable: "Equipo Teens", lugar: "Templo ICV", tipo: "Arte", estado: "confirmado", notas: "Elaboración de periódico mural" },
+  { id: uid(), fecha: "2026-06-27", actividad: "Enseñanza", responsable: "Ps. Miguel", lugar: "Templo ICV", tipo: "Enseñanza", estado: "confirmado", notas: "" },
+  { id: uid(), fecha: "2026-07-04", actividad: "Karaoke Teens / Reflexión", responsable: "Equipo Teens", lugar: "Templo ICV", tipo: "Recreación", estado: "confirmado", notas: "" },
+  { id: uid(), fecha: "2026-07-11", actividad: "Noche de Talentos y Adoración", responsable: "Jorge / Priscila", lugar: "Templo ICV", tipo: "Adoración", estado: "planificado", notas: "Propuesto — sábado estaba libre, sin cruce con jóvenes. Confirmar tema." },
+  { id: uid(), fecha: "2026-07-18", actividad: "Evangelismo Teens / Picnic al Aire Libre", responsable: "Jorge / Priscila", lugar: "Parque SJL", tipo: "Evangelismo", estado: "confirmado", notas: "Salida al aire libre" },
+  { id: uid(), fecha: "2026-07-25", actividad: "Tarde de Juegos Evangelística", responsable: "Jorge / Priscila", lugar: "Templo ICV", tipo: "Evangelismo", estado: "confirmado", notas: "Fusión Tarde de Juegos + Evangelismo DENTRO del templo, para recibir chicos nuevos (no 2 sábados seguidos fuera)" },
 ];
 
 const initGastos = [
@@ -1765,6 +1770,104 @@ const BlogView = ({ data, setData, toast, readOnly = false }) => {
   );
 };
 
+// ─── MINISTERIO DE ADOLESCENTES — CRONOGRAMA ────────────────────────
+const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
+  const [modal, setModal] = useState(false);
+  const [editando, setEditando] = useState(null);
+  const [eliminar, setEliminar] = useState(null);
+  const cronograma = data.cronograma || [];
+  const blank = { fecha: today(), actividad: "", responsable: "", lugar: "Templo ICV", tipo: "Enseñanza", estado: "planificado", notas: "" };
+  const tipos = ["Enseñanza", "Recreación", "Arte", "Adoración", "Evangelismo", "Integración", "Servicio", "Otro"];
+
+  const tipoColor = (t) => ({ Enseñanza: G.primary, Recreación: G.accent, Arte: G.purple, Adoración: G.primaryLight, Evangelismo: G.success, Integración: G.warning, Servicio: G.gray }[t] || G.gray);
+  const estadoVariant = (e) => e === "realizado" ? "success" : e === "confirmado" ? "primary" : "warning";
+
+  const ordenado = [...cronograma].sort((a, b) => (a.fecha || "").localeCompare(b.fecha || ""));
+
+  const guardar = async () => {
+    if (!editando.actividad || !editando.fecha) return;
+    const exists = cronograma.find(c => c.id === editando.id);
+    const saved = await upsertRecord("cronograma", editando, !exists) || editando;
+    if (exists) setData({ ...data, cronograma: cronograma.map(c => c.id === editando.id ? saved : c) });
+    else setData({ ...data, cronograma: [saved, ...cronograma] });
+    toast(exists ? "Actividad actualizada" : "Actividad agregada al cronograma");
+    setModal(false); setEditando(null);
+  };
+
+  const confirmarEliminar = async () => {
+    await removeRecord("cronograma", eliminar.id);
+    setData({ ...data, cronograma: cronograma.filter(c => c.id !== eliminar.id) });
+    toast("Actividad eliminada");
+    setEliminar(null);
+  };
+
+  return (
+    <div className="fadein">
+      <PageHeader title="Ministerio de Adolescentes" subtitle="Cronograma de actividades · ICV San Juan de Lurigancho" actions={!readOnly && <Button variant="primary" size="md" icon={Plus} onClick={() => { setEditando({ ...blank, id: uid() }); setModal(true); }}>Nueva Actividad</Button>} />
+
+      <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
+        <StatCard label="Actividades" value={cronograma.length} icon={Calendar} color={G.primary} />
+        <StatCard label="Confirmadas" value={cronograma.filter(c => c.estado === "confirmado").length} icon={Check} color={G.success} />
+        <StatCard label="Por planificar" value={cronograma.filter(c => c.estado === "planificado").length} icon={Clock} color={G.warning} />
+      </div>
+
+      <Card hover={false}>
+        {ordenado.length === 0 && <div style={{ padding: "30px 0", textAlign: "center", color: G.gray, fontSize: 13.5 }}>Aún no hay actividades en el cronograma. {!readOnly && 'Usa "Nueva Actividad" para empezar.'}</div>}
+        {ordenado.map((c, i) => (
+          <div key={c.id} style={{ display: "flex", alignItems: "flex-start", gap: 16, padding: "14px 0", borderBottom: i < ordenado.length - 1 ? `1px solid ${G.grayMid}20` : "none" }}>
+            <div style={{ width: 52, textAlign: "center", flexShrink: 0 }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: G.primary, fontFamily: fontTitle, lineHeight: 1 }}>{c.fecha ? new Date(c.fecha + "T12:00").getDate() : "–"}</div>
+              <div style={{ fontSize: 10, color: G.gray, textTransform: "uppercase", letterSpacing: 0.5 }}>{c.fecha ? monthName(new Date(c.fecha + "T12:00").getMonth()) : ""}</div>
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 5, alignItems: "center" }}>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: "#fff", background: tipoColor(c.tipo), padding: "2px 8px", borderRadius: 20 }}>{c.tipo}</span>
+                <Badge variant={estadoVariant(c.estado)}>{c.estado}</Badge>
+              </div>
+              <div style={{ fontSize: 14.5, fontWeight: 700, color: G.dark }}>{c.actividad}</div>
+              <div style={{ fontSize: 12, color: G.gray, marginTop: 2 }}>
+                {c.responsable && <span>👤 {c.responsable}</span>}
+                {c.responsable && c.lugar && <span> · </span>}
+                {c.lugar && <span><MapPin size={11} style={{ display: "inline", marginRight: 2 }} />{c.lugar}</span>}
+              </div>
+              {c.notas && <div style={{ fontSize: 11.5, color: G.gray, marginTop: 4, fontStyle: "italic" }}>{c.notas}</div>}
+            </div>
+            {!readOnly && (
+              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                <button onClick={() => { setEditando({ ...c }); setModal(true); }} style={{ background: "none", border: `1.5px solid ${G.grayMid}`, cursor: "pointer", padding: 7, borderRadius: 8, display: "flex" }}><Edit size={15} color={G.primary} /></button>
+                <button onClick={() => setEliminar(c)} style={{ background: "none", border: `1.5px solid ${G.grayMid}`, cursor: "pointer", padding: 7, borderRadius: 8, display: "flex" }}><Trash2 size={15} color={G.danger} /></button>
+              </div>
+            )}
+          </div>
+        ))}
+      </Card>
+
+      {!readOnly && modal && editando && (
+        <Modal title={cronograma.find(c => c.id === editando.id) ? "Editar Actividad" : "Nueva Actividad"} onClose={() => { setModal(false); setEditando(null); }} width={600}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <Input label="Actividad" value={editando.actividad} onChange={e => setEditando({ ...editando, actividad: e.target.value })} required />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <Input label="Fecha" value={editando.fecha} onChange={e => setEditando({ ...editando, fecha: e.target.value })} type="date" required />
+              <Input label="Responsable" value={editando.responsable} onChange={e => setEditando({ ...editando, responsable: e.target.value })} />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <Select label="Tipo" value={editando.tipo} onChange={e => setEditando({ ...editando, tipo: e.target.value })} options={tipos} />
+              <Input label="Lugar" value={editando.lugar} onChange={e => setEditando({ ...editando, lugar: e.target.value })} />
+            </div>
+            <Select label="Estado" value={editando.estado} onChange={e => setEditando({ ...editando, estado: e.target.value })} options={["planificado", "confirmado", "realizado"]} />
+            <TextArea label="Notas" value={editando.notas} onChange={e => setEditando({ ...editando, notas: e.target.value })} rows={3} />
+          </div>
+          <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
+            <Button variant="outline" size="md" onClick={() => { setModal(false); setEditando(null); }} fullWidth>Cancelar</Button>
+            <Button variant="primary" size="md" onClick={guardar} fullWidth icon={Save}>Guardar</Button>
+          </div>
+        </Modal>
+      )}
+      {eliminar && <ConfirmDialog message={`¿Eliminar "${eliminar.actividad}" del cronograma? Esta acción no se puede deshacer.`} onConfirm={confirmarEliminar} onCancel={() => setEliminar(null)} />}
+    </div>
+  );
+};
+
 // ─── CONFIGURACIÓN ──────────────────────────────────────────────────
 const ConfiguracionView = ({ config, setConfig, toast, currentUserId }) => {
   const [tab, setTab] = useState("general");
@@ -2058,6 +2161,7 @@ const Dashboard = ({ onLogout, userProfile }) => {
     productos: initProductos,
     publicaciones: initPublicaciones,
     gastos: initGastos,
+    cronograma: initCronograma,
   });
 
   const [dbLoading, setDbLoading] = useState(false);
@@ -2089,12 +2193,14 @@ const Dashboard = ({ onLogout, userProfile }) => {
     { id: "asistencia", label: "Asistencia", icon: Activity },
     { id: "celulas", label: "Células", icon: Home },
     { id: "ministerios", label: "Ministerios", icon: Layers },
+    { id: "adolescentes", label: "Adolescentes", icon: Star },
     { id: "tienda", label: "Tienda", icon: ShoppingCart },
     { id: "blog", label: "Blog", icon: FileText },
     { id: "configuracion", label: "Configuración", icon: Settings },
   ] : [
     { id: "mi-perfil", label: "Mi Perfil", icon: UserCheck },
     { id: "eventos", label: "Eventos", icon: Calendar },
+    { id: "adolescentes", label: "Adolescentes", icon: Star },
     { id: "blog", label: "Blog", icon: FileText },
   ];
 
@@ -2108,6 +2214,7 @@ const Dashboard = ({ onLogout, userProfile }) => {
     asistencia: <AsistenciaView data={data} setData={setData} toast={showToast} />,
     celulas: <CelulasView data={data} setData={setData} toast={showToast} />,
     ministerios: <MinisteriosView data={data} setData={setData} toast={showToast} />,
+    adolescentes: <AdolescentesView data={data} setData={setData} toast={showToast} readOnly={!isAdmin} />,
     tienda: <TiendaView data={data} setData={setData} toast={showToast} />,
     blog: <BlogView data={data} setData={setData} toast={showToast} readOnly={!isAdmin} />,
     configuracion: <ConfiguracionView config={config} setConfig={setConfig} toast={showToast} currentUserId={userProfile?.id} />,

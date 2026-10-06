@@ -13,6 +13,7 @@ const TABLE_MAP = {
   productos: "productos",
   publicaciones: "publicaciones",
   gastos: "gastos",
+  cronograma: "cronograma_adolescentes",
 };
 
 // ─── FETCH ALL ─────────────────────────────────────────────────────
