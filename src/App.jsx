@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Heart, Users, Target, Calendar, BarChart2, Plus, Search, DollarSign, Award, Clock, Trash2, Menu, ArrowRight, Mail, Lock, Eye, EyeOff, Check, LogOut, Bell, Phone, MapPin, Play, Facebook, Youtube, Instagram, Download, Send, UserPlus, UserCheck, FileText, Activity, MessageCircle, AlertCircle, Edit, Settings, Globe, Palette, Save, ShoppingCart, BookOpen, CreditCard, Package, Grid, List, Share2, Bookmark, ChevronDown, ChevronRight, X, Filter, TrendingUp, PieChart, Home, Layers, Printer, MoreVertical, RefreshCw, ChevronLeft, Star, Upload, Copy, ExternalLink, Mic } from "lucide-react";
 import { isSupabaseConfigured } from "./supabase";
-import { loadAllData, insertRow, updateRow, deleteRow, signIn, signOut, signInWithGoogle, signUp, getUserProfile, getSession, onAuthStateChange } from "./dataService";
+import { loadAllData, insertRow, updateRow, deleteRow, upsertRecord, removeRecord, signIn, signOut, signInWithGoogle, signUp, getUserProfile, getSession, onAuthStateChange, getUsers, updateUserRole } from "./dataService";
 
 // ─── PALETA DE COLORES ──────────────────────────────────────────────
 const G = {
@@ -227,6 +227,7 @@ const initMinisterios = [
   { id: uid(), nombre: "Misiones", lider: "Rev. José Martínez", miembros: 12, descripcion: "Coordinación de campañas misioneras nacionales e internacionales", estado: "activo", reuniones: "1er Sábado del mes" },
   { id: uid(), nombre: "Damas de Fe", lider: "Rosario Díaz Huamán", miembros: 30, descripcion: "Ministerio de mujeres con encuentros, retiros y servicio social", estado: "activo", reuniones: "Martes 10:00" },
   { id: uid(), nombre: "Ujieres", lider: "Roberto Flores López", miembros: 15, descripcion: "Servicio de bienvenida, orden y atención durante los cultos", estado: "activo", reuniones: "Domingos 07:30" },
+  { id: uid(), nombre: "Adolescentes ICV", lider: "Jorge / Priscila", miembros: 25, descripcion: "Ministerio de adolescentes con reuniones semanales, actividades de integración, evangelismo y discipulado para chicos de 12-17 años", estado: "activo", reuniones: "Sábados 15:00" },
 ];
 
 const initProductos = [
@@ -243,6 +244,19 @@ const initPublicaciones = [
   { id: uid(), titulo: "106 Años: De la Persecución al Avivamiento", autor: "Dr. Miguel Flores", fecha: "2025-02-10", categoria: "Historia", imagen: "📜", extracto: "Recorrido histórico por más de un siglo de evangelismo en el Perú, desde los misioneros pioneros hasta la iglesia de hoy.", visitas: 890, comentarios: 28, estado: "publicado" },
   { id: uid(), titulo: "Cómo Implementar Células en tu Iglesia Local", autor: "Hna. Carmen López", fecha: "2025-02-05", categoria: "Ministerio", imagen: "🏠", extracto: "Guía práctica para iniciar y mantener grupos celulares efectivos que multipliquen la congregación.", visitas: 2100, comentarios: 67, estado: "publicado" },
   { id: uid(), titulo: "La Nueva Generación: Alcanzando a la Juventud", autor: "Líder Andrés Mendoza", fecha: "2025-01-28", categoria: "Jóvenes", imagen: "🎵", extracto: "Estrategias contemporáneas para conectar el evangelio con los jóvenes del siglo XXI sin perder la esencia bíblica.", visitas: 1450, comentarios: 52, estado: "publicado" },
+];
+
+// ─── CRONOGRAMA MINISTERIO DE ADOLESCENTES ──────────────────────────
+// Cronograma semanal (sábados) del Ministerio de Adolescentes ICV — San Juan de Lurigancho
+const initCronograma = [
+  { id: uid(), fecha: "2026-06-06", actividad: "Enseñanza", responsable: "Antonella", lugar: "Templo ICV", tipo: "Enseñanza", estado: "realizado", notas: "" },
+  { id: uid(), fecha: "2026-06-13", actividad: "Salchiteens / Película", responsable: "Equipo Teens", lugar: "Templo ICV", tipo: "Recreación", estado: "realizado", notas: "Tarde de salchipapas y película" },
+  { id: uid(), fecha: "2026-06-20", actividad: "Expresarte / Periódico Mural", responsable: "Equipo Teens", lugar: "Templo ICV", tipo: "Arte", estado: "confirmado", notas: "Elaboración de periódico mural" },
+  { id: uid(), fecha: "2026-06-27", actividad: "Enseñanza", responsable: "Ps. Miguel", lugar: "Templo ICV", tipo: "Enseñanza", estado: "confirmado", notas: "" },
+  { id: uid(), fecha: "2026-07-04", actividad: "Karaoke Teens / Reflexión", responsable: "Equipo Teens", lugar: "Templo ICV", tipo: "Recreación", estado: "confirmado", notas: "" },
+  { id: uid(), fecha: "2026-07-11", actividad: "Noche de Talentos y Adoración", responsable: "Jorge / Priscila", lugar: "Templo ICV", tipo: "Adoración", estado: "planificado", notas: "Propuesto — sábado estaba libre, sin cruce con jóvenes. Confirmar tema." },
+  { id: uid(), fecha: "2026-07-18", actividad: "Evangelismo Teens / Picnic al Aire Libre", responsable: "Jorge / Priscila", lugar: "Parque SJL", tipo: "Evangelismo", estado: "confirmado", notas: "Salida al aire libre" },
+  { id: uid(), fecha: "2026-07-25", actividad: "Tarde de Juegos Evangelística", responsable: "Jorge / Priscila", lugar: "Templo ICV", tipo: "Evangelismo", estado: "confirmado", notas: "Fusión Tarde de Juegos + Evangelismo DENTRO del templo, para recibir chicos nuevos (no 2 sábados seguidos fuera)" },
 ];
 
 const initGastos = [
@@ -1034,21 +1048,19 @@ const MiembrosView = ({ data, setData, toast }) => {
   const openNew = () => { setEditando({ ...blank, id: uid(), foto: "NN" }); setModal(true); };
   const openEdit = (m) => { setEditando({ ...m }); setModal(true); };
 
-  const guardar = () => {
+  const guardar = async () => {
     if (!editando.nombre) return;
-    editando.foto = editando.nombre.split(" ").map(n => n[0]).join("").slice(0,2).toUpperCase();
-    const exists = data.miembros.find(m => m.id === editando.id);
-    if (exists) {
-      setData({ ...data, miembros: data.miembros.map(m => m.id === editando.id ? editando : m) });
-      toast("Miembro actualizado correctamente");
-    } else {
-      setData({ ...data, miembros: [...data.miembros, editando] });
-      toast("Nuevo miembro registrado");
-    }
+    const item = { ...editando, foto: editando.nombre.split(" ").map(n => n[0]).join("").slice(0,2).toUpperCase() };
+    const exists = data.miembros.find(m => m.id === item.id);
+    const saved = await upsertRecord("miembros", item, !exists) || item;
+    if (exists) setData({ ...data, miembros: data.miembros.map(m => m.id === item.id ? saved : m) });
+    else setData({ ...data, miembros: [saved, ...data.miembros] });
+    toast(exists ? "Miembro actualizado correctamente" : "Nuevo miembro registrado");
     setModal(false); setEditando(null);
   };
 
-  const confirmarEliminar = () => {
+  const confirmarEliminar = async () => {
+    await removeRecord("miembros", eliminar.id);
     setData({ ...data, miembros: data.miembros.filter(m => m.id !== eliminar.id) });
     toast("Miembro eliminado");
     setEliminar(null);
@@ -1126,25 +1138,29 @@ const FinanzasView = ({ data, setData, toast }) => {
   const blankDon = { miembro: "", monto: 0, tipo: "Ofrenda", metodo: "Efectivo", fecha: today(), estado: "completado", recibo: "", notas: "" };
   const blankGasto = { concepto: "", monto: 0, categoria: "Operativo", fecha: today(), responsable: "", estado: "pagado" };
 
-  const guardarDon = () => {
+  const guardarDon = async () => {
     if (!editando.miembro || !editando.monto) return;
     const exists = data.donaciones.find(d => d.id === editando.id);
-    if (exists) setData({ ...data, donaciones: data.donaciones.map(d => d.id === editando.id ? editando : d) });
-    else setData({ ...data, donaciones: [editando, ...data.donaciones] });
+    const saved = await upsertRecord("donaciones", editando, !exists) || editando;
+    if (exists) setData({ ...data, donaciones: data.donaciones.map(d => d.id === editando.id ? saved : d) });
+    else setData({ ...data, donaciones: [saved, ...data.donaciones] });
     toast(exists ? "Donación actualizada" : "Donación registrada");
     setModal(null); setEditando(null);
   };
 
-  const guardarGasto = () => {
+  const guardarGasto = async () => {
     if (!editando.concepto || !editando.monto) return;
     const exists = data.gastos.find(g => g.id === editando.id);
-    if (exists) setData({ ...data, gastos: data.gastos.map(g => g.id === editando.id ? editando : g) });
-    else setData({ ...data, gastos: [editando, ...data.gastos] });
+    const saved = await upsertRecord("gastos", editando, !exists) || editando;
+    if (exists) setData({ ...data, gastos: data.gastos.map(g => g.id === editando.id ? saved : g) });
+    else setData({ ...data, gastos: [saved, ...data.gastos] });
     toast(exists ? "Gasto actualizado" : "Gasto registrado");
     setModal(null); setEditando(null);
   };
 
-  const eliminarItem = () => {
+  const eliminarItem = async () => {
+    const key = eliminar.type === "donacion" ? "donaciones" : "gastos";
+    await removeRecord(key, eliminar.id);
     if (eliminar.type === "donacion") {
       setData({ ...data, donaciones: data.donaciones.filter(d => d.id !== eliminar.id) });
     } else {
@@ -1260,11 +1276,12 @@ const ProyectosView = ({ data, setData, toast }) => {
   const [editando, setEditando] = useState(null);
   const blank = { nombre: "", presupuesto: 0, gastado: 0, avance: 0, estado: "en inicio", responsable: "", inicio: today(), fin: "", descripcion: "", prioridad: "media" };
 
-  const guardar = () => {
+  const guardar = async () => {
     if (!editando.nombre) return;
     const exists = data.proyectos.find(p => p.id === editando.id);
-    if (exists) setData({ ...data, proyectos: data.proyectos.map(p => p.id === editando.id ? editando : p) });
-    else setData({ ...data, proyectos: [...data.proyectos, editando] });
+    const saved = await upsertRecord("proyectos", editando, !exists) || editando;
+    if (exists) setData({ ...data, proyectos: data.proyectos.map(p => p.id === editando.id ? saved : p) });
+    else setData({ ...data, proyectos: [saved, ...data.proyectos] });
     toast(exists ? "Proyecto actualizado" : "Proyecto creado");
     setModal(false); setEditando(null);
   };
@@ -1329,16 +1346,18 @@ const EventosView = ({ data, setData, toast, readOnly = false }) => {
   const [editando, setEditando] = useState(null);
   const blank = { nombre: "", fecha: today(), hora: "19:00", lugar: "", capacidad: 100, inscritos: 0, tipo: "Conferencia", descripcion: "", estado: "planificado" };
 
-  const guardar = () => {
+  const guardar = async () => {
     if (!editando.nombre) return;
     const exists = data.eventos.find(e => e.id === editando.id);
-    if (exists) setData({ ...data, eventos: data.eventos.map(e => e.id === editando.id ? editando : e) });
-    else setData({ ...data, eventos: [...data.eventos, editando] });
+    const saved = await upsertRecord("eventos", editando, !exists) || editando;
+    if (exists) setData({ ...data, eventos: data.eventos.map(e => e.id === editando.id ? saved : e) });
+    else setData({ ...data, eventos: [saved, ...data.eventos] });
     toast(exists ? "Evento actualizado" : "Evento creado");
     setModal(false); setEditando(null);
   };
 
-  const eliminar = (id) => {
+  const eliminar = async (id) => {
+    await removeRecord("eventos", id);
     setData({ ...data, eventos: data.eventos.filter(e => e.id !== id) });
     toast("Evento eliminado");
   };
@@ -1416,11 +1435,12 @@ const AsistenciaView = ({ data, setData, toast }) => {
   const totalNuevos = data.asistencia.reduce((a, d) => a + d.nuevos, 0);
   const blank = { fecha: today(), servicio: "Culto Dominical AM", total: 0, nuevos: 0, ninos: 0, jovenes: 0, adultos: 0 };
 
-  const guardar = () => {
+  const guardar = async () => {
     if (!editando.servicio || editando.total <= 0) return;
     const exists = data.asistencia.find(a => a.id === editando.id);
-    if (exists) setData({ ...data, asistencia: data.asistencia.map(a => a.id === editando.id ? editando : a) });
-    else setData({ ...data, asistencia: [editando, ...data.asistencia] });
+    const saved = await upsertRecord("asistencia", editando, !exists) || editando;
+    if (exists) setData({ ...data, asistencia: data.asistencia.map(a => a.id === editando.id ? saved : a) });
+    else setData({ ...data, asistencia: [saved, ...data.asistencia] });
     toast(exists ? "Registro actualizado" : "Asistencia registrada");
     setModal(false); setEditando(null);
   };
@@ -1478,11 +1498,12 @@ const CelulasView = ({ data, setData, toast }) => {
   const [editando, setEditando] = useState(null);
   const blank = { nombre: "", lider: "", dia: "Martes", hora: "19:00", lugar: "", miembros: 0, estado: "activo", zona: "" };
 
-  const guardar = () => {
+  const guardar = async () => {
     if (!editando.nombre) return;
     const exists = data.celulas.find(c => c.id === editando.id);
-    if (exists) setData({ ...data, celulas: data.celulas.map(c => c.id === editando.id ? editando : c) });
-    else setData({ ...data, celulas: [...data.celulas, editando] });
+    const saved = await upsertRecord("celulas", editando, !exists) || editando;
+    if (exists) setData({ ...data, celulas: data.celulas.map(c => c.id === editando.id ? saved : c) });
+    else setData({ ...data, celulas: [saved, ...data.celulas] });
     toast(exists ? "Célula actualizada" : "Célula creada");
     setModal(false); setEditando(null);
   };
@@ -1541,11 +1562,12 @@ const MinisteriosView = ({ data, setData, toast }) => {
   const [editando, setEditando] = useState(null);
   const blank = { nombre: "", lider: "", miembros: 0, descripcion: "", estado: "activo", reuniones: "" };
 
-  const guardar = () => {
+  const guardar = async () => {
     if (!editando.nombre) return;
     const exists = data.ministerios.find(m => m.id === editando.id);
-    if (exists) setData({ ...data, ministerios: data.ministerios.map(m => m.id === editando.id ? editando : m) });
-    else setData({ ...data, ministerios: [...data.ministerios, editando] });
+    const saved = await upsertRecord("ministerios", editando, !exists) || editando;
+    if (exists) setData({ ...data, ministerios: data.ministerios.map(m => m.id === editando.id ? saved : m) });
+    else setData({ ...data, ministerios: [saved, ...data.ministerios] });
     toast(exists ? "Ministerio actualizado" : "Ministerio creado");
     setModal(false); setEditando(null);
   };
@@ -1606,11 +1628,12 @@ const TiendaView = ({ data, setData, toast }) => {
   });
   const blank = { titulo: "", autor: "", precio: 0, imagen: "📖", categoria: "Doctrina", descripcion: "", stock: 0, editorial: "" };
 
-  const guardar = () => {
+  const guardar = async () => {
     if (!editando.titulo) return;
     const exists = data.productos.find(p => p.id === editando.id);
-    if (exists) setData({ ...data, productos: data.productos.map(p => p.id === editando.id ? editando : p) });
-    else setData({ ...data, productos: [...data.productos, editando] });
+    const saved = await upsertRecord("productos", editando, !exists) || editando;
+    if (exists) setData({ ...data, productos: data.productos.map(p => p.id === editando.id ? saved : p) });
+    else setData({ ...data, productos: [saved, ...data.productos] });
     toast(exists ? "Producto actualizado" : "Producto agregado");
     setModal(false); setEditando(null);
   };
@@ -1674,15 +1697,24 @@ const TiendaView = ({ data, setData, toast }) => {
 const BlogView = ({ data, setData, toast, readOnly = false }) => {
   const [modal, setModal] = useState(false);
   const [editando, setEditando] = useState(null);
+  const [eliminar, setEliminar] = useState(null);
   const blank = { titulo: "", autor: "Admin LADP", fecha: today(), categoria: "Enseñanza", imagen: "📝", extracto: "", visitas: 0, comentarios: 0, estado: "borrador" };
 
-  const guardar = () => {
+  const guardar = async () => {
     if (!editando.titulo) return;
     const exists = data.publicaciones.find(p => p.id === editando.id);
-    if (exists) setData({ ...data, publicaciones: data.publicaciones.map(p => p.id === editando.id ? editando : p) });
-    else setData({ ...data, publicaciones: [editando, ...data.publicaciones] });
+    const saved = await upsertRecord("publicaciones", editando, !exists) || editando;
+    if (exists) setData({ ...data, publicaciones: data.publicaciones.map(p => p.id === editando.id ? saved : p) });
+    else setData({ ...data, publicaciones: [saved, ...data.publicaciones] });
     toast(exists ? "Publicación actualizada" : "Publicación creada");
     setModal(false); setEditando(null);
+  };
+
+  const confirmarEliminar = async () => {
+    await removeRecord("publicaciones", eliminar.id);
+    setData({ ...data, publicaciones: data.publicaciones.filter(p => p.id !== eliminar.id) });
+    toast("Publicación eliminada");
+    setEliminar(null);
   };
 
   return (
@@ -1706,7 +1738,10 @@ const BlogView = ({ data, setData, toast, readOnly = false }) => {
             <div style={{ display: "flex", gap: 10, fontSize: 11.5, color: G.gray, paddingTop: 10, borderTop: `1px solid ${G.grayMid}20`, marginBottom: 12 }}>
               <span style={{ fontWeight: 600 }}>{pub.autor}</span><span>·</span><span>{fmt(pub.visitas)} vistas</span><span>·</span><span>{pub.comentarios} comentarios</span>
             </div>
-            {!readOnly && <Button variant="outline" size="sm" icon={Edit} onClick={() => { setEditando({ ...pub }); setModal(true); }} fullWidth>Editar</Button>}
+            {!readOnly && <div style={{ display: "flex", gap: 8 }}>
+              <Button variant="outline" size="sm" icon={Edit} onClick={() => { setEditando({ ...pub }); setModal(true); }} fullWidth>Editar</Button>
+              <button onClick={() => setEliminar(pub)} style={{ background: "none", border: `1.5px solid ${G.grayMid}`, cursor: "pointer", padding: "6px 10px", borderRadius: 8, display: "flex", alignItems: "center" }}><Trash2 size={15} color={G.danger} /></button>
+            </div>}
           </Card>
         ))}
       </div>
@@ -1716,7 +1751,7 @@ const BlogView = ({ data, setData, toast, readOnly = false }) => {
             <Input label="Título" value={editando.titulo} onChange={e => setEditando({ ...editando, titulo: e.target.value })} required />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <Input label="Autor" value={editando.autor} onChange={e => setEditando({ ...editando, autor: e.target.value })} />
-              <Select label="Categoría" value={editando.categoria} onChange={e => setEditando({ ...editando, categoria: e.target.value })} options={["Enseñanza", "Historia", "Ministerio", "Jóvenes", "Adoración", "Devocional", "Testimonio"]} />
+              <Select label="Categoría" value={editando.categoria} onChange={e => setEditando({ ...editando, categoria: e.target.value })} options={["Enseñanza", "Historia", "Ministerio", "Jóvenes", "Adolescentes", "Adoración", "Devocional", "Testimonio"]} />
             </div>
             <TextArea label="Extracto / Contenido" value={editando.extracto} onChange={e => setEditando({ ...editando, extracto: e.target.value })} rows={4} />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
@@ -1730,14 +1765,135 @@ const BlogView = ({ data, setData, toast, readOnly = false }) => {
           </div>
         </Modal>
       )}
+      {eliminar && <ConfirmDialog message={`¿Eliminar "${eliminar.titulo}"? Esta acción no se puede deshacer.`} onConfirm={confirmarEliminar} onCancel={() => setEliminar(null)} />}
+    </div>
+  );
+};
+
+// ─── MINISTERIO DE ADOLESCENTES — CRONOGRAMA ────────────────────────
+const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
+  const [modal, setModal] = useState(false);
+  const [editando, setEditando] = useState(null);
+  const [eliminar, setEliminar] = useState(null);
+  const cronograma = data.cronograma || [];
+  const blank = { fecha: today(), actividad: "", responsable: "", lugar: "Templo ICV", tipo: "Enseñanza", estado: "planificado", notas: "" };
+  const tipos = ["Enseñanza", "Recreación", "Arte", "Adoración", "Evangelismo", "Integración", "Servicio", "Otro"];
+
+  const tipoColor = (t) => ({ Enseñanza: G.primary, Recreación: G.accent, Arte: G.purple, Adoración: G.primaryLight, Evangelismo: G.success, Integración: G.warning, Servicio: G.gray }[t] || G.gray);
+  const estadoVariant = (e) => e === "realizado" ? "success" : e === "confirmado" ? "primary" : "warning";
+
+  const ordenado = [...cronograma].sort((a, b) => (a.fecha || "").localeCompare(b.fecha || ""));
+
+  const guardar = async () => {
+    if (!editando.actividad || !editando.fecha) return;
+    const exists = cronograma.find(c => c.id === editando.id);
+    const saved = await upsertRecord("cronograma", editando, !exists) || editando;
+    if (exists) setData({ ...data, cronograma: cronograma.map(c => c.id === editando.id ? saved : c) });
+    else setData({ ...data, cronograma: [saved, ...cronograma] });
+    toast(exists ? "Actividad actualizada" : "Actividad agregada al cronograma");
+    setModal(false); setEditando(null);
+  };
+
+  const confirmarEliminar = async () => {
+    await removeRecord("cronograma", eliminar.id);
+    setData({ ...data, cronograma: cronograma.filter(c => c.id !== eliminar.id) });
+    toast("Actividad eliminada");
+    setEliminar(null);
+  };
+
+  return (
+    <div className="fadein">
+      <PageHeader title="Ministerio de Adolescentes" subtitle="Cronograma de actividades · ICV San Juan de Lurigancho" actions={!readOnly && <Button variant="primary" size="md" icon={Plus} onClick={() => { setEditando({ ...blank, id: uid() }); setModal(true); }}>Nueva Actividad</Button>} />
+
+      <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
+        <StatCard label="Actividades" value={cronograma.length} icon={Calendar} color={G.primary} />
+        <StatCard label="Confirmadas" value={cronograma.filter(c => c.estado === "confirmado").length} icon={Check} color={G.success} />
+        <StatCard label="Por planificar" value={cronograma.filter(c => c.estado === "planificado").length} icon={Clock} color={G.warning} />
+      </div>
+
+      <Card hover={false}>
+        {ordenado.length === 0 && <div style={{ padding: "30px 0", textAlign: "center", color: G.gray, fontSize: 13.5 }}>Aún no hay actividades en el cronograma. {!readOnly && 'Usa "Nueva Actividad" para empezar.'}</div>}
+        {ordenado.map((c, i) => (
+          <div key={c.id} style={{ display: "flex", alignItems: "flex-start", gap: 16, padding: "14px 0", borderBottom: i < ordenado.length - 1 ? `1px solid ${G.grayMid}20` : "none" }}>
+            <div style={{ width: 52, textAlign: "center", flexShrink: 0 }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: G.primary, fontFamily: fontTitle, lineHeight: 1 }}>{c.fecha ? new Date(c.fecha + "T12:00").getDate() : "–"}</div>
+              <div style={{ fontSize: 10, color: G.gray, textTransform: "uppercase", letterSpacing: 0.5 }}>{c.fecha ? monthName(new Date(c.fecha + "T12:00").getMonth()) : ""}</div>
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 5, alignItems: "center" }}>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: "#fff", background: tipoColor(c.tipo), padding: "2px 8px", borderRadius: 20 }}>{c.tipo}</span>
+                <Badge variant={estadoVariant(c.estado)}>{c.estado}</Badge>
+              </div>
+              <div style={{ fontSize: 14.5, fontWeight: 700, color: G.dark }}>{c.actividad}</div>
+              <div style={{ fontSize: 12, color: G.gray, marginTop: 2 }}>
+                {c.responsable && <span>👤 {c.responsable}</span>}
+                {c.responsable && c.lugar && <span> · </span>}
+                {c.lugar && <span><MapPin size={11} style={{ display: "inline", marginRight: 2 }} />{c.lugar}</span>}
+              </div>
+              {c.notas && <div style={{ fontSize: 11.5, color: G.gray, marginTop: 4, fontStyle: "italic" }}>{c.notas}</div>}
+            </div>
+            {!readOnly && (
+              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                <button onClick={() => { setEditando({ ...c }); setModal(true); }} style={{ background: "none", border: `1.5px solid ${G.grayMid}`, cursor: "pointer", padding: 7, borderRadius: 8, display: "flex" }}><Edit size={15} color={G.primary} /></button>
+                <button onClick={() => setEliminar(c)} style={{ background: "none", border: `1.5px solid ${G.grayMid}`, cursor: "pointer", padding: 7, borderRadius: 8, display: "flex" }}><Trash2 size={15} color={G.danger} /></button>
+              </div>
+            )}
+          </div>
+        ))}
+      </Card>
+
+      {!readOnly && modal && editando && (
+        <Modal title={cronograma.find(c => c.id === editando.id) ? "Editar Actividad" : "Nueva Actividad"} onClose={() => { setModal(false); setEditando(null); }} width={600}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <Input label="Actividad" value={editando.actividad} onChange={e => setEditando({ ...editando, actividad: e.target.value })} required />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <Input label="Fecha" value={editando.fecha} onChange={e => setEditando({ ...editando, fecha: e.target.value })} type="date" required />
+              <Input label="Responsable" value={editando.responsable} onChange={e => setEditando({ ...editando, responsable: e.target.value })} />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <Select label="Tipo" value={editando.tipo} onChange={e => setEditando({ ...editando, tipo: e.target.value })} options={tipos} />
+              <Input label="Lugar" value={editando.lugar} onChange={e => setEditando({ ...editando, lugar: e.target.value })} />
+            </div>
+            <Select label="Estado" value={editando.estado} onChange={e => setEditando({ ...editando, estado: e.target.value })} options={["planificado", "confirmado", "realizado"]} />
+            <TextArea label="Notas" value={editando.notas} onChange={e => setEditando({ ...editando, notas: e.target.value })} rows={3} />
+          </div>
+          <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
+            <Button variant="outline" size="md" onClick={() => { setModal(false); setEditando(null); }} fullWidth>Cancelar</Button>
+            <Button variant="primary" size="md" onClick={guardar} fullWidth icon={Save}>Guardar</Button>
+          </div>
+        </Modal>
+      )}
+      {eliminar && <ConfirmDialog message={`¿Eliminar "${eliminar.actividad}" del cronograma? Esta acción no se puede deshacer.`} onConfirm={confirmarEliminar} onCancel={() => setEliminar(null)} />}
     </div>
   );
 };
 
 // ─── CONFIGURACIÓN ──────────────────────────────────────────────────
-const ConfiguracionView = ({ config, setConfig, toast }) => {
+const ConfiguracionView = ({ config, setConfig, toast, currentUserId }) => {
   const [tab, setTab] = useState("general");
+  const [usuarios, setUsuarios] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [updatingRole, setUpdatingRole] = useState(null);
   const guardar = () => toast("Configuración guardada correctamente");
+
+  useEffect(() => {
+    if (tab !== "usuarios") return;
+    setLoadingUsers(true);
+    getUsers().then(data => { setUsuarios(data); setLoadingUsers(false); });
+  }, [tab]);
+
+  const handleRoleChange = async (userId, newRol) => {
+    if (userId === currentUserId) { toast("No puedes cambiar tu propio rol", "error"); return; }
+    setUpdatingRole(userId);
+    const ok = await updateUserRole(userId, newRol);
+    if (ok) {
+      setUsuarios(prev => prev.map(u => u.id === userId ? { ...u, rol: newRol } : u));
+      toast(`Rol actualizado a "${newRol === "admin" ? "Administrador" : "Usuario"}"`);
+    } else {
+      toast("Error al actualizar el rol", "error");
+    }
+    setUpdatingRole(null);
+  };
 
   return (
     <div className="fadein">
@@ -1771,27 +1927,49 @@ const ConfiguracionView = ({ config, setConfig, toast }) => {
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, fontFamily: fontTitle, color: G.dark }}>Usuarios del Sistema</h3>
-              <Button variant="primary" size="sm" icon={UserPlus}>Nuevo Usuario</Button>
+              <Badge variant="default">{usuarios.length} registrados</Badge>
             </div>
-            {[
-              { nombre: "Admin Principal", email: "admin@ladp.pe", rol: "Administrador" },
-              { nombre: "Pastor Daniel Caballero", email: "pastor@ladp.pe", rol: "Pastor" },
-              { nombre: "Rosario Díaz H.", email: "rosario@ladp.pe", rol: "Tesorera" },
-            ].map((u, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", background: G.grayLight, borderRadius: 11, marginBottom: 10 }}>
-                <Avatar initials={u.nombre.split(" ").map(n => n[0]).join("").slice(0,2)} size={40} color={G.primary} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 700, color: G.dark }}>{u.nombre}</div>
-                  <div style={{ fontSize: 12, color: G.gray }}>{u.email} · {u.rol}</div>
+            {loadingUsers ? (
+              <div style={{ textAlign: "center", padding: 32, color: G.gray }}>Cargando usuarios...</div>
+            ) : usuarios.length === 0 ? (
+              <div style={{ textAlign: "center", padding: 32, color: G.gray, fontSize: 13.5 }}>No hay usuarios registrados aún</div>
+            ) : usuarios.map(u => {
+              const isCurrentUser = u.id === currentUserId;
+              const isAdminUser = u.rol === "admin";
+              return (
+                <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", background: isCurrentUser ? `${G.primary}08` : G.grayLight, borderRadius: 11, marginBottom: 10, border: isCurrentUser ? `1.5px solid ${G.primary}30` : "1.5px solid transparent" }}>
+                  <Avatar initials={(u.nombre || "U").slice(0, 2).toUpperCase()} size={40} color={isAdminUser ? G.primary : G.gray} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: G.dark, display: "flex", alignItems: "center", gap: 6 }}>
+                      {u.nombre}
+                      {isCurrentUser && <Badge variant="default" size="sm">Tú</Badge>}
+                    </div>
+                    <div style={{ fontSize: 12, color: G.gray, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.email || "Sin email registrado"}</div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                    <Badge variant={isAdminUser ? "success" : "default"}>{isAdminUser ? "Administrador" : "Usuario"}</Badge>
+                    {!isCurrentUser && (
+                      <select
+                        value={u.rol}
+                        disabled={updatingRole === u.id}
+                        onChange={e => handleRoleChange(u.id, e.target.value)}
+                        style={{ fontSize: 12, padding: "4px 8px", borderRadius: 7, border: `1.5px solid ${G.grayMid}`, background: "#fff", color: G.dark, cursor: "pointer", fontFamily: "inherit" }}
+                      >
+                        <option value="usuario">Usuario</option>
+                        <option value="admin">Administrador</option>
+                      </select>
+                    )}
+                  </div>
                 </div>
-                <Badge variant="success">activo</Badge>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
-        <div style={{ marginTop: 28, paddingTop: 20, borderTop: `1px solid ${G.grayMid}40`, display: "flex", justifyContent: "flex-end" }}>
-          <Button variant="primary" size="md" onClick={guardar} icon={Save}>Guardar Cambios</Button>
-        </div>
+        {tab !== "usuarios" && (
+          <div style={{ marginTop: 28, paddingTop: 20, borderTop: `1px solid ${G.grayMid}40`, display: "flex", justifyContent: "flex-end" }}>
+            <Button variant="primary" size="md" onClick={guardar} icon={Save}>Guardar Cambios</Button>
+          </div>
+        )}
       </Card>
     </div>
   );
@@ -1983,6 +2161,7 @@ const Dashboard = ({ onLogout, userProfile }) => {
     productos: initProductos,
     publicaciones: initPublicaciones,
     gastos: initGastos,
+    cronograma: initCronograma,
   });
 
   const [dbLoading, setDbLoading] = useState(false);
@@ -2014,12 +2193,14 @@ const Dashboard = ({ onLogout, userProfile }) => {
     { id: "asistencia", label: "Asistencia", icon: Activity },
     { id: "celulas", label: "Células", icon: Home },
     { id: "ministerios", label: "Ministerios", icon: Layers },
+    { id: "adolescentes", label: "Adolescentes", icon: Star },
     { id: "tienda", label: "Tienda", icon: ShoppingCart },
     { id: "blog", label: "Blog", icon: FileText },
     { id: "configuracion", label: "Configuración", icon: Settings },
   ] : [
     { id: "mi-perfil", label: "Mi Perfil", icon: UserCheck },
     { id: "eventos", label: "Eventos", icon: Calendar },
+    { id: "adolescentes", label: "Adolescentes", icon: Star },
     { id: "blog", label: "Blog", icon: FileText },
   ];
 
@@ -2033,9 +2214,10 @@ const Dashboard = ({ onLogout, userProfile }) => {
     asistencia: <AsistenciaView data={data} setData={setData} toast={showToast} />,
     celulas: <CelulasView data={data} setData={setData} toast={showToast} />,
     ministerios: <MinisteriosView data={data} setData={setData} toast={showToast} />,
+    adolescentes: <AdolescentesView data={data} setData={setData} toast={showToast} readOnly={!isAdmin} />,
     tienda: <TiendaView data={data} setData={setData} toast={showToast} />,
     blog: <BlogView data={data} setData={setData} toast={showToast} readOnly={!isAdmin} />,
-    configuracion: <ConfiguracionView config={config} setConfig={setConfig} toast={showToast} />,
+    configuracion: <ConfiguracionView config={config} setConfig={setConfig} toast={showToast} currentUserId={userProfile?.id} />,
   };
 
   return (

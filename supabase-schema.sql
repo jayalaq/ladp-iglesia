@@ -144,6 +144,30 @@ CREATE TABLE IF NOT EXISTS publicaciones (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- ─── CRONOGRAMA MINISTERIO DE ADOLESCENTES ─────────────────────────
+CREATE TABLE IF NOT EXISTS cronograma_adolescentes (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  fecha DATE,
+  actividad TEXT NOT NULL,
+  responsable TEXT,
+  lugar TEXT,
+  tipo TEXT,
+  estado TEXT DEFAULT 'planificado',
+  notas TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ─── SINCRONIZACIÓN DE COLUMNAS (seguro de re-ejecutar) ────────────
+-- Asegura que las columnas que usa la app existan, también en bases ya creadas.
+ALTER TABLE donaciones ADD COLUMN IF NOT EXISTS estado TEXT DEFAULT 'completado';
+ALTER TABLE donaciones ADD COLUMN IF NOT EXISTS recibo TEXT;
+ALTER TABLE donaciones ADD COLUMN IF NOT EXISTS notas TEXT;
+ALTER TABLE gastos ADD COLUMN IF NOT EXISTS estado TEXT DEFAULT 'pagado';
+ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS avance INTEGER DEFAULT 0;
+ALTER TABLE eventos ADD COLUMN IF NOT EXISTS estado TEXT DEFAULT 'planificado';
+ALTER TABLE asistencia ADD COLUMN IF NOT EXISTS nuevos INTEGER DEFAULT 0;
+ALTER TABLE celulas ADD COLUMN IF NOT EXISTS lugar TEXT;
+
 -- ─── ROW LEVEL SECURITY ───────────────────────────────────────────
 -- Habilitar RLS en todas las tablas
 ALTER TABLE miembros ENABLE ROW LEVEL SECURITY;
@@ -156,6 +180,7 @@ ALTER TABLE celulas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ministerios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE productos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE publicaciones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cronograma_adolescentes ENABLE ROW LEVEL SECURITY;
 
 -- Políticas: lectura pública, escritura autenticada
 CREATE POLICY "Public read" ON miembros FOR SELECT USING (true);
@@ -208,6 +233,11 @@ CREATE POLICY "Auth insert" ON publicaciones FOR INSERT WITH CHECK (auth.role() 
 CREATE POLICY "Auth update" ON publicaciones FOR UPDATE USING (auth.role() = 'authenticated');
 CREATE POLICY "Auth delete" ON publicaciones FOR DELETE USING (auth.role() = 'authenticated');
 
+CREATE POLICY "Public read" ON cronograma_adolescentes FOR SELECT USING (true);
+CREATE POLICY "Auth insert" ON cronograma_adolescentes FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Auth update" ON cronograma_adolescentes FOR UPDATE USING (auth.role() = 'authenticated');
+CREATE POLICY "Auth delete" ON cronograma_adolescentes FOR DELETE USING (auth.role() = 'authenticated');
+
 -- ─── USER PROFILES ──────────────────────────────────────────────────
 -- Tabla para perfiles de usuario con roles (admin / usuario)
 -- EJECUTAR en Supabase SQL Editor después del schema principal
@@ -216,19 +246,34 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
   nombre TEXT NOT NULL DEFAULT 'Usuario',
   rol TEXT NOT NULL DEFAULT 'usuario' CHECK (rol IN ('admin', 'usuario')),
+  email TEXT,
   miembro_id UUID REFERENCES miembros(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Agregar columna email si la tabla ya existe
+ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS email TEXT;
+
 ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 
--- Cada usuario solo ve/edita su propio perfil
-CREATE POLICY "Ver propio perfil" ON user_profiles FOR SELECT USING (auth.uid() = id);
-CREATE POLICY "Crear propio perfil" ON user_profiles FOR INSERT WITH CHECK (auth.uid() = id);
-CREATE POLICY "Editar propio perfil" ON user_profiles FOR UPDATE USING (auth.uid() = id);
+-- Función helper para verificar si el usuario actual es admin
+-- SECURITY DEFINER evita recursión infinita en las políticas RLS
+CREATE OR REPLACE FUNCTION is_admin()
+RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM user_profiles WHERE id = auth.uid() AND rol = 'admin'
+  );
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
 
--- NOTA: Para promover a un usuario a admin, ejecutar en Supabase SQL Editor:
--- UPDATE user_profiles SET rol = 'admin' WHERE id = '<uuid-del-usuario>';
+-- Políticas RLS: cada usuario ve su propio perfil; admin ve todos
+CREATE POLICY "Ver propio perfil" ON user_profiles FOR SELECT USING (auth.uid() = id OR is_admin());
+CREATE POLICY "Crear propio perfil" ON user_profiles FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "Editar propio perfil" ON user_profiles FOR UPDATE USING (auth.uid() = id OR is_admin());
+
+-- ─── PROMOVER A ADMIN ────────────────────────────────────────────────
+-- Ejecutar en Supabase SQL Editor para convertir tu cuenta en admin:
+-- UPDATE user_profiles SET rol = 'admin'
+-- WHERE id = (SELECT id FROM auth.users WHERE email = 'tu@email.com');
 
 -- NOTA: Para habilitar Google OAuth:
 -- 1. Ve a Supabase Dashboard → Authentication → Providers → Google → Enable
