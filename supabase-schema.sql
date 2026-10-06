@@ -157,6 +157,17 @@ CREATE TABLE IF NOT EXISTS cronograma_adolescentes (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- ─── SINCRONIZACIÓN DE COLUMNAS (seguro de re-ejecutar) ────────────
+-- Asegura que las columnas que usa la app existan, también en bases ya creadas.
+ALTER TABLE donaciones ADD COLUMN IF NOT EXISTS estado TEXT DEFAULT 'completado';
+ALTER TABLE donaciones ADD COLUMN IF NOT EXISTS recibo TEXT;
+ALTER TABLE donaciones ADD COLUMN IF NOT EXISTS notas TEXT;
+ALTER TABLE gastos ADD COLUMN IF NOT EXISTS estado TEXT DEFAULT 'pagado';
+ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS avance INTEGER DEFAULT 0;
+ALTER TABLE eventos ADD COLUMN IF NOT EXISTS estado TEXT DEFAULT 'planificado';
+ALTER TABLE asistencia ADD COLUMN IF NOT EXISTS nuevos INTEGER DEFAULT 0;
+ALTER TABLE celulas ADD COLUMN IF NOT EXISTS lugar TEXT;
+
 -- ─── ROW LEVEL SECURITY ───────────────────────────────────────────
 -- Habilitar RLS en todas las tablas
 ALTER TABLE miembros ENABLE ROW LEVEL SECURITY;
