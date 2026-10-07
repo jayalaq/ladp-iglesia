@@ -121,10 +121,39 @@ const GlobalStyles = () => (
       .dashboard-header .search-box { display: none !important; }
       .dashboard-main { padding: 16px !important; }
       .stat-grid { grid-template-columns: 1fr 1fr !important; gap: 12px !important; }
-      .teens-cal-grid { grid-template-columns: 1fr !important; }
+      .teens-cal-grid { grid-template-columns: minmax(0, 1fr) !important; }
+      .teens-agenda { height: auto !important; min-height: 0 !important; max-height: 70vh !important; }
       .admin-table { overflow-x: auto !important; }
       .shop-product-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)) !important; }
       .shop-header { flex-direction: column !important; gap: 16px !important; }
+    }
+    /* La agenda toma la altura del calendario y hace scroll por dentro */
+    .teens-agenda { height: 0; min-height: 100%; }
+    /* ═══ RESPONSIVE: PANEL COMPACTO ═══ */
+    @media (max-width: 900px) {
+      .split-grid { grid-template-columns: 1fr !important; gap: 20px !important; }
+    }
+    @media (max-width: 768px) {
+      .ui-card { padding: 14px !important; border-radius: 12px !important; }
+      .page-header { margin-bottom: 12px !important; }
+      .page-header h1 { font-size: 19px !important; }
+      .page-header > div:last-child button { padding: 7px 12px !important; font-size: 12px !important; }
+      .modal-head { padding: 12px 16px !important; }
+      .modal-body { padding: 14px 16px !important; }
+      .list-row { flex-wrap: wrap !important; row-gap: 6px !important; }
+      .list-row .list-main { flex-basis: calc(100% - 64px) !important; }
+      .list-row { column-gap: 10px !important; }
+      .list-row > * { min-width: 0 !important; }
+      .list-row > div[style*="font-size: 18px"] { font-size: 15px !important; }
+      .dashboard-sidebar > div:first-child { display: none !important; }
+      .dashboard-sidebar nav { display: flex !important; overflow-x: auto !important; overflow-y: hidden !important; gap: 2px; }
+      .dashboard-sidebar .sidebar-bottom { display: flex !important; }
+      .dashboard-sidebar .sidebar-item { width: auto !important; flex-shrink: 0 !important; margin: 0 !important; }
+      .tabs-bar { flex-wrap: nowrap !important; overflow-x: auto !important; padding-bottom: 4px; }
+      .tabs-bar button { flex-shrink: 0 !important; padding: 7px 12px !important; }
+    }
+    @media (max-width: 600px) {
+      .form-grid { grid-template-columns: 1fr !important; }
     }
     /* ═══ RESPONSIVE: SMALL MOBILE (max 480px) ═══ */
     @media (max-width: 480px) {
@@ -132,7 +161,7 @@ const GlobalStyles = () => (
       .ministry-grid { grid-template-columns: 1fr !important; }
       .como-grid { grid-template-columns: 1fr !important; }
       .visit-features { grid-template-columns: 1fr !important; }
-      .stat-grid { grid-template-columns: 1fr !important; }
+      .stat-grid { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
       .shop-product-grid { grid-template-columns: 1fr !important; }
     }
     .hamburger-btn { display: none; align-items: center; justify-content: center; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; padding: 8px; cursor: pointer; color: #fff; }
@@ -388,7 +417,7 @@ const Button = ({ children, variant = "primary", size = "md", icon: Icon, onClic
 };
 
 const Card = ({ children, hover, onClick, style: s, className = "" }) => (
-  <div onClick={onClick} className={`${hover ? "card-hover" : ""} ${className}`} style={{ background: "#fff", borderRadius: 14, padding: 24, border: `1px solid ${G.grayMid}40`, cursor: onClick ? "pointer" : "default", ...s }}>
+  <div onClick={onClick} className={`ui-card ${hover ? "card-hover" : ""} ${className}`} style={{ background: "#fff", borderRadius: 14, padding: 18, border: `1px solid ${G.grayMid}40`, cursor: onClick ? "pointer" : "default", ...s }}>
     {children}
   </div>
 );
@@ -422,11 +451,11 @@ const Select = ({ label, value, onChange, options, required }) => (
 const Modal = ({ children, onClose, title, width = 560 }) => (
   <div style={{ position: "fixed", inset: 0, background: "rgba(15,25,35,0.65)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 20 }} className="fadein" onClick={onClose}>
     <div className="scaleIn" style={{ background: "#fff", borderRadius: 18, maxWidth: width, width: "100%", maxHeight: "90vh", overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 24px 60px rgba(0,0,0,0.25)" }} onClick={e => e.stopPropagation()}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 28px", borderBottom: `1px solid ${G.grayMid}40` }}>
+      <div className="modal-head" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 22px", borderBottom: `1px solid ${G.grayMid}40` }}>
         <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, fontFamily: fontTitle, color: G.dark }}>{title}</h3>
         <button onClick={onClose} style={{ background: G.grayLight, border: "none", cursor: "pointer", padding: 6, borderRadius: 8, display: "flex" }}><X size={18} color={G.gray} /></button>
       </div>
-      <div style={{ padding: "24px 28px", overflowY: "auto", flex: 1 }}>
+      <div className="modal-body" style={{ padding: "18px 22px", overflowY: "auto", flex: 1 }}>
         {children}
       </div>
     </div>
@@ -434,15 +463,17 @@ const Modal = ({ children, onClose, title, width = 560 }) => (
 );
 
 const StatCard = ({ label, value, icon: Icon, color, trend, onClick }) => (
-  <Card hover={!!onClick} onClick={onClick} style={{ padding: "20px 22px" }}>
-    <div style={{ display: "flex", alignItems: "start", justifyContent: "space-between", marginBottom: 12 }}>
-      <div style={{ width: 42, height: 42, borderRadius: 11, background: color + "14", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <Icon size={20} color={color} />
-      </div>
-      {trend && <span style={{ fontSize: 11.5, fontWeight: 700, color: G.success, background: G.successLight, padding: "2px 8px", borderRadius: 6 }}>{trend}</span>}
+  <Card hover={!!onClick} onClick={onClick} style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+    <div style={{ width: 38, height: 38, borderRadius: 10, background: color + "14", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+      <Icon size={18} color={color} />
     </div>
-    <div style={{ fontSize: 28, fontWeight: 800, color: G.dark, fontFamily: fontTitle, marginBottom: 2, letterSpacing: -0.5 }}>{value}</div>
-    <div style={{ fontSize: 12.5, color: G.gray, fontWeight: 500 }}>{label}</div>
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 22, fontWeight: 800, color: G.dark, fontFamily: fontTitle, letterSpacing: -0.5, lineHeight: 1.1 }}>{value}</span>
+        {trend && <span style={{ fontSize: 11, fontWeight: 700, color: G.success, background: G.successLight, padding: "1px 6px", borderRadius: 6 }}>{trend}</span>}
+      </div>
+      <div style={{ fontSize: 12, color: G.gray, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</div>
+    </div>
   </Card>
 );
 
@@ -511,10 +542,10 @@ const TabBar = ({ tabs, active, onChange }) => (
 );
 
 const PageHeader = ({ title, subtitle, actions }) => (
-  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28, flexWrap: "wrap", gap: 12 }}>
+  <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, flexWrap: "wrap", gap: 10 }}>
     <div>
-      <h1 style={{ margin: "0 0 4px", fontSize: 26, fontWeight: 800, color: G.dark, fontFamily: fontTitle, letterSpacing: -0.5 }}>{title}</h1>
-      <p style={{ margin: 0, fontSize: 13.5, color: G.gray }}>{subtitle}</p>
+      <h1 style={{ margin: "0 0 2px", fontSize: 22, fontWeight: 800, color: G.dark, fontFamily: fontTitle, letterSpacing: -0.5 }}>{title}</h1>
+      <p style={{ margin: 0, fontSize: 13, color: G.gray }}>{subtitle}</p>
     </div>
     {actions && <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>{actions}</div>}
   </div>
@@ -1055,7 +1086,7 @@ const DashboardView = ({ data }) => {
   return (
     <div className="fadein">
       <PageHeader title="Dashboard" subtitle={`Resumen general — ${CHURCH_DEFAULT.nombre}`} />
-      <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
+      <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 16 }}>
         <StatCard label="Miembros Activos" value={activos} icon={Users} color={G.primary} trend={`+${miembros.filter(m => m.desde >= "2025-01").length}`} />
         <StatCard label="Ingresos (S/.)" value={`${(totalIngresos / 1000).toFixed(1)}K`} icon={TrendingUp} color={G.success} trend="+8%" />
         <StatCard label="Balance (S/.)" value={fmtMoney(balance)} icon={DollarSign} color={balance >= 0 ? G.success : G.danger} />
@@ -1171,9 +1202,9 @@ const MiembrosView = ({ data, setData, toast }) => {
 
       <Card hover={false}>
         {filtrados.length === 0 ? <EmptyState icon={Users} message="No se encontraron miembros con ese criterio" /> : filtrados.map((m, i) => (
-          <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "13px 0", borderBottom: i < filtrados.length - 1 ? `1px solid ${G.grayMid}20` : "none" }}>
+          <div key={m.id} className="list-row" style={{ display: "flex", alignItems: "center", gap: 14, padding: "13px 0", borderBottom: i < filtrados.length - 1 ? `1px solid ${G.grayMid}20` : "none" }}>
             <Avatar initials={m.foto} size={42} color={m.estado === "activo" ? G.primary : G.gray} />
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="list-main" style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: G.dark, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.nombre}</div>
               <div style={{ fontSize: 12.5, color: G.gray, marginTop: 1 }}>{m.rol} · {m.email}</div>
             </div>
@@ -1188,7 +1219,7 @@ const MiembrosView = ({ data, setData, toast }) => {
 
       {modal && editando && (
         <Modal title={data.miembros.find(m => m.id === editando.id) ? "Editar Miembro" : "Nuevo Miembro"} onClose={() => setModal(false)} width={600}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <div style={{ gridColumn: "1/-1" }}><Input label="Nombre completo" value={editando.nombre} onChange={e => setEditando({ ...editando, nombre: e.target.value })} placeholder="Juan Pérez" required /></div>
             <Input label="Email" value={editando.email} onChange={e => setEditando({ ...editando, email: e.target.value })} placeholder="juan@email.com" type="email" icon={Mail} />
             <Input label="Teléfono" value={editando.telefono} onChange={e => setEditando({ ...editando, telefono: e.target.value })} placeholder="+51 999 123 456" icon={Phone} />
@@ -1267,7 +1298,7 @@ const FinanzasView = ({ data, setData, toast }) => {
         <>{tab === "ingresos" ? <Button variant="primary" size="md" icon={Plus} onClick={() => { setEditando({ ...blankDon, id: uid() }); setModal("donacion"); }}>Nueva Donación</Button> : <Button variant="primary" size="md" icon={Plus} onClick={() => { setEditando({ ...blankGasto, id: uid() }); setModal("gasto"); }}>Nuevo Gasto</Button>}</>
       } />
 
-      <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
+      <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 16 }}>
         <StatCard label="Total Ingresos" value={fmtMoney(totalIngresos)} icon={TrendingUp} color={G.success} />
         <StatCard label="Total Egresos" value={fmtMoney(totalGastos)} icon={CreditCard} color={G.danger} />
         <StatCard label="Balance" value={fmtMoney(balance)} icon={DollarSign} color={balance >= 0 ? G.success : G.danger} />
@@ -1280,11 +1311,11 @@ const FinanzasView = ({ data, setData, toast }) => {
         <Card hover={false}>
           {data.donaciones.length === 0 ? <EmptyState icon={DollarSign} message="No hay donaciones registradas" action="Registrar primera donación" onAction={() => { setEditando({ ...blankDon, id: uid() }); setModal("donacion"); }} /> :
           data.donaciones.map((d, i) => (
-            <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "13px 0", borderBottom: i < data.donaciones.length - 1 ? `1px solid ${G.grayMid}20` : "none" }}>
+            <div key={d.id} className="list-row" style={{ display: "flex", alignItems: "center", gap: 14, padding: "13px 0", borderBottom: i < data.donaciones.length - 1 ? `1px solid ${G.grayMid}20` : "none" }}>
               <div style={{ width: 42, height: 42, borderRadius: 11, background: G.success + "14", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <DollarSign size={20} color={G.success} />
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="list-main" style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: G.dark }}>{d.miembro}</div>
                 <div style={{ fontSize: 12.5, color: G.gray }}>{d.tipo} · {d.metodo}{d.recibo ? ` · ${d.recibo}` : ""}</div>
               </div>
@@ -1302,11 +1333,11 @@ const FinanzasView = ({ data, setData, toast }) => {
         <Card hover={false}>
           {data.gastos.length === 0 ? <EmptyState icon={CreditCard} message="No hay gastos registrados" action="Registrar primer gasto" onAction={() => { setEditando({ ...blankGasto, id: uid() }); setModal("gasto"); }} /> :
           data.gastos.map((g, i) => (
-            <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "13px 0", borderBottom: i < data.gastos.length - 1 ? `1px solid ${G.grayMid}20` : "none" }}>
+            <div key={g.id} className="list-row" style={{ display: "flex", alignItems: "center", gap: 14, padding: "13px 0", borderBottom: i < data.gastos.length - 1 ? `1px solid ${G.grayMid}20` : "none" }}>
               <div style={{ width: 42, height: 42, borderRadius: 11, background: G.danger + "14", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <CreditCard size={20} color={G.danger} />
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="list-main" style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: G.dark }}>{g.concepto}</div>
                 <div style={{ fontSize: 12.5, color: G.gray }}>{g.categoria} · {g.responsable}</div>
               </div>
@@ -1322,7 +1353,7 @@ const FinanzasView = ({ data, setData, toast }) => {
 
       {modal === "donacion" && editando && (
         <Modal title={data.donaciones.find(d => d.id === editando.id) ? "Editar Donación" : "Nueva Donación"} onClose={() => { setModal(null); setEditando(null); }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <div style={{ gridColumn: "1/-1" }}><Input label="Nombre del donante" value={editando.miembro} onChange={e => setEditando({ ...editando, miembro: e.target.value })} placeholder="Nombre completo o Anónimo" required /></div>
             <Input label="Monto (S/.)" value={editando.monto} onChange={e => setEditando({ ...editando, monto: Number(e.target.value) })} type="number" required />
             <Select label="Tipo" value={editando.tipo} onChange={e => setEditando({ ...editando, tipo: e.target.value })} options={["Diezmo", "Ofrenda", "Ofrenda Misionera", "Donación Especial", "Primicias", "Ofrenda de Amor"]} required />
@@ -1341,7 +1372,7 @@ const FinanzasView = ({ data, setData, toast }) => {
 
       {modal === "gasto" && editando && (
         <Modal title={data.gastos.find(g => g.id === editando.id) ? "Editar Gasto" : "Nuevo Gasto"} onClose={() => { setModal(null); setEditando(null); }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <div style={{ gridColumn: "1/-1" }}><Input label="Concepto" value={editando.concepto} onChange={e => setEditando({ ...editando, concepto: e.target.value })} placeholder="Descripción del gasto" required /></div>
             <Input label="Monto (S/.)" value={editando.monto} onChange={e => setEditando({ ...editando, monto: Number(e.target.value) })} type="number" required />
             <Select label="Categoría" value={editando.categoria} onChange={e => setEditando({ ...editando, categoria: e.target.value })} options={["Operativo", "Mantenimiento", "Educación", "Misiones", "Equipamiento", "Salarios", "Eventos", "Otros"]} />
@@ -1409,7 +1440,7 @@ const ProyectosView = ({ data, setData, toast }) => {
       </div>
       {modal && editando && (
         <Modal title={data.proyectos.find(p => p.id === editando.id) ? "Editar Proyecto" : "Nuevo Proyecto"} onClose={() => { setModal(false); setEditando(null); }} width={600}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <div style={{ gridColumn: "1/-1" }}><Input label="Nombre" value={editando.nombre} onChange={e => setEditando({ ...editando, nombre: e.target.value })} required /></div>
             <div style={{ gridColumn: "1/-1" }}><TextArea label="Descripción" value={editando.descripcion} onChange={e => setEditando({ ...editando, descripcion: e.target.value })} /></div>
             <Input label="Presupuesto (S/.)" value={editando.presupuesto} onChange={e => setEditando({ ...editando, presupuesto: Number(e.target.value) })} type="number" />
@@ -1496,7 +1527,7 @@ const EventosView = ({ data, setData, toast, readOnly = false }) => {
       </div>
       {!readOnly && modal && editando && (
         <Modal title={data.eventos.find(e => e.id === editando.id) ? "Editar Evento" : "Nuevo Evento"} onClose={() => { setModal(false); setEditando(null); }} width={600}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <div style={{ gridColumn: "1/-1" }}><Input label="Nombre" value={editando.nombre} onChange={e => setEditando({ ...editando, nombre: e.target.value })} required /></div>
             <Input label="Fecha" value={editando.fecha} onChange={e => setEditando({ ...editando, fecha: e.target.value })} type="date" />
             <Input label="Hora" value={editando.hora} onChange={e => setEditando({ ...editando, hora: e.target.value })} type="time" />
@@ -1547,12 +1578,12 @@ const AsistenciaView = ({ data, setData, toast }) => {
       </div>
       <Card hover={false}>
         {data.asistencia.sort((a, b) => b.fecha.localeCompare(a.fecha)).map((a, i) => (
-          <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "13px 0", borderBottom: i < data.asistencia.length - 1 ? `1px solid ${G.grayMid}20` : "none" }}>
+          <div key={a.id} className="list-row" style={{ display: "flex", alignItems: "center", gap: 16, padding: "13px 0", borderBottom: i < data.asistencia.length - 1 ? `1px solid ${G.grayMid}20` : "none" }}>
             <div style={{ width: 48, textAlign: "center", flexShrink: 0 }}>
               <div style={{ fontSize: 20, fontWeight: 800, color: G.primary, fontFamily: fontTitle }}>{new Date(a.fecha + "T12:00").getDate()}</div>
               <div style={{ fontSize: 10, color: G.gray, textTransform: "uppercase" }}>{monthName(new Date(a.fecha + "T12:00").getMonth())}</div>
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="list-main" style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: G.dark }}>{a.servicio}</div>
               <div style={{ fontSize: 12, color: G.gray }}>Niños: {a.ninos} · Jóvenes: {a.jovenes} · Adultos: {a.adultos}</div>
             </div>
@@ -1564,7 +1595,7 @@ const AsistenciaView = ({ data, setData, toast }) => {
       </Card>
       {modal && editando && (
         <Modal title="Registrar Asistencia" onClose={() => { setModal(false); setEditando(null); }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <Input label="Fecha" value={editando.fecha} onChange={e => setEditando({ ...editando, fecha: e.target.value })} type="date" />
             <Select label="Servicio" value={editando.servicio} onChange={e => setEditando({ ...editando, servicio: e.target.value })} options={["Culto Dominical AM", "Culto Dominical PM", "Culto de Oración (Miércoles)", "Culto de Jóvenes (Viernes)", "Escuela Dominical", "Otro"]} />
             <Input label="Total asistentes" value={editando.total} onChange={e => setEditando({ ...editando, total: Number(e.target.value) })} type="number" required />
@@ -1602,7 +1633,7 @@ const CelulasView = ({ data, setData, toast }) => {
   return (
     <div className="fadein">
       <PageHeader title="Células" subtitle="Grupos de vida y discipulado" actions={<Button variant="primary" size="md" icon={Plus} onClick={() => { setEditando({ ...blank, id: uid() }); setModal(true); }}>Nueva Célula</Button>} />
-      <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
+      <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 16 }}>
         <StatCard label="Total Células" value={data.celulas.length} icon={Home} color={G.primary} />
         <StatCard label="Activas" value={data.celulas.filter(c => c.estado === "activo").length} icon={Check} color={G.success} />
         <StatCard label="Total en Células" value={data.celulas.reduce((a, c) => a + c.miembros, 0)} icon={Users} color={G.purple} />
@@ -1627,7 +1658,7 @@ const CelulasView = ({ data, setData, toast }) => {
       </div>
       {modal && editando && (
         <Modal title={data.celulas.find(c => c.id === editando.id) ? "Editar Célula" : "Nueva Célula"} onClose={() => { setModal(false); setEditando(null); }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <div style={{ gridColumn: "1/-1" }}><Input label="Nombre" value={editando.nombre} onChange={e => setEditando({ ...editando, nombre: e.target.value })} required /></div>
             <Input label="Líder" value={editando.lider} onChange={e => setEditando({ ...editando, lider: e.target.value })} />
             <Input label="Zona" value={editando.zona} onChange={e => setEditando({ ...editando, zona: e.target.value })} />
@@ -1689,7 +1720,7 @@ const MinisteriosView = ({ data, setData, toast }) => {
             <Input label="Nombre" value={editando.nombre} onChange={e => setEditando({ ...editando, nombre: e.target.value })} required />
             <Input label="Líder" value={editando.lider} onChange={e => setEditando({ ...editando, lider: e.target.value })} />
             <TextArea label="Descripción" value={editando.descripcion} onChange={e => setEditando({ ...editando, descripcion: e.target.value })} />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <Input label="Miembros" value={editando.miembros} onChange={e => setEditando({ ...editando, miembros: Number(e.target.value) })} type="number" />
               <Select label="Estado" value={editando.estado} onChange={e => setEditando({ ...editando, estado: e.target.value })} options={["activo", "inactivo"]} />
             </div>
@@ -1766,7 +1797,7 @@ const TiendaView = ({ data, setData, toast }) => {
       </div>
       {modal && editando && (
         <Modal title={data.productos.find(p => p.id === editando.id) ? "Editar Producto" : "Nuevo Producto"} onClose={() => { setModal(false); setEditando(null); }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <div style={{ gridColumn: "1/-1" }}><Input label="Título" value={editando.titulo} onChange={e => setEditando({ ...editando, titulo: e.target.value })} required /></div>
             <Input label="Autor" value={editando.autor} onChange={e => setEditando({ ...editando, autor: e.target.value })} />
             <Input label="Editorial" value={editando.editorial} onChange={e => setEditando({ ...editando, editorial: e.target.value })} />
@@ -1811,7 +1842,7 @@ const BlogView = ({ data, setData, toast, readOnly = false }) => {
   return (
     <div className="fadein">
       <PageHeader title="Blog" subtitle={readOnly ? "Publicaciones de la iglesia" : "Gestión de publicaciones y artículos"} actions={!readOnly && <Button variant="primary" size="md" icon={Plus} onClick={() => { setEditando({ ...blank, id: uid() }); setModal(true); }}>Nueva Publicación</Button>} />
-      <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
+      <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 16 }}>
         <StatCard label="Publicaciones" value={data.publicaciones.length} icon={FileText} color={G.primary} />
         <StatCard label="Total Visitas" value={fmt(data.publicaciones.reduce((a, p) => a + p.visitas, 0))} icon={Activity} color={G.success} />
         <StatCard label="Comentarios" value={fmt(data.publicaciones.reduce((a, p) => a + p.comentarios, 0))} icon={MessageCircle} color={G.purple} />
@@ -1840,12 +1871,12 @@ const BlogView = ({ data, setData, toast, readOnly = false }) => {
         <Modal title={data.publicaciones.find(p => p.id === editando.id) ? "Editar Publicación" : "Nueva Publicación"} onClose={() => { setModal(false); setEditando(null); }} width={640}>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <Input label="Título" value={editando.titulo} onChange={e => setEditando({ ...editando, titulo: e.target.value })} required />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <Input label="Autor" value={editando.autor} onChange={e => setEditando({ ...editando, autor: e.target.value })} />
               <Select label="Categoría" value={editando.categoria} onChange={e => setEditando({ ...editando, categoria: e.target.value })} options={["Enseñanza", "Historia", "Ministerio", "Jóvenes", "Adolescentes", "Adoración", "Devocional", "Testimonio"]} />
             </div>
             <TextArea label="Extracto / Contenido" value={editando.extracto} onChange={e => setEditando({ ...editando, extracto: e.target.value })} rows={4} />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <Select label="Estado" value={editando.estado} onChange={e => setEditando({ ...editando, estado: e.target.value })} options={["borrador", "publicado"]} />
               <Input label="Fecha" value={editando.fecha} onChange={e => setEditando({ ...editando, fecha: e.target.value })} type="date" />
             </div>
@@ -1864,7 +1895,7 @@ const BlogView = ({ data, setData, toast, readOnly = false }) => {
 // ─── MINISTERIO DE ADOLESCENTES (TEENS) — CALENDARIO 2026 ───────────
 // "Llamados a Servir" · ICV San Juan de Lurigancho
 const TEENS_TIPOS = ["Enseñanza", "Evangelismo", "Adoración", "Recreación", "Arte", "Taller", "Servicio", "Oración", "Integración", "Otro"];
-const teensTipoColor = (t) => ({ Enseñanza: G.primary, Evangelismo: G.success, Adoración: G.primaryLight, Recreación: G.accent, Arte: G.purple, Taller: G.purple, Servicio: G.warning, Oración: G.primaryDark, Integración: G.accentDark, Iglesia: G.dark, Otro: G.gray }[t] || G.gray);
+const teensTipoColor = (t) => ({ Enseñanza: G.primary, Evangelismo: G.success, Adoración: G.primaryLight, Recreación: G.accent, Arte: G.purple, Taller: G.purple, Servicio: G.warning, Oración: G.primaryDark, Integración: G.accentDark, Iglesia: "#9aa5b1", Otro: G.gray }[t] || G.gray);
 const MESES_FULL = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 const DOW = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
@@ -2021,7 +2052,8 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
   const diasMes = new Date(y, m + 1, 0).getDate();
   const actsDe = (d) => todas.filter(a => a.fecha === keyOf(d)).sort((a, b) => a.tipo.localeCompare(b.tipo));
   const delMes = todas.filter(a => a.fecha.startsWith(`${y}-${pad(m + 1)}`)).sort((a, b) => a.fecha.localeCompare(b.fecha));
-  const listaDetalle = selDia ? todas.filter(a => a.fecha === selDia).sort((a, b) => a.tipo.localeCompare(b.tipo)) : delMes;
+  const porDia = (a, b) => a.fecha.localeCompare(b.fecha) || (b.iglesia ? 1 : 0) - (a.iglesia ? 1 : 0);
+  const listaDetalle = (selDia ? todas.filter(a => a.fecha === selDia) : delMes).sort(porDia);
   const shift = (n) => { setRef(new Date(y, m + n, 1)); setSelDia(null); };
 
   const propuestas = todas.filter(a => a.propuesta).sort((a, b) => a.fecha.localeCompare(b.fecha));
@@ -2054,16 +2086,31 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
   const diaSemana = (f) => DOW[new Date(f + "T12:00").getDay()];
   const hoyKey = today();
 
-  const ActividadRow = (a, i, arr) => (
-    <div key={a.raw?.id || a.fecha + a.titulo + i} style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: "13px 0", borderBottom: i < arr.length - 1 ? `1px solid ${G.grayMid}20` : "none" }}>
-      <div style={{ width: 46, textAlign: "center", flexShrink: 0 }}>
+  const ActividadRow = (a, i, arr) => {
+    const mismoDia = i > 0 && arr[i - 1].fecha === a.fecha;
+    const ultimoDelDia = i === arr.length - 1 || arr[i + 1].fecha !== a.fecha;
+    const sep = { borderBottom: !ultimoDelDia ? "none" : i < arr.length - 1 ? `1px solid ${G.grayMid}20` : "none" };
+    if (a.iglesia) return (
+      <div key={a.fecha + a.titulo + i} style={{ display: "flex", alignItems: "center", gap: 14, padding: mismoDia ? "2px 0 10px" : "10px 0 4px", ...sep }}>
+        <div style={{ width: 46, textAlign: "center", flexShrink: 0, visibility: mismoDia ? "hidden" : "visible" }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: G.dark, fontFamily: fontTitle, lineHeight: 1 }}>{new Date(a.fecha + "T12:00").getDate()}</div>
+          <div style={{ fontSize: 10, color: G.gray, textTransform: "uppercase" }}>{diaSemana(a.fecha)}</div>
+        </div>
+        <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: G.gray }}>
+          <span style={{ fontSize: 9.5, fontWeight: 700, color: G.gray, background: G.grayLight, padding: "2px 7px", borderRadius: 20, flexShrink: 0 }}>PLAN ICV</span>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>⛪ {a.titulo}</span>
+        </div>
+      </div>
+    );
+    return (
+    <div key={a.raw?.id || a.fecha + a.titulo + i} style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: mismoDia ? "4px 0 12px" : "12px 0", ...sep }}>
+      <div style={{ width: 46, textAlign: "center", flexShrink: 0, visibility: mismoDia ? "hidden" : "visible" }}>
         <div style={{ fontSize: 20, fontWeight: 800, color: teensTipoColor(a.tipo), fontFamily: fontTitle, lineHeight: 1 }}>{new Date(a.fecha + "T12:00").getDate()}</div>
         <div style={{ fontSize: 10, color: G.gray, textTransform: "uppercase" }}>{diaSemana(a.fecha)}</div>
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 4, alignItems: "center" }}>
           <span style={{ fontSize: 10.5, fontWeight: 700, color: "#fff", background: teensTipoColor(a.tipo), padding: "2px 8px", borderRadius: 20 }}>{a.tipo}</span>
-          {a.iglesia && <span style={{ fontSize: 10, fontWeight: 700, color: G.dark, background: G.grayLight, padding: "2px 8px", borderRadius: 20 }}>PLAN ICV</span>}
           {a.propuesta && (a.estado === "planificado"
             ? <span style={{ fontSize: 10, fontWeight: 700, color: G.accentDark, background: G.accent + "22", padding: "2px 8px", borderRadius: 20 }}>PROPUESTA</span>
             : <span style={{ fontSize: 10, fontWeight: 700, color: G.success, background: G.success + "1a", padding: "2px 8px", borderRadius: 20, textTransform: "uppercase" }}>{a.estado}</span>)}
@@ -2080,15 +2127,16 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
       )}
     </div>
   );
+  };
 
   return (
     <div className="fadein">
       {/* Hero */}
-      <Card hover={false} style={{ marginBottom: 20, background: `linear-gradient(135deg, ${G.primaryDark}, ${G.primary} 55%, ${G.primaryLight})`, color: "#fff" }}>
+      <Card hover={false} style={{ marginBottom: 14, padding: "16px 20px", background: `linear-gradient(135deg, ${G.primaryDark}, ${G.primary} 55%, ${G.primaryLight})`, color: "#fff" }}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 16, justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1.5, opacity: 0.85 }}>Ministerio de Adolescentes · Teens</div>
-            <h1 style={{ margin: "4px 0 6px", fontSize: 28, fontWeight: 800, fontFamily: fontTitle }}>Llamados a Servir</h1>
+            <h1 style={{ margin: "2px 0 4px", fontSize: 22, fontWeight: 800, fontFamily: fontTitle }}>Llamados a Servir</h1>
             <div style={{ fontSize: 13, opacity: 0.9 }}>ICV El Arenal Alto, San Juan de Lurigancho · Sábados 4:00–6:00 pm · Culto de Jóvenes 7:00 pm</div>
           </div>
           {!readOnly && <Button variant="ghost" size="md" icon={Plus} style={{ background: "#fff", color: G.primary }} onClick={() => { setEditando({ ...blank, id: newUUID() }); setModal(true); }}>Nueva Actividad</Button>}
@@ -2096,14 +2144,14 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
       </Card>
 
       {/* Stats */}
-      <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 20 }}>
+      <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 16 }}>
         <StatCard label="Actividades del año" value={todas.length} icon={Calendar} color={G.primary} />
         <StatCard label="Enseñanzas" value={enseñanzas.length} icon={BookOpen} color={G.primaryLight} />
         <StatCard label="Propuestas (Oct–Dic)" value={propuestas.length} icon={Star} color={G.accent} />
       </div>
 
       {/* Tabs */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>
+      <div className="tabs-bar" style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
         {[["calendario", "Calendario", Calendar], ["temario", "Temario", BookOpen], ["propuestas", "Propuestas", Star], ["plan", "Plan 2027", Target], ["programa", "Reunión", Clock]].map(([id, label, Icon]) => (
           <button key={id} onClick={() => setTab(id)} style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 16px", borderRadius: 9, border: tab === id ? `2px solid ${G.primary}` : `1.5px solid ${G.grayMid}`, background: tab === id ? G.primary + "10" : "#fff", color: tab === id ? G.primary : G.gray, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: font }}>
             <Icon size={15} /> {label}
@@ -2113,7 +2161,7 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
 
       {/* ── CALENDARIO ── */}
       {tab === "calendario" && (
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.5fr) minmax(0, 1fr)", gap: 20, alignItems: "start" }} className="teens-cal-grid">
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.5fr) minmax(0, 1fr)", gap: 16, alignItems: "stretch" }} className="teens-cal-grid">
           <Card hover={false}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
               <button onClick={() => shift(-1)} style={{ background: G.grayLight, border: "none", borderRadius: 8, width: 34, height: 34, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><ChevronLeft size={18} color={G.primary} /></button>
@@ -2133,7 +2181,7 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
                 const esHoy = k === hoyKey;
                 return (
                   <button key={d} onClick={() => has && setSelDia(sel ? null : k)} style={{
-                    minHeight: 54, borderRadius: 9, border: sel ? `2px solid ${G.primary}` : esHoy ? `1.5px solid ${G.accent}` : `1px solid ${G.grayMid}30`,
+                    minHeight: 46, borderRadius: 9, border: sel ? `2px solid ${G.primary}` : esHoy ? `1.5px solid ${G.accent}` : `1px solid ${G.grayMid}30`,
                     background: has ? teensTipoColor(acts[0].tipo) + "14" : "#fff", cursor: has ? "pointer" : "default",
                     padding: "5px 4px", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, fontFamily: font,
                   }}>
@@ -2156,14 +2204,14 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
           </Card>
 
           {/* Detalle del mes / día */}
-          <Card hover={false}>
+          <Card hover={false} className="teens-agenda" style={{ display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
               <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: G.dark, fontFamily: fontTitle }}>{selDia ? `${fmtFecha(selDia)} · ${diaSemana(selDia)}` : `Agenda de ${MESES_FULL[m]}`}</h3>
               {selDia && <button onClick={() => setSelDia(null)} style={{ background: "none", border: "none", color: G.primary, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Ver todo el mes</button>}
             </div>
             {listaDetalle.length === 0
               ? <div style={{ padding: "24px 0", textAlign: "center", color: G.gray, fontSize: 13 }}>Sin actividades {selDia ? "este día" : "este mes"}.</div>
-              : listaDetalle.map((a, i) => ActividadRow(a, i, listaDetalle))}
+              : <div style={{ overflowY: "auto", flex: 1, minHeight: 0, marginRight: -8, paddingRight: 8 }}>{listaDetalle.map((a, i) => ActividadRow(a, i, listaDetalle))}</div>}
           </Card>
         </div>
       )}
@@ -2274,11 +2322,11 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
         <Modal title={cronograma.find(c => c.id === editando.id) || baseIds.has(editando.id) ? "Editar Actividad" : "Nueva Actividad"} onClose={() => { setModal(false); setEditando(null); }} width={600}>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <Input label="Actividad" value={editando.actividad} onChange={e => setEditando({ ...editando, actividad: e.target.value })} required />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <Input label="Fecha" value={editando.fecha} onChange={e => setEditando({ ...editando, fecha: e.target.value })} type="date" required />
               <Input label="Responsable" value={editando.responsable} onChange={e => setEditando({ ...editando, responsable: e.target.value })} />
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <Select label="Tipo" value={editando.tipo} onChange={e => setEditando({ ...editando, tipo: e.target.value })} options={TEENS_TIPOS} />
               <Input label="Lugar" value={editando.lugar} onChange={e => setEditando({ ...editando, lugar: e.target.value })} />
             </div>
@@ -2317,7 +2365,6 @@ const EvangelismoView = () => {
 
   return (
     <div className="fadein">
-      <PageHeader title="Evangelismo y Misiones" subtitle="Plan estratégico del ministerio · ICV – LADP" />
 
       {/* Encabezado del plan */}
       <Card hover={false} style={{ marginBottom: 20, background: `linear-gradient(135deg, ${G.primary}, ${G.primaryLight})`, color: "#fff" }}>
@@ -2353,7 +2400,7 @@ const EvangelismoView = () => {
 
       {/* Objetivos */}
       <SectionTitle icon={TrendingUp} sub="Metas a corto (1 año) y largo plazo (3 años)">Objetivos</SectionTitle>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }} className="stat-grid">
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }} className="split-grid">
         <Card hover={false}>
           <div style={{ fontSize: 12, fontWeight: 700, color: G.success, marginBottom: 12, textTransform: "uppercase", letterSpacing: 0.5 }}>Corto plazo · 1 año</div>
           {P.objetivosCorto.map((o, i) => (
@@ -2468,7 +2515,7 @@ const EvangelismoView = () => {
           </Card>
         ))}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }} className="stat-grid">
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }} className="split-grid">
         <Card hover={false}>
           <div style={{ fontSize: 12.5, fontWeight: 800, color: G.dark, marginBottom: 10 }}>¿Quién evalúa?</div>
           {P.evaluacion.quien.map((q, i) => <div key={i} style={{ fontSize: 12, color: G.dark, marginBottom: 6, paddingLeft: 14, position: "relative", lineHeight: 1.4 }}><span style={{ position: "absolute", left: 0, color: G.primary }}>•</span>{q}</div>)}
@@ -2519,7 +2566,7 @@ const ConfiguracionView = ({ config, setConfig, toast, currentUserId }) => {
       ]} active={tab} onChange={setTab} />
       <Card hover={false}>
         {tab === "general" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <Input label="Nombre de la Iglesia" value={config.nombre} onChange={e => setConfig({ ...config, nombre: e.target.value })} />
             <Input label="Abreviatura" value={config.abreviatura} onChange={e => setConfig({ ...config, abreviatura: e.target.value })} />
             <div style={{ gridColumn: "1/-1" }}><Input label="Lema" value={config.lema} onChange={e => setConfig({ ...config, lema: e.target.value })} /></div>
@@ -2890,7 +2937,7 @@ const Dashboard = ({ onLogout, userProfile }) => {
             </div>
           </div>
         </header>
-        <main className="dashboard-main" style={{ flex: 1, overflowY: "auto", padding: 24 }}>
+        <main className="dashboard-main" style={{ flex: 1, overflowY: "auto", padding: 20 }}>
           {views[seccion]}
         </main>
       </div>
@@ -3013,7 +3060,7 @@ const TiendaPage = ({ onBack }) => {
     return (
       <div className="fadein" style={{ maxWidth: 960, margin: "0 auto" }}>
         <button onClick={() => { setView("catalogo"); setSelectedProduct(null); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13.5, fontWeight: 600, color: G.gray, fontFamily: font, display: "flex", alignItems: "center", gap: 6, marginBottom: 28 }}><ChevronLeft size={16} /> Volver al catálogo</button>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 48, alignItems: "start" }}>
+        <div className="split-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 48, alignItems: "start" }}>
           <div style={{ background: `linear-gradient(135deg, ${G.primary}08, ${G.accent}06)`, borderRadius: 24, padding: "60px 40px", textAlign: "center", position: "sticky", top: 100 }}>
             <div style={{ fontSize: 120, marginBottom: 20 }}>{p.imagen}</div>
             {p.featured && <Badge variant="warning" size="lg">⭐ Destacado</Badge>}
@@ -3065,10 +3112,10 @@ const TiendaPage = ({ onBack }) => {
           </div>
         ))}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 32 }}>
+      <div className="split-grid" style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 32 }}>
         <Card hover={false}>
           {checkoutStep === 1 && (<div><h3 style={{ margin: "0 0 20px", fontSize: 18, fontWeight: 800, fontFamily: fontTitle, color: G.dark }}>Datos Personales</h3><div style={{ display: "flex", flexDirection: "column", gap: 14 }}><Input label="Nombre completo" value={orderData.nombre} onChange={e => setOrderData({...orderData, nombre: e.target.value})} required placeholder="Juan Pérez" /><Input label="Email" value={orderData.email} onChange={e => setOrderData({...orderData, email: e.target.value})} required type="email" icon={Mail} placeholder="tu@email.com" /><Input label="Teléfono / WhatsApp" value={orderData.telefono} onChange={e => setOrderData({...orderData, telefono: e.target.value})} required icon={Phone} placeholder="+51 999 123 456" /></div><div style={{ display: "flex", justifyContent: "flex-end", marginTop: 24 }}><Button variant="primary" size="md" onClick={() => setCheckoutStep(2)} icon={ArrowRight}>Continuar</Button></div></div>)}
-          {checkoutStep === 2 && (<div><h3 style={{ margin: "0 0 20px", fontSize: 18, fontWeight: 800, fontFamily: fontTitle, color: G.dark }}>Datos de Envío</h3><div style={{ display: "flex", flexDirection: "column", gap: 14 }}><Input label="Dirección" value={orderData.direccion} onChange={e => setOrderData({...orderData, direccion: e.target.value})} required icon={MapPin} placeholder="Av. Colombia 325" /><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}><Input label="Ciudad" value={orderData.ciudad} onChange={e => setOrderData({...orderData, ciudad: e.target.value})} /><Input label="Distrito" value={orderData.distrito} onChange={e => setOrderData({...orderData, distrito: e.target.value})} placeholder="Pueblo Libre" /></div><TextArea label="Notas de envío (opcional)" value={orderData.notas} onChange={e => setOrderData({...orderData, notas: e.target.value})} placeholder="Indicaciones para el repartidor..." rows={2} /></div><div style={{ display: "flex", justifyContent: "space-between", marginTop: 24 }}><Button variant="outline" size="md" onClick={() => setCheckoutStep(1)} icon={ChevronLeft}>Atrás</Button><Button variant="primary" size="md" onClick={() => setCheckoutStep(3)} icon={ArrowRight}>Continuar</Button></div></div>)}
+          {checkoutStep === 2 && (<div><h3 style={{ margin: "0 0 20px", fontSize: 18, fontWeight: 800, fontFamily: fontTitle, color: G.dark }}>Datos de Envío</h3><div style={{ display: "flex", flexDirection: "column", gap: 14 }}><Input label="Dirección" value={orderData.direccion} onChange={e => setOrderData({...orderData, direccion: e.target.value})} required icon={MapPin} placeholder="Av. Colombia 325" /><div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}><Input label="Ciudad" value={orderData.ciudad} onChange={e => setOrderData({...orderData, ciudad: e.target.value})} /><Input label="Distrito" value={orderData.distrito} onChange={e => setOrderData({...orderData, distrito: e.target.value})} placeholder="Pueblo Libre" /></div><TextArea label="Notas de envío (opcional)" value={orderData.notas} onChange={e => setOrderData({...orderData, notas: e.target.value})} placeholder="Indicaciones para el repartidor..." rows={2} /></div><div style={{ display: "flex", justifyContent: "space-between", marginTop: 24 }}><Button variant="outline" size="md" onClick={() => setCheckoutStep(1)} icon={ChevronLeft}>Atrás</Button><Button variant="primary" size="md" onClick={() => setCheckoutStep(3)} icon={ArrowRight}>Continuar</Button></div></div>)}
           {checkoutStep === 3 && (<div><h3 style={{ margin: "0 0 20px", fontSize: 18, fontWeight: 800, fontFamily: fontTitle, color: G.dark }}>Método de Pago</h3><div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {[{ id: "yape", label: "Yape", desc: "Pago instantáneo con Yape", emoji: "📱" },{ id: "plin", label: "Plin", desc: "Pago con Plin (Interbank, BBVA)", emoji: "💳" },{ id: "transferencia", label: "Transferencia Bancaria", desc: "BCP, Interbank, BBVA", emoji: "🏦" },{ id: "tarjeta", label: "Tarjeta de Crédito/Débito", desc: "Visa, Mastercard, Amex", emoji: "💎" },{ id: "contraentrega", label: "Pago Contra Entrega", desc: "Solo Lima Metropolitana", emoji: "🤝" }].map(m => (
               <div key={m.id} onClick={() => setOrderData({...orderData, metodo: m.id})} style={{ display: "flex", alignItems: "center", gap: 16, padding: "16px 20px", borderRadius: 14, border: orderData.metodo === m.id ? `2px solid ${G.accent}` : `1.5px solid ${G.grayMid}`, background: orderData.metodo === m.id ? G.accent + "08" : "#fff", cursor: "pointer", transition: "all 0.2s" }}>
