@@ -1890,16 +1890,42 @@ const TEENS_2026 = [
   { fecha: "2026-07-25", tipo: "Evangelismo", titulo: "Tarde de Juegos Evangelística (en templo)", responsable: "Jorge / Priscila", nota: "Juegos + evangelismo dentro del templo, para recibir chicos nuevos." },
   // Propuestas para el resto del 2026 (Oct–Dic) — SÁBADOS 4:00–6:00 pm
   { fecha: "2026-10-10", tipo: "Taller", titulo: "Mi identidad no está en los likes", responsable: "Por asignar", propuesta: true, nota: "Fe, autoestima e identidad en la era de las redes sociales." },
-  { fecha: "2026-10-17", tipo: "Enseñanza", titulo: "Noviazgo y pureza con propósito", responsable: "Por asignar", propuesta: true, nota: "Relaciones sanas a la luz de la Palabra." },
+  { fecha: "2026-10-17", tipo: "Recreación", titulo: "Funday Teens: Olimpiadas Bíblicas", responsable: "Por asignar", propuesta: true, nota: "Postas por equipos, retos bíblicos y premios. Cierre con devocional sobre trabajar en equipo (Ec 4:9-12)." },
   { fecha: "2026-10-24", tipo: "Adoración", titulo: "Noche de Alabanza y Testimonios Teens", responsable: "Por asignar", propuesta: true, nota: "Espacio de adoración y testimonios; invitar amigos." },
   { fecha: "2026-10-31", tipo: "Evangelismo", titulo: "Noche de Héroes de la Fe", responsable: "Por asignar", propuesta: true, nota: "Alternativa cristiana al 31 de octubre: personajes bíblicos, juegos y evangelismo." },
   { fecha: "2026-11-07", tipo: "Servicio", titulo: "Taller “Llamados a Servir” — dones y servicio", responsable: "Por asignar", propuesta: true, nota: "Descubrir dones y áreas de servicio en la iglesia." },
+  { fecha: "2026-11-14", tipo: "Taller", titulo: "Taller de Devocional Creativo: Mi tiempo con Dios", responsable: "Por asignar", propuesta: true, nota: "Cada teen arma su diario devocional (lettering, stickers, plan de lectura) y aprende a orar con la Biblia." },
   { fecha: "2026-11-21", tipo: "Evangelismo", titulo: "Trae un Amigo + Parrillada", responsable: "Por asignar", propuesta: true, nota: "Evangelismo relacional con comida y juegos." },
   { fecha: "2026-11-28", tipo: "Oración", titulo: "Vigilia Teens / Noche de Gratitud", responsable: "Por asignar", propuesta: true, nota: "Oración, gratitud y consagración." },
+  { fecha: "2026-12-05", tipo: "Recreación", titulo: "Rally Bíblico: Búsqueda del Tesoro", responsable: "Por asignar", propuesta: true, nota: "Pistas con versículos escondidas por el templo; el tesoro es una Biblia o devocional para el equipo ganador (Mt 13:44)." },
   { fecha: "2026-12-12", tipo: "Recreación", titulo: "Presentación Navideña Teens", responsable: "Por asignar", propuesta: true, nota: "Drama y música navideña para la iglesia." },
   { fecha: "2026-12-19", tipo: "Evangelismo", titulo: "Navidad con Propósito / Posada Evangelística", responsable: "Por asignar", propuesta: true, nota: "Bolsas navideñas y evangelismo en el barrio." },
   { fecha: "2026-12-26", tipo: "Integración", titulo: "Cena de Fin de Año + Metas 2027", responsable: "Por asignar", propuesta: true, nota: "Cierre, testimonios del año y metas espirituales 2027." },
 ];
+
+// Banco de ideas para adolescentes: se pueden programar en cualquier sábado
+const TEENS_IDEAS = [
+  { categoria: "Talleres", tipo: "Taller", titulo: "Redes con Propósito", nota: "Crear reels, posts y versículos diseñados para compartir la fe en redes de forma creativa y responsable." },
+  { categoria: "Talleres", tipo: "Taller", titulo: "Ansiedad y fe: cuida tu corazón", nota: "Herramientas prácticas para manejar el estrés escolar y la ansiedad a la luz de Filipenses 4:6-7." },
+  { categoria: "Talleres", tipo: "Adoración", titulo: "Escuela de Alabanza Teens", nota: "Mini clases de guitarra, cajón, canto y coros; formar el grupo de alabanza teens." },
+  { categoria: "Talleres", tipo: "Arte", titulo: "Manualidades: Versículos para regalar", nota: "Separadores, cuadros y tarjetas con versículos para regalar a familiares o vecinos." },
+  { categoria: "Talleres", tipo: "Integración", titulo: "Cocina Teens: Panes y Peces", nota: "Preparar algo sencillo en equipos y compartirlo; reflexión sobre el milagro de la multiplicación (Jn 6)." },
+  { categoria: "Funday", tipo: "Recreación", titulo: "Copa Teens: Funday Deportivo", nota: "Torneo de fútbol / vóley mixto con devocional en el medio tiempo; invitar amigos del colegio." },
+  { categoria: "Funday", tipo: "Recreación", titulo: "Cine Fórum Cristiano", nota: "Película o cortometraje con valores cristianos, canchita y debate guiado al final." },
+  { categoria: "Funday", tipo: "Recreación", titulo: "Noche de Juegos de Mesa Bíblicos", nota: "Pictionary bíblico, Jenga de preguntas, Uno con retos y Basta bíblico por estaciones." },
+  { categoria: "Funday", tipo: "Integración", titulo: "Paseo / Día de Campo Teens", nota: "Salida al aire libre con juegos, almuerzo compartido y devocional en la naturaleza (Sal 19:1)." },
+  { categoria: "Dinámicas", tipo: "Integración", titulo: "Escape Room Bíblico", nota: "Resolver acertijos y códigos con pistas de la Biblia para “escapar” en un tiempo límite." },
+  { categoria: "Dinámicas", tipo: "Enseñanza", titulo: "¿Quién quiere ser sabio? (concurso bíblico)", nota: "Concurso estilo TV con comodines; preguntas de Proverbios y personajes bíblicos." },
+  { categoria: "Dinámicas", tipo: "Integración", titulo: "Caminata de la Confianza", nota: "En parejas, uno con los ojos vendados guiado por la voz del otro; reflexión sobre Proverbios 3:5-6." },
+  { categoria: "Dinámicas", tipo: "Arte", titulo: "Teatro Express de Parábolas", nota: "Cada equipo recibe una parábola y la actúa en versión moderna en 5 minutos." },
+  { categoria: "Dinámicas", tipo: "Oración", titulo: "Mural de Oración", nota: "Escribir peticiones y agradecimientos en un mural; orar por los pedidos de otros durante el mes." },
+];
+const IDEA_ICON = { Talleres: "🛠️", Funday: "🎉", Dinámicas: "🎲" };
+
+// UUID fijo por fecha para cada propuesta base: al editarla/eliminarla se guarda una fila
+// en cronograma_adolescentes con este id que reemplaza a la versión base.
+const teensBaseId = (fecha) => `7ee05000-0000-4000-8000-${fecha.replaceAll("-", "")}0000`;
+const newUUID = () => crypto.randomUUID ? crypto.randomUUID() : uid();
 
 const PROGRAMA_REUNION = ["Bienvenida y oración", "Dinámica rompe hielo (10 min)", "Alabanza (15 min)", "Enseñanza bíblica (35 min)", "Dinámica de reflexión (15 min)", "Oración final", "Compartir"];
 
@@ -1914,11 +1940,17 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
   const cronograma = data.cronograma || [];
   const blank = { fecha: today(), actividad: "", responsable: "", lugar: "Templo ICV", tipo: "Enseñanza", estado: "planificado", notas: "" };
 
-  // Unifica el temario base (TEENS_2026, no editable) con lo que el admin agrega en Supabase (editable)
-  const norm = (a) => a.titulo !== undefined
-    ? { fecha: a.fecha, tipo: a.tipo, titulo: a.titulo, responsable: a.responsable, nota: a.nota || a.dinamica, propuesta: a.propuesta, editable: false }
-    : { fecha: a.fecha, tipo: a.tipo, titulo: a.actividad, responsable: a.responsable, nota: a.notas, propuesta: a.estado === "planificado", editable: true, raw: a };
-  const todas = [...TEENS_2026.map(norm), ...cronograma.map(norm)].filter(a => a.fecha);
+  // Unifica el temario base (TEENS_2026) con lo que el admin guarda en Supabase.
+  // Las propuestas base son editables: su versión editada (mismo id fijo) reemplaza a la base.
+  const baseIds = new Set(TEENS_2026.filter(a => a.propuesta).map(a => teensBaseId(a.fecha)));
+  const norm = (a) => {
+    if (a.titulo === undefined) return { fecha: a.fecha, tipo: a.tipo, titulo: a.actividad, responsable: a.responsable, nota: a.notas, estado: a.estado, propuesta: baseIds.has(a.id) || a.estado === "planificado", editable: true, raw: a };
+    if (!a.propuesta) return { fecha: a.fecha, tipo: a.tipo, titulo: a.titulo, responsable: a.responsable, nota: a.nota || a.dinamica, editable: false };
+    const raw = { id: teensBaseId(a.fecha), fecha: a.fecha, actividad: a.titulo, responsable: a.responsable, lugar: "Templo ICV", tipo: a.tipo, estado: "planificado", notas: a.nota };
+    return { fecha: a.fecha, tipo: a.tipo, titulo: a.titulo, responsable: a.responsable, nota: a.nota, estado: "planificado", propuesta: true, editable: true, raw };
+  };
+  const guardadas = new Set(cronograma.map(c => c.id));
+  const todas = [...TEENS_2026.filter(a => !(a.propuesta && guardadas.has(teensBaseId(a.fecha)))).map(norm), ...cronograma.filter(c => c.estado !== "eliminado").map(norm)].filter(a => a.fecha);
 
   const y = ref.getFullYear(), m = ref.getMonth();
   const pad = (n) => String(n).padStart(2, "0");
@@ -1939,12 +1971,20 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
     const saved = await upsertRecord("cronograma", editando, !exists) || editando;
     if (exists) setData({ ...data, cronograma: cronograma.map(c => c.id === editando.id ? saved : c) });
     else setData({ ...data, cronograma: [saved, ...cronograma] });
-    toast(exists ? "Actividad actualizada" : "Actividad agregada");
+    toast(exists || baseIds.has(editando.id) ? "Actividad actualizada" : "Actividad agregada");
     setModal(false); setEditando(null);
   };
   const confirmarEliminar = async () => {
-    await removeRecord("cronograma", eliminar.id);
-    setData({ ...data, cronograma: cronograma.filter(c => c.id !== eliminar.id) });
+    const exists = cronograma.find(c => c.id === eliminar.id);
+    if (baseIds.has(eliminar.id)) {
+      // Una propuesta base no se borra: se marca como eliminada para que no reaparezca.
+      const marcada = { ...eliminar, estado: "eliminado" };
+      const saved = await upsertRecord("cronograma", marcada, !exists) || marcada;
+      setData({ ...data, cronograma: exists ? cronograma.map(c => c.id === eliminar.id ? saved : c) : [saved, ...cronograma] });
+    } else {
+      await removeRecord("cronograma", eliminar.id);
+      setData({ ...data, cronograma: cronograma.filter(c => c.id !== eliminar.id) });
+    }
     toast("Actividad eliminada"); setEliminar(null);
   };
 
@@ -1961,7 +2001,9 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 4, alignItems: "center" }}>
           <span style={{ fontSize: 10.5, fontWeight: 700, color: "#fff", background: teensTipoColor(a.tipo), padding: "2px 8px", borderRadius: 20 }}>{a.tipo}</span>
-          {a.propuesta && <span style={{ fontSize: 10, fontWeight: 700, color: G.accentDark, background: G.accent + "22", padding: "2px 8px", borderRadius: 20 }}>PROPUESTA</span>}
+          {a.propuesta && (a.estado === "planificado"
+            ? <span style={{ fontSize: 10, fontWeight: 700, color: G.accentDark, background: G.accent + "22", padding: "2px 8px", borderRadius: 20 }}>PROPUESTA</span>
+            : <span style={{ fontSize: 10, fontWeight: 700, color: G.success, background: G.success + "1a", padding: "2px 8px", borderRadius: 20, textTransform: "uppercase" }}>{a.estado}</span>)}
         </div>
         <div style={{ fontSize: 14, fontWeight: 700, color: G.dark }}>{a.titulo}</div>
         {a.responsable && <div style={{ fontSize: 12, color: G.gray, marginTop: 2 }}>👤 {a.responsable}</div>}
@@ -1986,7 +2028,7 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
             <h1 style={{ margin: "4px 0 6px", fontSize: 28, fontWeight: 800, fontFamily: fontTitle }}>Llamados a Servir</h1>
             <div style={{ fontSize: 13, opacity: 0.9 }}>ICV San Juan de Lurigancho · Reuniones: Sábados 4:00–6:00 pm</div>
           </div>
-          {!readOnly && <Button variant="ghost" size="md" icon={Plus} style={{ background: "#fff", color: G.primary }} onClick={() => { setEditando({ ...blank, id: uid() }); setModal(true); }}>Nueva Actividad</Button>}
+          {!readOnly && <Button variant="ghost" size="md" icon={Plus} style={{ background: "#fff", color: G.primary }} onClick={() => { setEditando({ ...blank, id: newUUID() }); setModal(true); }}>Nueva Actividad</Button>}
         </div>
       </Card>
 
@@ -2093,6 +2135,24 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
           <Card hover={false}>
             {propuestas.map((a, i) => ActividadRow(a, i, propuestas))}
           </Card>
+
+          <h3 style={{ margin: "26px 0 4px", fontSize: 16, fontWeight: 800, color: G.dark, fontFamily: fontTitle }}>Banco de ideas para Teens</h3>
+          <div style={{ fontSize: 12.5, color: G.gray, marginBottom: 14 }}>Talleres, fundays y dinámicas listas para usar.{!readOnly && " Pulsa “Programar” para asignarles un sábado."}</div>
+          {Object.keys(IDEA_ICON).map(cat => (
+            <div key={cat} style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: G.primary, marginBottom: 10 }}>{IDEA_ICON[cat]} {cat}</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
+                {TEENS_IDEAS.filter(i => i.categoria === cat).map(idea => (
+                  <Card key={idea.titulo} hover style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <span style={{ alignSelf: "flex-start", fontSize: 10.5, fontWeight: 700, color: "#fff", background: teensTipoColor(idea.tipo), padding: "2px 8px", borderRadius: 20 }}>{idea.tipo}</span>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: G.dark }}>{idea.titulo}</div>
+                    <div style={{ fontSize: 12, color: G.gray, lineHeight: 1.45, flex: 1 }}>{idea.nota}</div>
+                    {!readOnly && <Button variant="outline" size="sm" icon={Calendar} onClick={() => { setEditando({ ...blank, id: newUUID(), fecha: "", actividad: idea.titulo, tipo: idea.tipo, responsable: "Por asignar", notas: idea.nota }); setModal(true); }}>Programar</Button>}
+                  </Card>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -2119,7 +2179,7 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
 
       {/* Modal CRUD */}
       {!readOnly && modal && editando && (
-        <Modal title={cronograma.find(c => c.id === editando.id) ? "Editar Actividad" : "Nueva Actividad"} onClose={() => { setModal(false); setEditando(null); }} width={600}>
+        <Modal title={cronograma.find(c => c.id === editando.id) || baseIds.has(editando.id) ? "Editar Actividad" : "Nueva Actividad"} onClose={() => { setModal(false); setEditando(null); }} width={600}>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <Input label="Actividad" value={editando.actividad} onChange={e => setEditando({ ...editando, actividad: e.target.value })} required />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
@@ -2608,7 +2668,9 @@ const PortalUsuario = ({ userProfile, data }) => {
 // ═══════════════════════════════════════════════════════════════════
 const Dashboard = ({ onLogout, userProfile }) => {
   const isAdmin = userProfile?.rol === "admin";
-  const [seccion, setSeccion] = useState(isAdmin ? "dashboard" : "mi-perfil");
+  // Recordar la sección abierta para volver a ella al recargar
+  const [seccion, setSeccion] = useState(() => sessionStorage.getItem("ladp-seccion") || (isAdmin ? "dashboard" : "mi-perfil"));
+  useEffect(() => { sessionStorage.setItem("ladp-seccion", seccion); }, [seccion]);
   const [collapsed, setCollapsed] = useState(false);
   const [toastMsg, setToastMsg] = useState(null);
   const [config, setConfig] = useState(CHURCH_DEFAULT);
@@ -3080,29 +3142,32 @@ const TiendaPage = ({ onBack }) => {
 };
 
 // ─── APP ROOT ────────────────────────────────────────────────────────
+const DEMO_PROFILE = { id: "demo", nombre: "Invitado (Demo)", rol: "admin", email: "demo@icv.pe", demo: true };
+
 export default function App() {
-  const [page, setPage] = useState("landing");
-  const [userProfile, setUserProfile] = useState(null);
+  // El modo demo no tiene sesión en Supabase: se recuerda en sessionStorage para sobrevivir al recargar
+  const demoGuardado = sessionStorage.getItem("ladp-demo") === "1";
+  const [page, setPage] = useState(demoGuardado ? "dashboard" : "landing");
+  const [userProfile, setUserProfile] = useState(demoGuardado ? DEMO_PROFILE : null);
+  const [verificando, setVerificando] = useState(!demoGuardado && isSupabaseConfigured());
 
   useEffect(() => {
-    if (!isSupabaseConfigured()) return;
+    if (!isSupabaseConfigured() || demoGuardado) return;
 
-    // Restaurar sesión existente al cargar la app
-    getSession().then(session => {
-      if (session) {
-        getUserProfile().then(profile => {
-          setUserProfile(profile);
-          setPage("dashboard");
-        });
-      }
-    });
+    const cargarPerfil = async (session) => {
+      const profile = await getUserProfile();
+      setUserProfile(profile || { id: session.user.id, nombre: session.user.email?.split("@")[0] || "Usuario", rol: "usuario", email: session.user.email });
+      setPage(p => (p === "landing" || p === "login" ? "dashboard" : p));
+      setVerificando(false);
+    };
 
-    // Escuchar cambios de auth (login con Google OAuth redirect)
-    const { data: { subscription } } = onAuthStateChange(async (event, session) => {
-      if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session) {
-        const profile = await getUserProfile();
-        setUserProfile(profile);
-        setPage("dashboard");
+    // INITIAL_SESSION restaura la sesión guardada al recargar; SIGNED_IN cubre el login con Google.
+    // No se llama a Supabase dentro del callback (bloquea el cliente): se difiere con setTimeout.
+    const { data: { subscription } } = onAuthStateChange((event, session) => {
+      if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session) {
+        setTimeout(() => cargarPerfil(session), 0);
+      } else if (event === "INITIAL_SESSION") {
+        setVerificando(false);
       } else if (event === "SIGNED_OUT") {
         setUserProfile(null);
         setPage("landing");
@@ -3113,15 +3178,21 @@ export default function App() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleLogout = async () => {
-    await signOut();
+    sessionStorage.removeItem("ladp-demo");
+    sessionStorage.removeItem("ladp-seccion");
+    if (!userProfile?.demo) await signOut();
     setUserProfile(null);
     setPage("landing");
   };
 
+  if (verificando) return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: font, color: G.gray, fontSize: 14 }}>Cargando…</div>
+  );
+
   return (
     <div>
       {page === "landing" && <LandingPage onLogin={() => setPage("login")} onTienda={() => setPage("tienda")} />}
-      {page === "login" && <Login onSuccess={(profile) => { setUserProfile(profile); setPage("dashboard"); }} onBack={() => setPage("landing")} onRegister={() => setPage("register")} onDemo={() => { setUserProfile({ id: "demo", nombre: "Invitado (Demo)", rol: "admin", email: "demo@icv.pe", demo: true }); setPage("dashboard"); }} />}
+      {page === "login" && <Login onSuccess={(profile) => { setUserProfile(profile); setPage("dashboard"); }} onBack={() => setPage("landing")} onRegister={() => setPage("register")} onDemo={() => { sessionStorage.setItem("ladp-demo", "1"); setUserProfile(DEMO_PROFILE); setPage("dashboard"); }} />}
       {page === "register" && <Register onSuccess={() => setPage("login")} onBack={() => setPage("login")} />}
       {page === "dashboard" && <Dashboard onLogout={handleLogout} userProfile={userProfile} />}
       {page === "tienda" && <TiendaPage onBack={() => setPage("landing")} />}
