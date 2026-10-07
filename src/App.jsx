@@ -121,6 +121,7 @@ const GlobalStyles = () => (
       .dashboard-header .search-box { display: none !important; }
       .dashboard-main { padding: 16px !important; }
       .stat-grid { grid-template-columns: 1fr 1fr !important; gap: 12px !important; }
+      .teens-cal-grid { grid-template-columns: 1fr !important; }
       .admin-table { overflow-x: auto !important; }
       .shop-product-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)) !important; }
       .shop-header { flex-direction: column !important; gap: 16px !important; }
@@ -1855,19 +1856,75 @@ const BlogView = ({ data, setData, toast, readOnly = false }) => {
   );
 };
 
-// ─── MINISTERIO DE ADOLESCENTES — CRONOGRAMA ────────────────────────
+// ─── MINISTERIO DE ADOLESCENTES (TEENS) — CALENDARIO 2026 ───────────
+// "Llamados a Servir" · ICV San Juan de Lurigancho
+const TEENS_TIPOS = ["Enseñanza", "Evangelismo", "Adoración", "Recreación", "Arte", "Taller", "Servicio", "Oración", "Integración", "Otro"];
+const teensTipoColor = (t) => ({ Enseñanza: G.primary, Evangelismo: G.success, Adoración: G.primaryLight, Recreación: G.accent, Arte: G.purple, Taller: G.purple, Servicio: G.warning, Oración: G.primaryDark, Integración: G.accentDark, Otro: G.gray }[t] || G.gray);
+const MESES_FULL = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+const DOW = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+
+// Temario de enseñanza + actividades + propuestas (fuente: documentos del ministerio)
+const TEENS_2026 = [
+  // Temario de Enseñanza (Sábados) — Mar–Jun
+  { fecha: "2026-03-14", tipo: "Enseñanza", titulo: "¿Quién soy en Cristo?", responsable: "Kevin", dinamica: "Etiquetas negativas reemplazadas por verdades bíblicas: cada uno declara “En Cristo soy…”." },
+  { fecha: "2026-03-21", tipo: "Enseñanza", titulo: "La Guerra Espiritual", responsable: "José Manuel", dinamica: "Juego de estrategia: cada equipo defiende “verdades bíblicas”." },
+  { fecha: "2026-04-04", tipo: "Enseñanza", titulo: "La Armadura", responsable: "Antonella", dinamica: "Armar visualmente la armadura de Dios con carteles." },
+  { fecha: "2026-04-11", tipo: "Enseñanza", titulo: "Perdonar para ser libre", responsable: "Miguel Sivirichi", dinamica: "Romper un papel que representa ofensas pasadas." },
+  { fecha: "2026-04-18", tipo: "Enseñanza", titulo: "Perdóname", responsable: "Gisela", dinamica: "Actividad de reconciliación entre grupos." },
+  { fecha: "2026-05-02", tipo: "Enseñanza", titulo: "Puedo hacerlo, pero ¿debo?", responsable: "Fiorella", dinamica: "Debate sobre decisiones cotidianas." },
+  { fecha: "2026-05-16", tipo: "Enseñanza", titulo: "Tomando decisiones sabias", responsable: "Gladys", dinamica: "Resolver casos prácticos en equipos." },
+  { fecha: "2026-05-30", tipo: "Enseñanza", titulo: "Compartiendo a Cristo", responsable: "Miguel Sivirichi", dinamica: "Simulación de evangelismo." },
+  { fecha: "2026-06-06", tipo: "Enseñanza", titulo: "El futuro", responsable: "Gladys", dinamica: "Escribir metas espirituales para 5 años." },
+  { fecha: "2026-06-13", tipo: "Enseñanza", titulo: "Más sobre el futuro", responsable: "Fiorella", dinamica: "Oración grupal por propósito y llamado." },
+  // Actividades especiales (del cuaderno del ministerio)
+  { fecha: "2026-06-20", tipo: "Arte", titulo: "Expresarte / Periódico Mural", responsable: "Equipo Teens", nota: "Expresión artística y periódico mural colaborativo." },
+  { fecha: "2026-07-04", tipo: "Recreación", titulo: "Karaoke Teens / Reflexión", responsable: "Equipo Teens" },
+  { fecha: "2026-07-18", tipo: "Evangelismo", titulo: "Evangelismo Teens / Picnic al aire libre", responsable: "Jorge / Priscila", nota: "Salida de evangelismo con picnic." },
+  { fecha: "2026-07-25", tipo: "Evangelismo", titulo: "Tarde de Juegos Evangelística (en templo)", responsable: "Jorge / Priscila", nota: "Juegos + evangelismo dentro del templo, para recibir chicos nuevos." },
+  // Propuestas para el resto del 2026 (Oct–Dic) — adolescentes cristianos evangélicos
+  { fecha: "2026-10-11", tipo: "Taller", titulo: "Mi identidad no está en los likes", responsable: "Por asignar", propuesta: true, nota: "Fe, autoestima e identidad en la era de las redes sociales." },
+  { fecha: "2026-10-18", tipo: "Enseñanza", titulo: "Noviazgo y pureza con propósito", responsable: "Por asignar", propuesta: true, nota: "Relaciones sanas a la luz de la Palabra." },
+  { fecha: "2026-10-25", tipo: "Adoración", titulo: "Noche de Alabanza y Testimonios Teens", responsable: "Por asignar", propuesta: true, nota: "Espacio de adoración y testimonios; invitar amigos." },
+  { fecha: "2026-10-31", tipo: "Evangelismo", titulo: "Noche de Héroes de la Fe", responsable: "Por asignar", propuesta: true, nota: "Alternativa cristiana al 31 de octubre: personajes bíblicos, juegos y evangelismo." },
+  { fecha: "2026-11-08", tipo: "Servicio", titulo: "Taller “Llamados a Servir” — dones y servicio", responsable: "Por asignar", propuesta: true, nota: "Descubrir dones y áreas de servicio en la iglesia." },
+  { fecha: "2026-11-22", tipo: "Evangelismo", titulo: "Trae un Amigo + Parrillada", responsable: "Por asignar", propuesta: true, nota: "Evangelismo relacional con comida y juegos." },
+  { fecha: "2026-11-29", tipo: "Oración", titulo: "Vigilia Teens / Noche de Gratitud", responsable: "Por asignar", propuesta: true, nota: "Oración, gratitud y consagración." },
+  { fecha: "2026-12-13", tipo: "Recreación", titulo: "Presentación Navideña Teens", responsable: "Por asignar", propuesta: true, nota: "Drama y música navideña para la iglesia." },
+  { fecha: "2026-12-20", tipo: "Evangelismo", titulo: "Navidad con Propósito / Posada Evangelística", responsable: "Por asignar", propuesta: true, nota: "Bolsas navideñas y evangelismo en el barrio." },
+  { fecha: "2026-12-27", tipo: "Integración", titulo: "Cena de Fin de Año + Metas 2027", responsable: "Por asignar", propuesta: true, nota: "Cierre, testimonios del año y metas espirituales 2027." },
+];
+
+const PROGRAMA_REUNION = ["Bienvenida y oración", "Dinámica rompe hielo (10 min)", "Alabanza (15 min)", "Enseñanza bíblica (35 min)", "Dinámica de reflexión (15 min)", "Oración final", "Compartir"];
+
 const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
   const [modal, setModal] = useState(false);
   const [editando, setEditando] = useState(null);
   const [eliminar, setEliminar] = useState(null);
+  const [ref, setRef] = useState(new Date(2026, 9, 1)); // Octubre 2026
+  const [selDia, setSelDia] = useState(null);
+  const [tab, setTab] = useState("calendario");
+
   const cronograma = data.cronograma || [];
   const blank = { fecha: today(), actividad: "", responsable: "", lugar: "Templo ICV", tipo: "Enseñanza", estado: "planificado", notas: "" };
-  const tipos = ["Enseñanza", "Recreación", "Arte", "Adoración", "Evangelismo", "Integración", "Servicio", "Otro"];
 
-  const tipoColor = (t) => ({ Enseñanza: G.primary, Recreación: G.accent, Arte: G.purple, Adoración: G.primaryLight, Evangelismo: G.success, Integración: G.warning, Servicio: G.gray }[t] || G.gray);
-  const estadoVariant = (e) => e === "realizado" ? "success" : e === "confirmado" ? "primary" : "warning";
+  // Unifica el temario base (TEENS_2026, no editable) con lo que el admin agrega en Supabase (editable)
+  const norm = (a) => a.titulo !== undefined
+    ? { fecha: a.fecha, tipo: a.tipo, titulo: a.titulo, responsable: a.responsable, nota: a.nota || a.dinamica, propuesta: a.propuesta, editable: false }
+    : { fecha: a.fecha, tipo: a.tipo, titulo: a.actividad, responsable: a.responsable, nota: a.notas, propuesta: a.estado === "planificado", editable: true, raw: a };
+  const todas = [...TEENS_2026.map(norm), ...cronograma.map(norm)].filter(a => a.fecha);
 
-  const ordenado = [...cronograma].sort((a, b) => (a.fecha || "").localeCompare(b.fecha || ""));
+  const y = ref.getFullYear(), m = ref.getMonth();
+  const pad = (n) => String(n).padStart(2, "0");
+  const keyOf = (d) => `${y}-${pad(m + 1)}-${pad(d)}`;
+  const firstDow = new Date(y, m, 1).getDay();
+  const diasMes = new Date(y, m + 1, 0).getDate();
+  const actsDe = (d) => todas.filter(a => a.fecha === keyOf(d)).sort((a, b) => a.tipo.localeCompare(b.tipo));
+  const delMes = todas.filter(a => a.fecha.startsWith(`${y}-${pad(m + 1)}`)).sort((a, b) => a.fecha.localeCompare(b.fecha));
+  const listaDetalle = selDia ? todas.filter(a => a.fecha === selDia).sort((a, b) => a.tipo.localeCompare(b.tipo)) : delMes;
+  const shift = (n) => { setRef(new Date(y, m + n, 1)); setSelDia(null); };
+
+  const propuestas = todas.filter(a => a.propuesta).sort((a, b) => a.fecha.localeCompare(b.fecha));
+  const enseñanzas = TEENS_2026.filter(a => a.tipo === "Enseñanza");
 
   const guardar = async () => {
     if (!editando.actividad || !editando.fecha) return;
@@ -1875,58 +1932,185 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
     const saved = await upsertRecord("cronograma", editando, !exists) || editando;
     if (exists) setData({ ...data, cronograma: cronograma.map(c => c.id === editando.id ? saved : c) });
     else setData({ ...data, cronograma: [saved, ...cronograma] });
-    toast(exists ? "Actividad actualizada" : "Actividad agregada al cronograma");
+    toast(exists ? "Actividad actualizada" : "Actividad agregada");
     setModal(false); setEditando(null);
   };
-
   const confirmarEliminar = async () => {
     await removeRecord("cronograma", eliminar.id);
     setData({ ...data, cronograma: cronograma.filter(c => c.id !== eliminar.id) });
-    toast("Actividad eliminada");
-    setEliminar(null);
+    toast("Actividad eliminada"); setEliminar(null);
   };
+
+  const fmtFecha = (f) => { const d = new Date(f + "T12:00"); return `${d.getDate()} ${MESES_FULL[d.getMonth()].slice(0, 3)}`; };
+  const diaSemana = (f) => DOW[new Date(f + "T12:00").getDay()];
+  const hoyKey = today();
+
+  const ActividadRow = (a, i, arr) => (
+    <div key={a.raw?.id || a.fecha + a.titulo + i} style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: "13px 0", borderBottom: i < arr.length - 1 ? `1px solid ${G.grayMid}20` : "none" }}>
+      <div style={{ width: 46, textAlign: "center", flexShrink: 0 }}>
+        <div style={{ fontSize: 20, fontWeight: 800, color: teensTipoColor(a.tipo), fontFamily: fontTitle, lineHeight: 1 }}>{new Date(a.fecha + "T12:00").getDate()}</div>
+        <div style={{ fontSize: 10, color: G.gray, textTransform: "uppercase" }}>{diaSemana(a.fecha)}</div>
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 4, alignItems: "center" }}>
+          <span style={{ fontSize: 10.5, fontWeight: 700, color: "#fff", background: teensTipoColor(a.tipo), padding: "2px 8px", borderRadius: 20 }}>{a.tipo}</span>
+          {a.propuesta && <span style={{ fontSize: 10, fontWeight: 700, color: G.accentDark, background: G.accent + "22", padding: "2px 8px", borderRadius: 20 }}>PROPUESTA</span>}
+        </div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: G.dark }}>{a.titulo}</div>
+        {a.responsable && <div style={{ fontSize: 12, color: G.gray, marginTop: 2 }}>👤 {a.responsable}</div>}
+        {a.nota && <div style={{ fontSize: 11.5, color: G.gray, marginTop: 3, fontStyle: "italic", lineHeight: 1.4 }}>{a.nota}</div>}
+      </div>
+      {!readOnly && a.editable && (
+        <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+          <button onClick={() => { setEditando({ ...a.raw }); setModal(true); }} style={{ background: "none", border: `1.5px solid ${G.grayMid}`, cursor: "pointer", padding: 6, borderRadius: 7, display: "flex" }}><Edit size={14} color={G.primary} /></button>
+          <button onClick={() => setEliminar(a.raw)} style={{ background: "none", border: `1.5px solid ${G.grayMid}`, cursor: "pointer", padding: 6, borderRadius: 7, display: "flex" }}><Trash2 size={14} color={G.danger} /></button>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="fadein">
-      <PageHeader title="Ministerio de Adolescentes" subtitle="Cronograma de actividades · ICV San Juan de Lurigancho" actions={!readOnly && <Button variant="primary" size="md" icon={Plus} onClick={() => { setEditando({ ...blank, id: uid() }); setModal(true); }}>Nueva Actividad</Button>} />
-
-      <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
-        <StatCard label="Actividades" value={cronograma.length} icon={Calendar} color={G.primary} />
-        <StatCard label="Confirmadas" value={cronograma.filter(c => c.estado === "confirmado").length} icon={Check} color={G.success} />
-        <StatCard label="Por planificar" value={cronograma.filter(c => c.estado === "planificado").length} icon={Clock} color={G.warning} />
-      </div>
-
-      <Card hover={false}>
-        {ordenado.length === 0 && <div style={{ padding: "30px 0", textAlign: "center", color: G.gray, fontSize: 13.5 }}>Aún no hay actividades en el cronograma. {!readOnly && 'Usa "Nueva Actividad" para empezar.'}</div>}
-        {ordenado.map((c, i) => (
-          <div key={c.id} style={{ display: "flex", alignItems: "flex-start", gap: 16, padding: "14px 0", borderBottom: i < ordenado.length - 1 ? `1px solid ${G.grayMid}20` : "none" }}>
-            <div style={{ width: 52, textAlign: "center", flexShrink: 0 }}>
-              <div style={{ fontSize: 22, fontWeight: 800, color: G.primary, fontFamily: fontTitle, lineHeight: 1 }}>{c.fecha ? new Date(c.fecha + "T12:00").getDate() : "–"}</div>
-              <div style={{ fontSize: 10, color: G.gray, textTransform: "uppercase", letterSpacing: 0.5 }}>{c.fecha ? monthName(new Date(c.fecha + "T12:00").getMonth()) : ""}</div>
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 5, alignItems: "center" }}>
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: "#fff", background: tipoColor(c.tipo), padding: "2px 8px", borderRadius: 20 }}>{c.tipo}</span>
-                <Badge variant={estadoVariant(c.estado)}>{c.estado}</Badge>
-              </div>
-              <div style={{ fontSize: 14.5, fontWeight: 700, color: G.dark }}>{c.actividad}</div>
-              <div style={{ fontSize: 12, color: G.gray, marginTop: 2 }}>
-                {c.responsable && <span>👤 {c.responsable}</span>}
-                {c.responsable && c.lugar && <span> · </span>}
-                {c.lugar && <span><MapPin size={11} style={{ display: "inline", marginRight: 2 }} />{c.lugar}</span>}
-              </div>
-              {c.notas && <div style={{ fontSize: 11.5, color: G.gray, marginTop: 4, fontStyle: "italic" }}>{c.notas}</div>}
-            </div>
-            {!readOnly && (
-              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                <button onClick={() => { setEditando({ ...c }); setModal(true); }} style={{ background: "none", border: `1.5px solid ${G.grayMid}`, cursor: "pointer", padding: 7, borderRadius: 8, display: "flex" }}><Edit size={15} color={G.primary} /></button>
-                <button onClick={() => setEliminar(c)} style={{ background: "none", border: `1.5px solid ${G.grayMid}`, cursor: "pointer", padding: 7, borderRadius: 8, display: "flex" }}><Trash2 size={15} color={G.danger} /></button>
-              </div>
-            )}
+      {/* Hero */}
+      <Card hover={false} style={{ marginBottom: 20, background: `linear-gradient(135deg, ${G.primaryDark}, ${G.primary} 55%, ${G.primaryLight})`, color: "#fff" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 16, justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1.5, opacity: 0.85 }}>Ministerio de Adolescentes · Teens</div>
+            <h1 style={{ margin: "4px 0 6px", fontSize: 28, fontWeight: 800, fontFamily: fontTitle }}>Llamados a Servir</h1>
+            <div style={{ fontSize: 13, opacity: 0.9 }}>ICV San Juan de Lurigancho · Cronograma 2026</div>
           </div>
-        ))}
+          {!readOnly && <Button variant="ghost" size="md" icon={Plus} style={{ background: "#fff", color: G.primary }} onClick={() => { setEditando({ ...blank, id: uid() }); setModal(true); }}>Nueva Actividad</Button>}
+        </div>
       </Card>
 
+      {/* Stats */}
+      <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 20 }}>
+        <StatCard label="Actividades del año" value={todas.length} icon={Calendar} color={G.primary} />
+        <StatCard label="Enseñanzas" value={enseñanzas.length} icon={BookOpen} color={G.primaryLight} />
+        <StatCard label="Propuestas (Oct–Dic)" value={propuestas.length} icon={Star} color={G.accent} />
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>
+        {[["calendario", "Calendario", Calendar], ["temario", "Temario", BookOpen], ["propuestas", "Propuestas", Star], ["programa", "Reunión", Clock]].map(([id, label, Icon]) => (
+          <button key={id} onClick={() => setTab(id)} style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 16px", borderRadius: 9, border: tab === id ? `2px solid ${G.primary}` : `1.5px solid ${G.grayMid}`, background: tab === id ? G.primary + "10" : "#fff", color: tab === id ? G.primary : G.gray, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: font }}>
+            <Icon size={15} /> {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── CALENDARIO ── */}
+      {tab === "calendario" && (
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.5fr) minmax(0, 1fr)", gap: 20, alignItems: "start" }} className="teens-cal-grid">
+          <Card hover={false}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <button onClick={() => shift(-1)} style={{ background: G.grayLight, border: "none", borderRadius: 8, width: 34, height: 34, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><ChevronLeft size={18} color={G.primary} /></button>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 18, fontWeight: 800, color: G.dark, fontFamily: fontTitle }}>{MESES_FULL[m]} {y}</div>
+              </div>
+              <button onClick={() => shift(1)} style={{ background: G.grayLight, border: "none", borderRadius: 8, width: 34, height: 34, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><ChevronRight size={18} color={G.primary} /></button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
+              {DOW.map(d => <div key={d} style={{ textAlign: "center", fontSize: 10.5, fontWeight: 700, color: G.gray, padding: "4px 0", textTransform: "uppercase" }}>{d}</div>)}
+              {Array.from({ length: firstDow }).map((_, i) => <div key={"e" + i} />)}
+              {Array.from({ length: diasMes }, (_, i) => i + 1).map(d => {
+                const acts = actsDe(d);
+                const has = acts.length > 0;
+                const k = keyOf(d);
+                const sel = selDia === k;
+                const esHoy = k === hoyKey;
+                return (
+                  <button key={d} onClick={() => has && setSelDia(sel ? null : k)} style={{
+                    minHeight: 54, borderRadius: 9, border: sel ? `2px solid ${G.primary}` : esHoy ? `1.5px solid ${G.accent}` : `1px solid ${G.grayMid}30`,
+                    background: has ? teensTipoColor(acts[0].tipo) + "14" : "#fff", cursor: has ? "pointer" : "default",
+                    padding: "5px 4px", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, fontFamily: font,
+                  }}>
+                    <span style={{ fontSize: 12.5, fontWeight: has ? 800 : 500, color: has ? G.dark : G.gray }}>{d}</span>
+                    <div style={{ display: "flex", gap: 2, flexWrap: "wrap", justifyContent: "center" }}>
+                      {acts.slice(0, 3).map((a, j) => <span key={j} style={{ width: 6, height: 6, borderRadius: 99, background: teensTipoColor(a.tipo) }} />)}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            {/* Leyenda */}
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 16, paddingTop: 14, borderTop: `1px solid ${G.grayMid}20` }}>
+              {["Enseñanza", "Evangelismo", "Adoración", "Recreación", "Taller", "Servicio", "Oración"].map(t => (
+                <div key={t} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: G.gray }}>
+                  <span style={{ width: 9, height: 9, borderRadius: 99, background: teensTipoColor(t) }} /> {t}
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* Detalle del mes / día */}
+          <Card hover={false}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: G.dark, fontFamily: fontTitle }}>{selDia ? `${fmtFecha(selDia)} · ${diaSemana(selDia)}` : `Agenda de ${MESES_FULL[m]}`}</h3>
+              {selDia && <button onClick={() => setSelDia(null)} style={{ background: "none", border: "none", color: G.primary, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Ver todo el mes</button>}
+            </div>
+            {listaDetalle.length === 0
+              ? <div style={{ padding: "24px 0", textAlign: "center", color: G.gray, fontSize: 13 }}>Sin actividades {selDia ? "este día" : "este mes"}.</div>
+              : listaDetalle.map((a, i) => ActividadRow(a, i, listaDetalle))}
+          </Card>
+        </div>
+      )}
+
+      {/* ── TEMARIO ── */}
+      {tab === "temario" && (
+        <div>
+          <Card hover={false} style={{ marginBottom: 16, background: G.primary + "0a", borderLeft: `3px solid ${G.primary}` }}>
+            <div style={{ fontSize: 13, color: G.dark, lineHeight: 1.6 }}><strong>Temario de Enseñanza 2026</strong> — cada tema incluye su dinámica. Reunión de sábados; 35 min de enseñanza bíblica.</div>
+          </Card>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
+            {enseñanzas.map((t, i) => (
+              <Card key={i} hover>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: G.primary }}>{fmtFecha(t.fecha)} · {diaSemana(t.fecha)}</span>
+                  <span style={{ fontSize: 11, color: G.gray }}>{t.responsable}</span>
+                </div>
+                <div style={{ fontSize: 15.5, fontWeight: 800, color: G.dark, marginBottom: 6, fontFamily: fontTitle }}>{t.titulo}</div>
+                <div style={{ fontSize: 12, color: G.gray, lineHeight: 1.5 }}><strong style={{ color: G.accentDark }}>🎲 Dinámica:</strong> {t.dinamica}</div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── PROPUESTAS ── */}
+      {tab === "propuestas" && (
+        <div>
+          <Card hover={false} style={{ marginBottom: 16, background: G.accent + "0f", borderLeft: `3px solid ${G.accent}` }}>
+            <div style={{ fontSize: 13, color: G.dark, lineHeight: 1.6 }}><strong>Propuestas para cerrar el 2026 (Oct–Dic)</strong> — ideas pensadas para adolescentes cristianos evangélicos: discipulado, adoración, servicio y evangelismo relacional. Puedes confirmarlas o editarlas.</div>
+          </Card>
+          <Card hover={false}>
+            {propuestas.map((a, i) => ActividadRow(a, i, propuestas))}
+          </Card>
+        </div>
+      )}
+
+      {/* ── PROGRAMA DE REUNIÓN ── */}
+      {tab === "programa" && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
+          <Card hover={false}>
+            <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 800, color: G.dark, fontFamily: fontTitle }}><Clock size={16} style={{ display: "inline", marginRight: 6, verticalAlign: "-2px" }} />Programa de la reunión (Sábados)</h3>
+            {PROGRAMA_REUNION.map((p, i) => (
+              <div key={i} style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 10 }}>
+                <div style={{ width: 26, height: 26, borderRadius: 99, background: G.primary + "12", color: G.primary, fontSize: 12, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{i + 1}</div>
+                <div style={{ fontSize: 13, color: G.dark }}>{p}</div>
+              </div>
+            ))}
+          </Card>
+          <Card hover={false}>
+            <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 800, color: G.dark, fontFamily: fontTitle }}><Check size={16} style={{ display: "inline", marginRight: 6, verticalAlign: "-2px" }} />Preparación del maestro</h3>
+            {["Orar por la enseñanza", "Leer el pasaje bíblico", "Preparar ejemplos prácticos", "Definir versículo principal y 3 ideas clave", "Aplicación para adolescentes", "Preparar la dinámica final"].map((p, i) => (
+              <div key={i} style={{ fontSize: 12.5, color: G.dark, marginBottom: 8, paddingLeft: 16, position: "relative", lineHeight: 1.45 }}><Check size={12} color={G.success} style={{ position: "absolute", left: 0, top: 3 }} />{p}</div>
+            ))}
+          </Card>
+        </div>
+      )}
+
+      {/* Modal CRUD */}
       {!readOnly && modal && editando && (
         <Modal title={cronograma.find(c => c.id === editando.id) ? "Editar Actividad" : "Nueva Actividad"} onClose={() => { setModal(false); setEditando(null); }} width={600}>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -1936,7 +2120,7 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
               <Input label="Responsable" value={editando.responsable} onChange={e => setEditando({ ...editando, responsable: e.target.value })} />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              <Select label="Tipo" value={editando.tipo} onChange={e => setEditando({ ...editando, tipo: e.target.value })} options={tipos} />
+              <Select label="Tipo" value={editando.tipo} onChange={e => setEditando({ ...editando, tipo: e.target.value })} options={TEENS_TIPOS} />
               <Input label="Lugar" value={editando.lugar} onChange={e => setEditando({ ...editando, lugar: e.target.value })} />
             </div>
             <Select label="Estado" value={editando.estado} onChange={e => setEditando({ ...editando, estado: e.target.value })} options={["planificado", "confirmado", "realizado"]} />
@@ -1948,7 +2132,7 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
           </div>
         </Modal>
       )}
-      {eliminar && <ConfirmDialog message={`¿Eliminar "${eliminar.actividad}" del cronograma? Esta acción no se puede deshacer.`} onConfirm={confirmarEliminar} onCancel={() => setEliminar(null)} />}
+      {eliminar && <ConfirmDialog message={`¿Eliminar "${eliminar.actividad}" del cronograma?`} onConfirm={confirmarEliminar} onCancel={() => setEliminar(null)} />}
     </div>
   );
 };
