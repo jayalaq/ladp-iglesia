@@ -248,17 +248,9 @@ const initPublicaciones = [
 ];
 
 // ─── CRONOGRAMA MINISTERIO DE ADOLESCENTES ──────────────────────────
-// Cronograma semanal (sábados) del Ministerio de Adolescentes ICV — San Juan de Lurigancho
-const initCronograma = [
-  { id: uid(), fecha: "2026-06-06", actividad: "Enseñanza", responsable: "Antonella", lugar: "Templo ICV", tipo: "Enseñanza", estado: "realizado", notas: "" },
-  { id: uid(), fecha: "2026-06-13", actividad: "Salchiteens / Película", responsable: "Equipo Teens", lugar: "Templo ICV", tipo: "Recreación", estado: "realizado", notas: "Tarde de salchipapas y película" },
-  { id: uid(), fecha: "2026-06-20", actividad: "Expresarte / Periódico Mural", responsable: "Equipo Teens", lugar: "Templo ICV", tipo: "Arte", estado: "confirmado", notas: "Elaboración de periódico mural" },
-  { id: uid(), fecha: "2026-06-27", actividad: "Enseñanza", responsable: "Ps. Miguel", lugar: "Templo ICV", tipo: "Enseñanza", estado: "confirmado", notas: "" },
-  { id: uid(), fecha: "2026-07-04", actividad: "Karaoke Teens / Reflexión", responsable: "Equipo Teens", lugar: "Templo ICV", tipo: "Recreación", estado: "confirmado", notas: "" },
-  { id: uid(), fecha: "2026-07-11", actividad: "Noche de Talentos y Adoración", responsable: "Jorge / Priscila", lugar: "Templo ICV", tipo: "Adoración", estado: "planificado", notas: "Propuesto — sábado estaba libre, sin cruce con jóvenes. Confirmar tema." },
-  { id: uid(), fecha: "2026-07-18", actividad: "Evangelismo Teens / Picnic al Aire Libre", responsable: "Jorge / Priscila", lugar: "Parque SJL", tipo: "Evangelismo", estado: "confirmado", notas: "Salida al aire libre" },
-  { id: uid(), fecha: "2026-07-25", actividad: "Tarde de Juegos Evangelística", responsable: "Jorge / Priscila", lugar: "Templo ICV", tipo: "Evangelismo", estado: "confirmado", notas: "Fusión Tarde de Juegos + Evangelismo DENTRO del templo, para recibir chicos nuevos (no 2 sábados seguidos fuera)" },
-];
+// El cronograma base ahora vive en TEENS_2026 (ver AdolescentesView).
+// Esta lista queda vacía: solo guarda actividades que el admin agregue desde la plataforma.
+const initCronograma = [];
 
 // ─── PLAN ESTRATÉGICO: EVANGELISMO Y MISIONES ───────────────────────
 // Fuente: Plan de Liderazgo III — Jorge Luis Ayala Quispe (ICV, 2026)
@@ -1883,22 +1875,24 @@ const TEENS_2026 = [
   { fecha: "2026-05-30", tipo: "Enseñanza", titulo: "Compartiendo a Cristo", responsable: "Miguel Sivirichi", dinamica: "Simulación de evangelismo." },
   { fecha: "2026-06-06", tipo: "Enseñanza", titulo: "El futuro", responsable: "Gladys", dinamica: "Escribir metas espirituales para 5 años." },
   { fecha: "2026-06-13", tipo: "Enseñanza", titulo: "Más sobre el futuro", responsable: "Fiorella", dinamica: "Oración grupal por propósito y llamado." },
-  // Actividades especiales (del cuaderno del ministerio)
+  // Actividades especiales (del cuaderno del ministerio) — Sábados 4–6 pm
   { fecha: "2026-06-20", tipo: "Arte", titulo: "Expresarte / Periódico Mural", responsable: "Equipo Teens", nota: "Expresión artística y periódico mural colaborativo." },
+  { fecha: "2026-06-27", tipo: "Enseñanza", titulo: "Enseñanza — Ps. Miguel", responsable: "Ps. Miguel" },
   { fecha: "2026-07-04", tipo: "Recreación", titulo: "Karaoke Teens / Reflexión", responsable: "Equipo Teens" },
+  { fecha: "2026-07-11", tipo: "Adoración", titulo: "Noche de Talentos y Adoración", responsable: "Jorge / Priscila", nota: "Talentos y adoración; invitar amigos." },
   { fecha: "2026-07-18", tipo: "Evangelismo", titulo: "Evangelismo Teens / Picnic al aire libre", responsable: "Jorge / Priscila", nota: "Salida de evangelismo con picnic." },
   { fecha: "2026-07-25", tipo: "Evangelismo", titulo: "Tarde de Juegos Evangelística (en templo)", responsable: "Jorge / Priscila", nota: "Juegos + evangelismo dentro del templo, para recibir chicos nuevos." },
-  // Propuestas para el resto del 2026 (Oct–Dic) — adolescentes cristianos evangélicos
-  { fecha: "2026-10-11", tipo: "Taller", titulo: "Mi identidad no está en los likes", responsable: "Por asignar", propuesta: true, nota: "Fe, autoestima e identidad en la era de las redes sociales." },
-  { fecha: "2026-10-18", tipo: "Enseñanza", titulo: "Noviazgo y pureza con propósito", responsable: "Por asignar", propuesta: true, nota: "Relaciones sanas a la luz de la Palabra." },
-  { fecha: "2026-10-25", tipo: "Adoración", titulo: "Noche de Alabanza y Testimonios Teens", responsable: "Por asignar", propuesta: true, nota: "Espacio de adoración y testimonios; invitar amigos." },
+  // Propuestas para el resto del 2026 (Oct–Dic) — SÁBADOS 4:00–6:00 pm
+  { fecha: "2026-10-10", tipo: "Taller", titulo: "Mi identidad no está en los likes", responsable: "Por asignar", propuesta: true, nota: "Fe, autoestima e identidad en la era de las redes sociales." },
+  { fecha: "2026-10-17", tipo: "Enseñanza", titulo: "Noviazgo y pureza con propósito", responsable: "Por asignar", propuesta: true, nota: "Relaciones sanas a la luz de la Palabra." },
+  { fecha: "2026-10-24", tipo: "Adoración", titulo: "Noche de Alabanza y Testimonios Teens", responsable: "Por asignar", propuesta: true, nota: "Espacio de adoración y testimonios; invitar amigos." },
   { fecha: "2026-10-31", tipo: "Evangelismo", titulo: "Noche de Héroes de la Fe", responsable: "Por asignar", propuesta: true, nota: "Alternativa cristiana al 31 de octubre: personajes bíblicos, juegos y evangelismo." },
-  { fecha: "2026-11-08", tipo: "Servicio", titulo: "Taller “Llamados a Servir” — dones y servicio", responsable: "Por asignar", propuesta: true, nota: "Descubrir dones y áreas de servicio en la iglesia." },
-  { fecha: "2026-11-22", tipo: "Evangelismo", titulo: "Trae un Amigo + Parrillada", responsable: "Por asignar", propuesta: true, nota: "Evangelismo relacional con comida y juegos." },
-  { fecha: "2026-11-29", tipo: "Oración", titulo: "Vigilia Teens / Noche de Gratitud", responsable: "Por asignar", propuesta: true, nota: "Oración, gratitud y consagración." },
-  { fecha: "2026-12-13", tipo: "Recreación", titulo: "Presentación Navideña Teens", responsable: "Por asignar", propuesta: true, nota: "Drama y música navideña para la iglesia." },
-  { fecha: "2026-12-20", tipo: "Evangelismo", titulo: "Navidad con Propósito / Posada Evangelística", responsable: "Por asignar", propuesta: true, nota: "Bolsas navideñas y evangelismo en el barrio." },
-  { fecha: "2026-12-27", tipo: "Integración", titulo: "Cena de Fin de Año + Metas 2027", responsable: "Por asignar", propuesta: true, nota: "Cierre, testimonios del año y metas espirituales 2027." },
+  { fecha: "2026-11-07", tipo: "Servicio", titulo: "Taller “Llamados a Servir” — dones y servicio", responsable: "Por asignar", propuesta: true, nota: "Descubrir dones y áreas de servicio en la iglesia." },
+  { fecha: "2026-11-21", tipo: "Evangelismo", titulo: "Trae un Amigo + Parrillada", responsable: "Por asignar", propuesta: true, nota: "Evangelismo relacional con comida y juegos." },
+  { fecha: "2026-11-28", tipo: "Oración", titulo: "Vigilia Teens / Noche de Gratitud", responsable: "Por asignar", propuesta: true, nota: "Oración, gratitud y consagración." },
+  { fecha: "2026-12-12", tipo: "Recreación", titulo: "Presentación Navideña Teens", responsable: "Por asignar", propuesta: true, nota: "Drama y música navideña para la iglesia." },
+  { fecha: "2026-12-19", tipo: "Evangelismo", titulo: "Navidad con Propósito / Posada Evangelística", responsable: "Por asignar", propuesta: true, nota: "Bolsas navideñas y evangelismo en el barrio." },
+  { fecha: "2026-12-26", tipo: "Integración", titulo: "Cena de Fin de Año + Metas 2027", responsable: "Por asignar", propuesta: true, nota: "Cierre, testimonios del año y metas espirituales 2027." },
 ];
 
 const PROGRAMA_REUNION = ["Bienvenida y oración", "Dinámica rompe hielo (10 min)", "Alabanza (15 min)", "Enseñanza bíblica (35 min)", "Dinámica de reflexión (15 min)", "Oración final", "Compartir"];
@@ -1984,7 +1978,7 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
           <div>
             <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1.5, opacity: 0.85 }}>Ministerio de Adolescentes · Teens</div>
             <h1 style={{ margin: "4px 0 6px", fontSize: 28, fontWeight: 800, fontFamily: fontTitle }}>Llamados a Servir</h1>
-            <div style={{ fontSize: 13, opacity: 0.9 }}>ICV San Juan de Lurigancho · Cronograma 2026</div>
+            <div style={{ fontSize: 13, opacity: 0.9 }}>ICV San Juan de Lurigancho · Reuniones: Sábados 4:00–6:00 pm</div>
           </div>
           {!readOnly && <Button variant="ghost" size="md" icon={Plus} style={{ background: "#fff", color: G.primary }} onClick={() => { setEditando({ ...blank, id: uid() }); setModal(true); }}>Nueva Actividad</Button>}
         </div>
