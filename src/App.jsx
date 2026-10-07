@@ -930,7 +930,7 @@ const LandingPage = ({ onLogin, onTienda }) => {
 };
 
 // ─── LOGIN ──────────────────────────────────────────────────────────
-const Login = ({ onSuccess, onBack, onRegister }) => {
+const Login = ({ onSuccess, onBack, onRegister, onDemo }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -1019,6 +1019,12 @@ const Login = ({ onSuccess, onBack, onRegister }) => {
               <span style={{ fontSize: 13, color: G.gray }}>¿No tienes cuenta? </span>
               <button onClick={onRegister} style={{ background: "none", border: "none", color: G.primary, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: font }}>Crear cuenta</button>
             </div>
+            {onDemo && (
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px dashed ${G.grayMid}70`, textAlign: "center" }}>
+                <button onClick={onDemo} style={{ background: G.accent + "12", border: `1.5px solid ${G.accent}60`, color: G.accentDark, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: font, padding: "9px 18px", borderRadius: 10 }}>👁 Entrar en modo demostración</button>
+                <div style={{ fontSize: 11, color: G.gray, marginTop: 6 }}>Explora la plataforma sin cuenta · los cambios no se guardan</div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -3115,7 +3121,7 @@ export default function App() {
   return (
     <div>
       {page === "landing" && <LandingPage onLogin={() => setPage("login")} onTienda={() => setPage("tienda")} />}
-      {page === "login" && <Login onSuccess={(profile) => { setUserProfile(profile); setPage("dashboard"); }} onBack={() => setPage("landing")} onRegister={() => setPage("register")} />}
+      {page === "login" && <Login onSuccess={(profile) => { setUserProfile(profile); setPage("dashboard"); }} onBack={() => setPage("landing")} onRegister={() => setPage("register")} onDemo={() => { setUserProfile({ id: "demo", nombre: "Invitado (Demo)", rol: "admin", email: "demo@icv.pe", demo: true }); setPage("dashboard"); }} />}
       {page === "register" && <Register onSuccess={() => setPage("login")} onBack={() => setPage("login")} />}
       {page === "dashboard" && <Dashboard onLogout={handleLogout} userProfile={userProfile} />}
       {page === "tienda" && <TiendaPage onBack={() => setPage("landing")} />}
