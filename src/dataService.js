@@ -106,17 +106,31 @@ export async function loadAllData() {
 }
 
 // ─── AUTH ──────────────────────────────────────────────────────────
+// Evita que una llamada de red quede colgada indefinidamente.
+function withTimeout(promise, ms, fallback) {
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
+
 export async function signIn(email, password) {
   if (!isSupabaseConfigured()) return null;
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-  if (error) {
-    console.error("Login error:", error.message);
+  try {
+    const { data, error } = await withTimeout(
+      supabase.auth.signInWithPassword({ email, password }),
+      15000,
+      { data: null, error: { message: "Tiempo de espera agotado" } }
+    );
+    if (error) {
+      console.error("Login error:", error.message);
+      return null;
+    }
+    return data;
+  } catch (e) {
+    console.error("Login error:", e);
     return null;
   }
-  return data;
 }
 
 export async function signOut() {
@@ -154,18 +168,34 @@ export async function signUp(email, password, nombre) {
 
 export async function getUserProfile() {
   if (!isSupabaseConfigured()) return null;
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data, error } = await supabase.from("user_profiles").select("*").eq("id", user.id).single();
-  if (error || !data) {
-    const nombre = user.user_metadata?.full_name || user.email?.split("@")[0] || "Usuario";
-    await supabase.from("user_profiles").insert({ id: user.id, nombre, rol: "usuario", email: user.email });
-    return { id: user.id, nombre, rol: "usuario", email: user.email };
+  try {
+    const { data: { user } } = await withTimeout(supabase.auth.getUser(), 10000, { data: { user: null } });
+    if (!user) return null;
+    const fallback = {
+      id: user.id,
+      nombre: user.user_metadata?.full_name || user.email?.split("@")[0] || "Usuario",
+      rol: "usuario",
+      email: user.email,
+    };
+    // La consulta del perfil no debe colgar el login (p.ej. RLS mal configurada)
+    const { data, error } = await withTimeout(
+      supabase.from("user_profiles").select("*").eq("id", user.id).single(),
+      8000,
+      { data: null, error: { message: "Tiempo de espera agotado" } }
+    );
+    if (error || !data) {
+      // Intento de crear el perfil en segundo plano, sin bloquear el ingreso
+      Promise.resolve(supabase.from("user_profiles").insert({ id: user.id, nombre: fallback.nombre, rol: "usuario", email: user.email })).catch(() => {});
+      return fallback;
+    }
+    if (data.email !== user.email) {
+      Promise.resolve(supabase.from("user_profiles").update({ email: user.email }).eq("id", user.id)).catch(() => {});
+    }
+    return { ...data, email: user.email };
+  } catch (e) {
+    console.error("Profile error:", e);
+    return null;
   }
-  if (data.email !== user.email) {
-    await supabase.from("user_profiles").update({ email: user.email }).eq("id", user.id);
-  }
-  return { ...data, email: user.email };
 }
 
 export async function getUsers() {

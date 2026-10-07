@@ -950,11 +950,18 @@ const Login = ({ onSuccess, onBack, onRegister }) => {
     setError("");
     if (!email || !password) { setError("Completa todos los campos"); return; }
     setLoading(true);
-    const result = await signIn(email, password);
-    if (!result) { setLoading(false); setError("Correo o contraseña incorrectos"); return; }
-    const profile = await getUserProfile();
-    setLoading(false);
-    onSuccess(profile);
+    try {
+      const result = await signIn(email, password);
+      if (!result) { setError("Correo o contraseña incorrectos"); return; }
+      let profile = null;
+      try { profile = await getUserProfile(); } catch (e) { console.error("Perfil:", e); }
+      onSuccess(profile);
+    } catch (e) {
+      console.error("Login:", e);
+      setError("No se pudo iniciar sesión. Intenta de nuevo.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGoogle = async () => {
