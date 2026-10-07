@@ -1920,7 +1920,36 @@ const TEENS_IDEAS = [
   { categoria: "Dinámicas", tipo: "Arte", titulo: "Teatro Express de Parábolas", nota: "Cada equipo recibe una parábola y la actúa en versión moderna en 5 minutos." },
   { categoria: "Dinámicas", tipo: "Oración", titulo: "Mural de Oración", nota: "Escribir peticiones y agradecimientos en un mural; orar por los pedidos de otros durante el mes." },
 ];
-const IDEA_ICON = { Talleres: "🛠️", Funday: "🎉", Dinámicas: "🎲" };
+TEENS_IDEAS.push(
+  { categoria: "Talleres", tipo: "Taller", titulo: "Proyecto de Vida con Propósito", nota: "Vocación, carrera y llamado: cada teen arma su mapa de sueños y metas a la luz de Jeremías 29:11." },
+  { categoria: "Talleres", tipo: "Taller", titulo: "Cómo estudiar la Biblia (método inductivo)", nota: "Observar, interpretar y aplicar; se entrega una guía para usar en casa." },
+  { categoria: "Talleres", tipo: "Taller", titulo: "Bullying, respeto y empatía", nota: "Cómo responder al acoso escolar y ser un amigo que defiende al débil (Mt 7:12)." },
+  { categoria: "Funday", tipo: "Recreación", titulo: "Karaoke y Picnic de Bienvenida al Cole", nota: "Inicio del año escolar (marzo): juegos, alabanza y oración por los estudios." },
+  { categoria: "Dinámicas", tipo: "Oración", titulo: "Noche de Oración y Llenura del Espíritu Santo", nota: "Tiempo de búsqueda, adoración y ministración; enseñanza previa de Hechos 2." },
+  { categoria: "Retiros y campamentos", tipo: "Integración", titulo: "Campamento de Verano Teens", nota: "2–3 días en enero/febrero: plenarias, fogata, deportes y consagración. Coordinar con Jóvenes LADP." },
+  { categoria: "Retiros y campamentos", tipo: "Integración", titulo: "Retiro Express (un día)", nota: "Sábado completo fuera de Lima (p. ej. Cieneguilla o Chosica): devocionales, juegos y altar." },
+  { categoria: "Retiros y campamentos", tipo: "Integración", titulo: "Pijamada Teens en el templo", nota: "Por grupos (chicos / chicas) con líderes adultos y autorización de los padres: película, oración y desayuno." },
+  { categoria: "Servicio y misión", tipo: "Servicio", titulo: "Visita a un hogar de ancianos o albergue", nota: "Canciones, regalos hechos por los teens y oración por los residentes (Stg 1:27)." },
+  { categoria: "Servicio y misión", tipo: "Evangelismo", titulo: "Evangelismo en el parque con mimo y drama", nota: "Drama corto + testimonio + folletos en un parque de San Juan de Lurigancho." },
+  { categoria: "Servicio y misión", tipo: "Servicio", titulo: "Teens al servicio del culto", nota: "Un domingo al mes los teens apoyan en ujieres, alabanza, multimedia y bienvenida." },
+  { categoria: "Servicio y misión", tipo: "Evangelismo", titulo: "Campaña “Perú para Cristo” (Fiestas Patrias)", nota: "Oración por el país y apoyo a misiones del interior junto al ministerio de Evangelismo y Misiones." },
+);
+const IDEA_ICON = { Talleres: "🛠️", Funday: "🎉", Dinámicas: "🎲", "Retiros y campamentos": "⛺", "Servicio y misión": "🤝" };
+
+// Plan de enseñanza 2027: una serie por mes alineada al calendario escolar peruano
+const TEENS_PLAN_2027 = [
+  { mes: "Ene–Feb", serie: "Vacaciones con Propósito", versiculo: "Efesios 5:15-16", temas: ["Aprovecha bien el tiempo", "Mis hábitos con Dios", "Amigos en vacaciones"], destacado: "Campamento de Verano Teens" },
+  { mes: "Marzo", serie: "¿Quién soy? Identidad en Cristo", versiculo: "2 Corintios 5:17", temas: ["Hechura suya", "No soy lo que dicen de mí", "Nueva criatura", "Mi valor en Dios"], destacado: "Karaoke y Picnic de Bienvenida al Cole" },
+  { mes: "Abril", serie: "La Cruz y la Tumba Vacía", versiculo: "1 Corintios 15:3-4", temas: ["¿Por qué murió Jesús?", "Resucitó: esperanza viva", "Tomar mi cruz", "Testigos de la resurrección"], destacado: "Drama de Semana Santa para la iglesia" },
+  { mes: "Mayo", serie: "Familia: Honra y Comunicación", versiculo: "Efesios 6:1-3", temas: ["Honrar a mis padres", "Cuando hay conflicto en casa", "Hablar y escuchar", "Orando por mi familia"], destacado: "Homenaje Teens por el Día de la Madre" },
+  { mes: "Junio", serie: "Amistades que Suman", versiculo: "Proverbios 13:20", temas: ["El amigo fiel", "Presión de grupo", "Ser luz en el colegio", "Perdón entre amigos"], destacado: "Copa Teens: Funday Deportivo" },
+  { mes: "Julio", serie: "Perú para Cristo", versiculo: "Salmo 33:12", temas: ["Orar por mi nación", "Misioneros del Perú", "El evangelio en mi barrio"], destacado: "Campaña “Perú para Cristo” (Fiestas Patrias)" },
+  { mes: "Agosto", serie: "Lleno del Espíritu Santo", versiculo: "Hechos 1:8", temas: ["¿Quién es el Espíritu Santo?", "El bautismo en el Espíritu", "Fruto del Espíritu", "Dones para servir"], destacado: "Noche de Oración y Llenura del Espíritu Santo" },
+  { mes: "Septiembre", serie: "Mes de la Biblia: Mi Espada", versiculo: "Hebreos 4:12", temas: ["¿Cómo llegó la Biblia a nosotros?", "Cómo estudiar la Biblia", "Memorizar la Palabra", "Obedecer lo que leo"], destacado: "Escape Room Bíblico" },
+  { mes: "Octubre", serie: "Valientes: Fe en Tiempos Difíciles", versiculo: "Josué 1:9", temas: ["David y mis gigantes", "Daniel: firme en Babilonia", "Ester: para esta hora", "Ansiedad y fe"], destacado: "Noche de Héroes de la Fe" },
+  { mes: "Noviembre", serie: "Llamados a Servir", versiculo: "1 Pedro 4:10", temas: ["Descubre tus dones", "Servir en la iglesia", "Proyecto de vida con propósito", "Gratitud"], destacado: "Visita a un hogar de ancianos o albergue" },
+  { mes: "Diciembre", serie: "Jesús, el Mejor Regalo", versiculo: "Juan 3:16", temas: ["La promesa cumplida", "Emanuel: Dios con nosotros", "Compartir la Navidad"], destacado: "Presentación Navideña Teens" },
+];
 
 // UUID fijo por fecha para cada propuesta base: al editarla/eliminarla se guarda una fila
 // en cronograma_adolescentes con este id que reemplaza a la versión base.
@@ -2041,7 +2070,7 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
 
       {/* Tabs */}
       <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>
-        {[["calendario", "Calendario", Calendar], ["temario", "Temario", BookOpen], ["propuestas", "Propuestas", Star], ["programa", "Reunión", Clock]].map(([id, label, Icon]) => (
+        {[["calendario", "Calendario", Calendar], ["temario", "Temario", BookOpen], ["propuestas", "Propuestas", Star], ["plan", "Plan 2027", Target], ["programa", "Reunión", Clock]].map(([id, label, Icon]) => (
           <button key={id} onClick={() => setTab(id)} style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 16px", borderRadius: 9, border: tab === id ? `2px solid ${G.primary}` : `1.5px solid ${G.grayMid}`, background: tab === id ? G.primary + "10" : "#fff", color: tab === id ? G.primary : G.gray, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: font }}>
             <Icon size={15} /> {label}
           </button>
@@ -2153,6 +2182,35 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── PLAN 2027 ── */}
+      {tab === "plan" && (
+        <div>
+          <Card hover={false} style={{ marginBottom: 16, background: G.primary + "0a", borderLeft: `3px solid ${G.primary}` }}>
+            <div style={{ fontSize: 13, color: G.dark, lineHeight: 1.6 }}><strong>Plan de enseñanza 2027</strong> — una serie por mes, alineada al año escolar y a las fechas de la iglesia, con una actividad destacada.{!readOnly && " Pulsa un tema para programarlo en un sábado."}</div>
+          </Card>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+            {TEENS_PLAN_2027.map(p => (
+              <Card key={p.mes} hover style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: G.primary, textTransform: "uppercase", letterSpacing: 1 }}>{p.mes}</span>
+                  <span style={{ fontSize: 11, color: G.gray, fontStyle: "italic" }}>{p.versiculo}</span>
+                </div>
+                <div style={{ fontSize: 15.5, fontWeight: 800, color: G.dark, fontFamily: fontTitle }}>{p.serie}</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  {p.temas.map(t => (
+                    <button key={t} disabled={readOnly} onClick={() => { setEditando({ ...blank, id: newUUID(), fecha: "", actividad: t, tipo: "Enseñanza", responsable: "Por asignar", notas: `Serie “${p.serie}” · ${p.versiculo}` }); setModal(true); }}
+                      style={{ textAlign: "left", background: G.grayLight, border: "none", borderRadius: 7, padding: "6px 10px", fontSize: 12.5, color: G.dark, cursor: readOnly ? "default" : "pointer", fontFamily: font }}>
+                      📖 {t}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ fontSize: 12, color: G.accentDark, marginTop: 2 }}><strong>⭐ Destacado:</strong> {p.destacado}</div>
+              </Card>
+            ))}
+          </div>
         </div>
       )}
 
