@@ -259,6 +259,91 @@ const initCronograma = [
   { id: uid(), fecha: "2026-07-25", actividad: "Tarde de Juegos Evangelística", responsable: "Jorge / Priscila", lugar: "Templo ICV", tipo: "Evangelismo", estado: "confirmado", notas: "Fusión Tarde de Juegos + Evangelismo DENTRO del templo, para recibir chicos nuevos (no 2 sábados seguidos fuera)" },
 ];
 
+// ─── PLAN ESTRATÉGICO: EVANGELISMO Y MISIONES ───────────────────────
+// Fuente: Plan de Liderazgo III — Jorge Luis Ayala Quispe (ICV, 2026)
+const PLAN_EM = {
+  meta: {
+    ministerio: "Evangelismo y Misiones",
+    iglesia: "Iglesia Cristo Viene – LADP",
+    eje: "Eje 5: Expansión — Evangelismo, Misiones y Plantación de Iglesias",
+    cobertura: "Pra. Sara Coronel",
+    autor: "Jorge Luis Ayala Quispe",
+    curso: "Liderazgo III · Maestro: Miguel Távara Coronel",
+    fecha: "Lima, 28 de junio de 2026",
+  },
+  vision: "En tres años, ver un ministerio de Evangelismo y Misiones consolidado, con un equipo estable y capacitado, que impacte de manera intencional a Lima y a comunidades no alcanzadas del interior del Perú —especialmente las comunidades nativas Yánesha de Eneñas y Azulis en Villa Rica— formando a cada miembro de la iglesia como un evangelizador en su entorno cotidiano.",
+  convicciones: [
+    { texto: "El evangelismo no es opcional, es obediencia a la Gran Comisión.", cita: "Mateo 28:19–20" },
+    { texto: "Toda persona necesita escuchar el evangelio con claridad.", cita: "Romanos 10:14–15" },
+    { texto: "El poder está en el Espíritu Santo, no en mis técnicas.", cita: "Hechos 1:8" },
+  ],
+  foda: {
+    fortalezas: ["Pasión genuina del equipo por compartir el evangelio", "Respaldo pastoral claro y doctrina sólida", "Experiencia previa en salidas y campañas evangelísticas"],
+    debilidades: ["Alta rotación de voluntarios; falta un equipo estable", "Pocos miembros capacitados formalmente", "Planificación reactiva y no estratégica"],
+    oportunidades: ["Apertura espiritual creciente en Lima y el Perú", "Redes sociales: alcance masivo y de bajo costo", "Comunidades nativas Yánesha de Villa Rica (Eneñas y Azulis)"],
+    amenazas: ["Cultura urbana secularizada e indiferente", "Sectas que distorsionan el mensaje del evangelio", "Inseguridad ciudadana en zonas de SJL"],
+  },
+  problemas: [
+    { problema: "Baja participación constante del equipo", causa: "Sin roles definidos ni seguimiento individual; muchos se sienten reemplazables", solucion: "Roles claros, reuniones quincenales fijas y mentoría uno a uno" },
+    { problema: "Falta de seguimiento a los evangelizados", causa: "No se registran datos tras el primer contacto; no hay puente a los grupos", solucion: "Ficha digital por salida, equipo de seguimiento y derivación a grupos pequeños" },
+    { problema: "Pocas capacitaciones formales", causa: "Tiempo limitado, poco material contextualizado y presupuesto reducido", solucion: "Programa trimestral, recursos digitales gratuitos y alianzas con otras iglesias" },
+  ],
+  objetivosCorto: [
+    { n: "12", t: "miembros activos con reuniones quincenales fijas" },
+    { n: "6", t: "salidas evangelísticas al año con seguimiento de contactos" },
+    { n: "4", t: "capacitaciones trimestrales abiertas a toda la iglesia" },
+  ],
+  objetivosLargo: [
+    { n: "3", t: "zonas estratégicas de SJL con presencia sostenida" },
+    { n: "15", t: "hermanos en el viaje misionero anual a Villa Rica (Yánesha)" },
+    { n: "5", t: "nuevos líderes formados que multipliquen el trabajo" },
+  ],
+  villaRica: {
+    titulo: "Comunidades Yánesha de Villa Rica",
+    ubicacion: "Distrito de Villa Rica · Provincia de Oxapampa · Región Pasco",
+    stats: [
+      { n: "12", t: "comunidades nativas Yánesha en el distrito", sub: "cuencas del Cacazú, Bocaz, Entaz y Ñagazú" },
+      { n: "<5,000", t: "personas Yánesha a nivel nacional", sub: "cada vida alcanzada tiene un peso particular" },
+      { n: "2", t: "comunidades priorizadas: Eneñas y Azulis", sub: "viaje anual en temporada seca (julio–agosto)" },
+    ],
+    estrategia: "Alianza con presbiterios e iglesias hermanas ya presentes en la zona · capacitación previa en cultura y cosmovisión Yánesha · evangelización con sensibilidad cultural + ayuda social + seguimiento posterior",
+  },
+  roles: [
+    { rol: "Líder general", desc: "Visión, coordinación pastoral y formación de líderes", detalle: ["Cuidar la visión y dirección del ministerio", "Coordinar con la pastoral y dirección de la iglesia", "Conducir reuniones de planificación quincenales", "Acompañar y formar a los demás líderes"] },
+    { rol: "Co-líder operativo", desc: "Ejecución en tiempo y forma; coordina las áreas", detalle: ["Asegurar ejecución de actividades", "Reemplazar al líder general en su ausencia", "Coordinar entre responsables de área"] },
+    { rol: "Coord. de oración", desc: "Reuniones semanales; oración en cada salida", detalle: ["Convocar reuniones de oración semanales", "Oración antes, durante y después de cada salida", "Vínculo con el área de Intercesión"] },
+    { rol: "Coord. de seguimiento", desc: "Registro de contactos y derivación a discipulado", detalle: ["Registrar contactos de cada salida", "Contactar interesados en dos semanas", "Derivar nuevos creyentes a Escuela Dominical o grupo"] },
+    { rol: "Coord. contenido digital", desc: "Videos, posts y documentación de campañas", detalle: ["Producir contenido evangelístico breve", "Documentar salidas con foto y video", "Coordinar con Comunicaciones"] },
+    { rol: "Coord. de capacitación", desc: "4 capacitaciones trimestrales al año", detalle: ["Diseñar las capacitaciones del año", "Curar recursos formativos", "Coordinar formadores internos o externos"] },
+    { rol: "Coord. de logística", desc: "Permisos, transporte, materiales y presupuesto", detalle: ["Permisos, transporte y refrigerios por salida", "Manejo del presupuesto operativo", "Coordinación con Economía de la iglesia"] },
+  ],
+  lineaBase: [
+    { ind: "Miembros activos del equipo", hoy: "6", a1: "12", a3: "17", resp: "Líder general" },
+    { ind: "Salidas evangelísticas al año", hoy: "2–3", a1: "6", a3: "36 (3 zonas)", resp: "Co-líder operativo" },
+    { ind: "Contactos registrados por salida", hoy: "0", a1: "10", a3: "15", resp: "Coord. seguimiento" },
+    { ind: "Personas derivadas a discipulado", hoy: "0", a1: "20/año", a3: "60/año", resp: "Coord. seguimiento" },
+    { ind: "Capacitaciones internas", hoy: "0–1", a1: "4", a3: "4 + retiro", resp: "Coord. capacitación" },
+    { ind: "Viajes misioneros realizados", hoy: "0", a1: "1 (15 pers.)", a3: "3 acumulados", resp: "Líder general" },
+    { ind: "Publicaciones en redes", hoy: "Esporádicas", a1: "8/mes", a3: "12+/mes", resp: "Coord. contenido" },
+    { ind: "Líderes en formación", hoy: "0", a1: "2", a3: "5", resp: "Líder general" },
+  ],
+  cronograma: [
+    { grupo: "Permanentes (todos los trimestres)", color: G.primary, items: ["Reuniones de oración semanales", "Mentoría uno a uno", "Recaudación de ofrendas misioneras", "Evaluación interna trimestral"] },
+    { grupo: "Recurrentes (varias veces al año)", color: G.success, items: ["Salidas evangelísticas mensuales (T2 en adelante)", "Capacitaciones trimestrales (4/año)", "Cultos misioneros y feria (2/año)", "Talleres evangelísticos (2/año)", "Contenido digital mensual"] },
+    { grupo: "Estacionales (fechas clave)", color: G.accent, items: ["Viaje misionero a Villa Rica (T3: julio–agosto)", "Aniversario CV + Semana Santa (T2)", "Campaña evangelística de Navidad (T4)", "Evaluación anual con la Pra. Sara Coronel (T4)"] },
+  ],
+  evaluacion: {
+    ritmos: [
+      { t: "Mensual", d: "Revisión rápida de 20 min: salidas, oración, redes y seguimiento" },
+      { t: "Trimestral", d: "Avance de objetivos e indicadores de línea base; ajustes" },
+      { t: "Semestral", d: "Desarrollo de líderes en formación y clima del equipo" },
+      { t: "Anual", d: "Balance con la Pra. Sara Coronel y plan del año siguiente" },
+    ],
+    quien: ["Cada coordinador reporta los indicadores de su área", "El co-líder consolida el reporte mensual y trimestral", "El líder general revisa el cumplimiento global", "La Pra. Sara Coronel aprueba el balance anual"],
+    instrumentos: ["Ficha de registro por salida (fecha, zona, contactos)", "Planilla de línea base actualizada trimestralmente", "Registro de asistencia a reuniones y capacitaciones", "Acta breve de cada evaluación con acuerdos y fechas"],
+  },
+};
+
 const initGastos = [
   { id: uid(), concepto: "Servicios básicos (luz, agua, internet)", monto: 1200, categoria: "Operativo", fecha: "2025-02-01", responsable: "Rosario Díaz", estado: "pagado" },
   { id: uid(), concepto: "Materiales Escuela Dominical", monto: 350, categoria: "Educación", fecha: "2025-02-05", responsable: "Ana Soto Vega", estado: "pagado" },
@@ -1868,6 +1953,192 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
   );
 };
 
+// ─── EVANGELISMO Y MISIONES — PLAN ESTRATÉGICO ──────────────────────
+const EvangelismoView = () => {
+  const P = PLAN_EM;
+  const SectionTitle = ({ icon: Icon, children, sub }) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "28px 0 14px" }}>
+      {Icon && <div style={{ width: 34, height: 34, borderRadius: 9, background: G.primary + "12", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon size={18} color={G.primary} /></div>}
+      <div>
+        <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: G.dark, fontFamily: fontTitle }}>{children}</h2>
+        {sub && <div style={{ fontSize: 12, color: G.gray }}>{sub}</div>}
+      </div>
+    </div>
+  );
+  const fodaBox = (titulo, items, color) => (
+    <Card hover={false} style={{ borderTop: `3px solid ${color}` }}>
+      <div style={{ fontSize: 13, fontWeight: 800, color, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>{titulo}</div>
+      {items.map((it, i) => <div key={i} style={{ fontSize: 12.5, color: G.dark, marginBottom: 7, paddingLeft: 14, position: "relative", lineHeight: 1.45 }}><span style={{ position: "absolute", left: 0, color }}>•</span>{it}</div>)}
+    </Card>
+  );
+
+  return (
+    <div className="fadein">
+      <PageHeader title="Evangelismo y Misiones" subtitle="Plan estratégico del ministerio · ICV – LADP" />
+
+      {/* Encabezado del plan */}
+      <Card hover={false} style={{ marginBottom: 20, background: `linear-gradient(135deg, ${G.primary}, ${G.primaryLight})`, color: "#fff" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 20, justifyContent: "space-between" }}>
+          <div style={{ flex: 1, minWidth: 240 }}>
+            <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1, opacity: 0.85, marginBottom: 6 }}>{P.meta.eje}</div>
+            <h2 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 800, fontFamily: fontTitle }}>{P.meta.ministerio}</h2>
+            <div style={{ fontSize: 13, opacity: 0.92 }}>{P.meta.iglesia}</div>
+          </div>
+          <div style={{ fontSize: 12, opacity: 0.9, lineHeight: 1.7, minWidth: 220 }}>
+            <div><strong>Autor:</strong> {P.meta.autor}</div>
+            <div><strong>Cobertura:</strong> {P.meta.cobertura}</div>
+            <div>{P.meta.curso}</div>
+            <div>{P.meta.fecha}</div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Visión */}
+      <SectionTitle icon={Target}>Visión a 3 años</SectionTitle>
+      <Card hover={false}><p style={{ margin: 0, fontSize: 14, color: G.dark, lineHeight: 1.6, fontStyle: "italic" }}>“{P.vision}”</p></Card>
+
+      {/* Convicciones */}
+      <SectionTitle icon={BookOpen}>Convicciones bíblicas</SectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
+        {P.convicciones.map((c, i) => (
+          <Card key={i} hover>
+            <p style={{ margin: "0 0 10px", fontSize: 13.5, color: G.dark, lineHeight: 1.5 }}>{c.texto}</p>
+            <Badge variant="primary">{c.cita}</Badge>
+          </Card>
+        ))}
+      </div>
+
+      {/* Objetivos */}
+      <SectionTitle icon={TrendingUp} sub="Metas a corto (1 año) y largo plazo (3 años)">Objetivos</SectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }} className="stat-grid">
+        <Card hover={false}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: G.success, marginBottom: 12, textTransform: "uppercase", letterSpacing: 0.5 }}>Corto plazo · 1 año</div>
+          {P.objetivosCorto.map((o, i) => (
+            <div key={i} style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12 }}>
+              <div style={{ fontSize: 24, fontWeight: 800, color: G.primary, fontFamily: fontTitle, minWidth: 44 }}>{o.n}</div>
+              <div style={{ fontSize: 12.5, color: G.dark, lineHeight: 1.4 }}>{o.t}</div>
+            </div>
+          ))}
+        </Card>
+        <Card hover={false}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: G.accent, marginBottom: 12, textTransform: "uppercase", letterSpacing: 0.5 }}>Largo plazo · 3 años</div>
+          {P.objetivosLargo.map((o, i) => (
+            <div key={i} style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12 }}>
+              <div style={{ fontSize: 24, fontWeight: 800, color: G.accent, fontFamily: fontTitle, minWidth: 44 }}>{o.n}</div>
+              <div style={{ fontSize: 12.5, color: G.dark, lineHeight: 1.4 }}>{o.t}</div>
+            </div>
+          ))}
+        </Card>
+      </div>
+
+      {/* FODA */}
+      <SectionTitle icon={BarChart2}>Análisis FODA</SectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
+        {fodaBox("Fortalezas", P.foda.fortalezas, G.success)}
+        {fodaBox("Oportunidades", P.foda.oportunidades, G.primary)}
+        {fodaBox("Debilidades", P.foda.debilidades, G.warning)}
+        {fodaBox("Amenazas", P.foda.amenazas, G.danger)}
+      </div>
+
+      {/* Problemas y soluciones */}
+      <SectionTitle icon={AlertCircle}>Problemas y soluciones</SectionTitle>
+      <Card hover={false}>
+        {P.problemas.map((p, i) => (
+          <div key={i} style={{ padding: "12px 0", borderBottom: i < P.problemas.length - 1 ? `1px solid ${G.grayMid}20` : "none" }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: G.danger, marginBottom: 4 }}>⚠ {p.problema}</div>
+            <div style={{ fontSize: 12, color: G.gray, marginBottom: 4 }}><strong>Causa:</strong> {p.causa}</div>
+            <div style={{ fontSize: 12.5, color: G.success }}><strong>✓ Solución:</strong> {p.solucion}</div>
+          </div>
+        ))}
+      </Card>
+
+      {/* Villa Rica / Yánesha */}
+      <SectionTitle icon={MapPin} sub={P.villaRica.ubicacion}>{P.villaRica.titulo}</SectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 14 }}>
+        {P.villaRica.stats.map((s, i) => (
+          <Card key={i} hover>
+            <div style={{ fontSize: 28, fontWeight: 800, color: G.accent, fontFamily: fontTitle }}>{s.n}</div>
+            <div style={{ fontSize: 12.5, color: G.dark, fontWeight: 600, margin: "4px 0 4px" }}>{s.t}</div>
+            <div style={{ fontSize: 11, color: G.gray, lineHeight: 1.4 }}>{s.sub}</div>
+          </Card>
+        ))}
+      </div>
+      <Card hover={false} style={{ background: G.accent + "0d", borderLeft: `3px solid ${G.accent}` }}>
+        <div style={{ fontSize: 12.5, color: G.dark, lineHeight: 1.6 }}><strong>Estrategia:</strong> {P.villaRica.estrategia}</div>
+      </Card>
+
+      {/* Roles */}
+      <SectionTitle icon={Users} sub="Equipo del ministerio">Roles y responsabilidades</SectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
+        {P.roles.map((r, i) => (
+          <Card key={i} hover>
+            <div style={{ fontSize: 14.5, fontWeight: 800, color: G.primary, marginBottom: 3, fontFamily: fontTitle }}>{r.rol}</div>
+            <div style={{ fontSize: 12, color: G.gray, marginBottom: 10 }}>{r.desc}</div>
+            {r.detalle.map((d, j) => <div key={j} style={{ fontSize: 12, color: G.dark, marginBottom: 5, paddingLeft: 14, position: "relative", lineHeight: 1.4 }}><Check size={11} color={G.success} style={{ position: "absolute", left: 0, top: 3 }} />{d}</div>)}
+          </Card>
+        ))}
+      </div>
+
+      {/* Línea base / indicadores */}
+      <SectionTitle icon={Activity} sub="Situación actual vs. metas">Línea base e indicadores</SectionTitle>
+      <Card hover={false} style={{ overflowX: "auto", padding: 0 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, minWidth: 560 }}>
+          <thead>
+            <tr style={{ background: G.grayLight }}>
+              {["Indicador", "Hoy", "Año 1", "Año 3", "Responsable"].map((h, i) => (
+                <th key={i} style={{ textAlign: i === 0 ? "left" : "center", padding: "11px 14px", fontWeight: 700, color: G.gray, fontSize: 11.5, textTransform: "uppercase", letterSpacing: 0.4 }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {P.lineaBase.map((r, i) => (
+              <tr key={i} style={{ borderTop: `1px solid ${G.grayMid}20` }}>
+                <td style={{ padding: "11px 14px", fontWeight: 600, color: G.dark }}>{r.ind}</td>
+                <td style={{ padding: "11px 14px", textAlign: "center", color: G.gray }}>{r.hoy}</td>
+                <td style={{ padding: "11px 14px", textAlign: "center", fontWeight: 700, color: G.primary }}>{r.a1}</td>
+                <td style={{ padding: "11px 14px", textAlign: "center", fontWeight: 700, color: G.accent }}>{r.a3}</td>
+                <td style={{ padding: "11px 14px", textAlign: "center", color: G.gray, fontSize: 11.5 }}>{r.resp}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+
+      {/* Cronograma */}
+      <SectionTitle icon={Calendar}>Cronograma anual</SectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
+        {P.cronograma.map((g, i) => (
+          <Card key={i} hover={false} style={{ borderTop: `3px solid ${g.color}` }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: g.color, marginBottom: 10 }}>{g.grupo}</div>
+            {g.items.map((it, j) => <div key={j} style={{ fontSize: 12.5, color: G.dark, marginBottom: 7, paddingLeft: 14, position: "relative", lineHeight: 1.45 }}><span style={{ position: "absolute", left: 0, color: g.color }}>▸</span>{it}</div>)}
+          </Card>
+        ))}
+      </div>
+
+      {/* Evaluación */}
+      <SectionTitle icon={Check}>Seguimiento y evaluación</SectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16, marginBottom: 14 }}>
+        {P.evaluacion.ritmos.map((r, i) => (
+          <Card key={i} hover>
+            <Badge variant="primary">{r.t}</Badge>
+            <p style={{ margin: "10px 0 0", fontSize: 12.5, color: G.dark, lineHeight: 1.5 }}>{r.d}</p>
+          </Card>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }} className="stat-grid">
+        <Card hover={false}>
+          <div style={{ fontSize: 12.5, fontWeight: 800, color: G.dark, marginBottom: 10 }}>¿Quién evalúa?</div>
+          {P.evaluacion.quien.map((q, i) => <div key={i} style={{ fontSize: 12, color: G.dark, marginBottom: 6, paddingLeft: 14, position: "relative", lineHeight: 1.4 }}><span style={{ position: "absolute", left: 0, color: G.primary }}>•</span>{q}</div>)}
+        </Card>
+        <Card hover={false}>
+          <div style={{ fontSize: 12.5, fontWeight: 800, color: G.dark, marginBottom: 10 }}>Instrumentos</div>
+          {P.evaluacion.instrumentos.map((q, i) => <div key={i} style={{ fontSize: 12, color: G.dark, marginBottom: 6, paddingLeft: 14, position: "relative", lineHeight: 1.4 }}><span style={{ position: "absolute", left: 0, color: G.accent }}>•</span>{q}</div>)}
+        </Card>
+      </div>
+    </div>
+  );
+};
+
 // ─── CONFIGURACIÓN ──────────────────────────────────────────────────
 const ConfiguracionView = ({ config, setConfig, toast, currentUserId }) => {
   const [tab, setTab] = useState("general");
@@ -2194,6 +2465,7 @@ const Dashboard = ({ onLogout, userProfile }) => {
     { id: "celulas", label: "Células", icon: Home },
     { id: "ministerios", label: "Ministerios", icon: Layers },
     { id: "adolescentes", label: "Adolescentes", icon: Star },
+    { id: "evangelismo", label: "Evangelismo y Misiones", icon: Globe },
     { id: "tienda", label: "Tienda", icon: ShoppingCart },
     { id: "blog", label: "Blog", icon: FileText },
     { id: "configuracion", label: "Configuración", icon: Settings },
@@ -2201,6 +2473,7 @@ const Dashboard = ({ onLogout, userProfile }) => {
     { id: "mi-perfil", label: "Mi Perfil", icon: UserCheck },
     { id: "eventos", label: "Eventos", icon: Calendar },
     { id: "adolescentes", label: "Adolescentes", icon: Star },
+    { id: "evangelismo", label: "Evangelismo y Misiones", icon: Globe },
     { id: "blog", label: "Blog", icon: FileText },
   ];
 
@@ -2215,6 +2488,7 @@ const Dashboard = ({ onLogout, userProfile }) => {
     celulas: <CelulasView data={data} setData={setData} toast={showToast} />,
     ministerios: <MinisteriosView data={data} setData={setData} toast={showToast} />,
     adolescentes: <AdolescentesView data={data} setData={setData} toast={showToast} readOnly={!isAdmin} />,
+    evangelismo: <EvangelismoView />,
     tienda: <TiendaView data={data} setData={setData} toast={showToast} />,
     blog: <BlogView data={data} setData={setData} toast={showToast} readOnly={!isAdmin} />,
     configuracion: <ConfiguracionView config={config} setConfig={setConfig} toast={showToast} currentUserId={userProfile?.id} />,
