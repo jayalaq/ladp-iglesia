@@ -1864,7 +1864,7 @@ const BlogView = ({ data, setData, toast, readOnly = false }) => {
 // ─── MINISTERIO DE ADOLESCENTES (TEENS) — CALENDARIO 2026 ───────────
 // "Llamados a Servir" · ICV San Juan de Lurigancho
 const TEENS_TIPOS = ["Enseñanza", "Evangelismo", "Adoración", "Recreación", "Arte", "Taller", "Servicio", "Oración", "Integración", "Otro"];
-const teensTipoColor = (t) => ({ Enseñanza: G.primary, Evangelismo: G.success, Adoración: G.primaryLight, Recreación: G.accent, Arte: G.purple, Taller: G.purple, Servicio: G.warning, Oración: G.primaryDark, Integración: G.accentDark, Otro: G.gray }[t] || G.gray);
+const teensTipoColor = (t) => ({ Enseñanza: G.primary, Evangelismo: G.success, Adoración: G.primaryLight, Recreación: G.accent, Arte: G.purple, Taller: G.purple, Servicio: G.warning, Oración: G.primaryDark, Integración: G.accentDark, Iglesia: G.dark, Otro: G.gray }[t] || G.gray);
 const MESES_FULL = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 const DOW = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
@@ -1888,19 +1888,43 @@ const TEENS_2026 = [
   { fecha: "2026-07-11", tipo: "Adoración", titulo: "Noche de Talentos y Adoración", responsable: "Jorge / Priscila", nota: "Talentos y adoración; invitar amigos." },
   { fecha: "2026-07-18", tipo: "Evangelismo", titulo: "Evangelismo Teens / Picnic al aire libre", responsable: "Jorge / Priscila", nota: "Salida de evangelismo con picnic." },
   { fecha: "2026-07-25", tipo: "Evangelismo", titulo: "Tarde de Juegos Evangelística (en templo)", responsable: "Jorge / Priscila", nota: "Juegos + evangelismo dentro del templo, para recibir chicos nuevos." },
-  // Propuestas para el resto del 2026 (Oct–Dic) — SÁBADOS 4:00–6:00 pm
-  { fecha: "2026-10-10", tipo: "Taller", titulo: "Mi identidad no está en los likes", responsable: "Por asignar", propuesta: true, nota: "Fe, autoestima e identidad en la era de las redes sociales." },
-  { fecha: "2026-10-17", tipo: "Recreación", titulo: "Funday Teens: Olimpiadas Bíblicas", responsable: "Por asignar", propuesta: true, nota: "Postas por equipos, retos bíblicos y premios. Cierre con devocional sobre trabajar en equipo (Ec 4:9-12)." },
-  { fecha: "2026-10-24", tipo: "Adoración", titulo: "Noche de Alabanza y Testimonios Teens", responsable: "Por asignar", propuesta: true, nota: "Espacio de adoración y testimonios; invitar amigos." },
-  { fecha: "2026-10-31", tipo: "Evangelismo", titulo: "Noche de Héroes de la Fe", responsable: "Por asignar", propuesta: true, nota: "Alternativa cristiana al 31 de octubre: personajes bíblicos, juegos y evangelismo." },
-  { fecha: "2026-11-07", tipo: "Servicio", titulo: "Taller “Llamados a Servir” — dones y servicio", responsable: "Por asignar", propuesta: true, nota: "Descubrir dones y áreas de servicio en la iglesia." },
-  { fecha: "2026-11-14", tipo: "Taller", titulo: "Taller de Devocional Creativo: Mi tiempo con Dios", responsable: "Por asignar", propuesta: true, nota: "Cada teen arma su diario devocional (lettering, stickers, plan de lectura) y aprende a orar con la Biblia." },
-  { fecha: "2026-11-21", tipo: "Evangelismo", titulo: "Trae un Amigo + Parrillada", responsable: "Por asignar", propuesta: true, nota: "Evangelismo relacional con comida y juegos." },
-  { fecha: "2026-11-28", tipo: "Oración", titulo: "Vigilia Teens / Noche de Gratitud", responsable: "Por asignar", propuesta: true, nota: "Oración, gratitud y consagración." },
-  { fecha: "2026-12-05", tipo: "Recreación", titulo: "Rally Bíblico: Búsqueda del Tesoro", responsable: "Por asignar", propuesta: true, nota: "Pistas con versículos escondidas por el templo; el tesoro es una Biblia o devocional para el equipo ganador (Mt 13:44)." },
-  { fecha: "2026-12-12", tipo: "Recreación", titulo: "Presentación Navideña Teens", responsable: "Por asignar", propuesta: true, nota: "Drama y música navideña para la iglesia." },
-  { fecha: "2026-12-19", tipo: "Evangelismo", titulo: "Navidad con Propósito / Posada Evangelística", responsable: "Por asignar", propuesta: true, nota: "Bolsas navideñas y evangelismo en el barrio." },
-  { fecha: "2026-12-26", tipo: "Integración", titulo: "Cena de Fin de Año + Metas 2027", responsable: "Por asignar", propuesta: true, nota: "Cierre, testimonios del año y metas espirituales 2027." },
+  // Plan anual ICV "Pasión por su Obra 2026": actividades de la iglesia que involucran a los teens
+  { fecha: "2026-04-03", tipo: "Iglesia", titulo: "Explosión Evangelística", responsable: "ICV", iglesia: true },
+  { fecha: "2026-04-04", tipo: "Iglesia", titulo: "Culto Evangelístico Juvenil", responsable: "ICV", iglesia: true },
+  { fecha: "2026-05-01", tipo: "Iglesia", titulo: "Jornada de ayuda de misericordia Juvenil", responsable: "ICV", iglesia: true },
+  { fecha: "2026-06-13", tipo: "Iglesia", titulo: "Intercambio de Culto Juvenil", responsable: "ICV", iglesia: true },
+  { fecha: "2026-06-29", tipo: "Iglesia", titulo: "Olimpiada Juvenil", responsable: "ICV", iglesia: true },
+  { fecha: "2026-07-11", tipo: "Iglesia", titulo: "Noche de Talentos", responsable: "ICV", iglesia: true },
+  { fecha: "2026-07-27", tipo: "Iglesia", titulo: "Retiro Familiar (27–29 jul, toda la iglesia)", responsable: "ICV", iglesia: true },
+  { fecha: "2026-08-11", tipo: "Iglesia", titulo: "Inicio del Concurso Bíblico Nacional", responsable: "ICV", iglesia: true },
+  { fecha: "2026-08-15", tipo: "Iglesia", titulo: "Intercambio de Culto Juvenil", responsable: "ICV", iglesia: true },
+  { fecha: "2026-09-19", tipo: "Iglesia", titulo: "Culto especial por la Juventud", responsable: "ICV", iglesia: true },
+  { fecha: "2026-09-27", tipo: "Iglesia", titulo: "Etapa final Concurso Bíblico Nacional", responsable: "ICV", iglesia: true },
+  { fecha: "2026-10-08", tipo: "Iglesia", titulo: "Bautismo", responsable: "ICV", iglesia: true },
+  { fecha: "2026-10-17", tipo: "Iglesia", titulo: "Teología Musical", responsable: "ICV", iglesia: true },
+  { fecha: "2026-10-24", tipo: "Iglesia", titulo: "Campaña Evangelística (23–24 oct)", responsable: "ICV", iglesia: true },
+  { fecha: "2026-10-31", tipo: "Iglesia", titulo: "Adoración Pública Región Lima-Noreste · Aniversario LADP", responsable: "ICV", iglesia: true },
+  { fecha: "2026-11-07", tipo: "Iglesia", titulo: "Culto Kids", responsable: "ICV", iglesia: true },
+  { fecha: "2026-11-21", tipo: "Iglesia", titulo: "Talleres de Orientación Vocacional", responsable: "ICV", iglesia: true },
+  { fecha: "2026-11-28", tipo: "Iglesia", titulo: "Fun Day Kids", responsable: "ICV", iglesia: true },
+  { fecha: "2026-12-12", tipo: "Iglesia", titulo: "Clausura del Trabajo de Damas y Varones", responsable: "ICV", iglesia: true },
+  { fecha: "2026-12-19", tipo: "Iglesia", titulo: "Entrega de Canastas · Concierto en Vivo", responsable: "ICV", iglesia: true },
+  { fecha: "2026-12-26", tipo: "Iglesia", titulo: "Fun Day Teens", responsable: "ICV", iglesia: true },
+  { fecha: "2026-12-27", tipo: "Iglesia", titulo: "Acción de Gracias ICV", responsable: "ICV", iglesia: true },
+  // Propuestas Teens Oct–Dic, cruzadas con el plan ICV y el eje del mes — SÁBADOS 4:00–6:00 pm
+  // Oct "Siervos de Cristo" (Mc 16:15-18) · Nov "El único camino de Salvación" (Hch 4:12) · Dic "Cristo, la necesidad absoluta" (Ro 3:23)
+  { fecha: "2026-10-10", tipo: "Taller", titulo: "Mi identidad no está en los likes", responsable: "Por asignar", propuesta: true, nota: "Fe, autoestima e identidad en la era de las redes sociales. Sábado libre en el plan ICV." },
+  { fecha: "2026-10-17", tipo: "Adoración", titulo: "Teens en Teología Musical: alabanza con fundamento", responsable: "Por asignar", propuesta: true, nota: "Participar en la Teología Musical de la iglesia y, después, formar el equipo de alabanza teens." },
+  { fecha: "2026-10-24", tipo: "Evangelismo", titulo: "Teens en la Campaña Evangelística", responsable: "Por asignar", propuesta: true, nota: "Drama o mimo, invitaciones casa por casa y oración por los asistentes. Eje del mes: Siervos de Cristo (Mc 16:15)." },
+  { fecha: "2026-10-31", tipo: "Adoración", titulo: "Teens en la Adoración Pública Lima-Noreste", responsable: "Por asignar", propuesta: true, nota: "Alternativa cristiana al 31 de octubre: adorar juntos en el Aniversario LADP. Preparar pancartas y una coreografía." },
+  { fecha: "2026-11-07", tipo: "Servicio", titulo: "Llamados a Servir: Teens apoyan el Culto Kids", responsable: "Por asignar", propuesta: true, nota: "Taller breve de dones y luego servir como ayudantes en el Culto Kids (1 Pe 4:10)." },
+  { fecha: "2026-11-14", tipo: "Recreación", titulo: "Funday Teens: Olimpiadas Bíblicas", responsable: "Por asignar", propuesta: true, nota: "Postas por equipos, retos bíblicos y premios. Devocional sobre trabajar en equipo (Ec 4:9-12)." },
+  { fecha: "2026-11-21", tipo: "Taller", titulo: "Orientación Vocacional Teens: mi proyecto de vida", responsable: "Por asignar", propuesta: true, nota: "Participar en los Talleres de Orientación Vocacional de la iglesia y armar un mapa de metas (Jer 29:11)." },
+  { fecha: "2026-11-28", tipo: "Servicio", titulo: "Teens monitores del Fun Day Kids", responsable: "Por asignar", propuesta: true, nota: "Los teens dirigen juegos y estaciones para los niños; cierre con oración de gratitud." },
+  { fecha: "2026-12-05", tipo: "Recreación", titulo: "Rally Bíblico: Búsqueda del Tesoro", responsable: "Por asignar", propuesta: true, nota: "Pistas con versículos por el templo; el tesoro es una Biblia o devocional (Mt 13:44). Sábado libre en el plan ICV." },
+  { fecha: "2026-12-12", tipo: "Arte", titulo: "Ensayo de la Presentación Navideña Teens", responsable: "Por asignar", propuesta: true, nota: "Preparar drama y canto navideño para presentarlo en el Concierto en Vivo del 19 de diciembre." },
+  { fecha: "2026-12-19", tipo: "Servicio", titulo: "Teens en la Entrega de Canastas y el Concierto", responsable: "Por asignar", propuesta: true, nota: "Armar y entregar canastas; presentar el número navideño en el Concierto en Vivo." },
+  { fecha: "2026-12-26", tipo: "Recreación", titulo: "Fun Day Teens: cierre del año + metas 2027", responsable: "Por asignar", propuesta: true, nota: "Fun Day oficial del plan ICV: juegos, testimonios del año y metas espirituales 2027." },
 ];
 
 // Banco de ideas para adolescentes: se pueden programar en cualquier sábado
@@ -1920,7 +1944,45 @@ const TEENS_IDEAS = [
   { categoria: "Dinámicas", tipo: "Arte", titulo: "Teatro Express de Parábolas", nota: "Cada equipo recibe una parábola y la actúa en versión moderna en 5 minutos." },
   { categoria: "Dinámicas", tipo: "Oración", titulo: "Mural de Oración", nota: "Escribir peticiones y agradecimientos en un mural; orar por los pedidos de otros durante el mes." },
 ];
-const IDEA_ICON = { Talleres: "🛠️", Funday: "🎉", Dinámicas: "🎲" };
+TEENS_IDEAS.push(
+  { categoria: "Talleres", tipo: "Taller", titulo: "Proyecto de Vida con Propósito", nota: "Vocación, carrera y llamado: cada teen arma su mapa de sueños y metas a la luz de Jeremías 29:11." },
+  { categoria: "Talleres", tipo: "Taller", titulo: "Cómo estudiar la Biblia (método inductivo)", nota: "Observar, interpretar y aplicar; se entrega una guía para usar en casa." },
+  { categoria: "Talleres", tipo: "Taller", titulo: "Bullying, respeto y empatía", nota: "Cómo responder al acoso escolar y ser un amigo que defiende al débil (Mt 7:12)." },
+  { categoria: "Funday", tipo: "Recreación", titulo: "Karaoke y Picnic de Bienvenida al Cole", nota: "Inicio del año escolar (marzo): juegos, alabanza y oración por los estudios." },
+  { categoria: "Dinámicas", tipo: "Oración", titulo: "Noche de Oración y Llenura del Espíritu Santo", nota: "Tiempo de búsqueda, adoración y ministración; enseñanza previa de Hechos 2." },
+  { categoria: "Retiros y campamentos", tipo: "Integración", titulo: "Campamento de Verano Teens", nota: "2–3 días en enero/febrero: plenarias, fogata, deportes y consagración. Coordinar con Jóvenes LADP." },
+  { categoria: "Retiros y campamentos", tipo: "Integración", titulo: "Retiro Express (un día)", nota: "Sábado completo fuera de Lima (p. ej. Cieneguilla o Chosica): devocionales, juegos y altar." },
+  { categoria: "Retiros y campamentos", tipo: "Integración", titulo: "Pijamada Teens en el templo", nota: "Por grupos (chicos / chicas) con líderes adultos y autorización de los padres: película, oración y desayuno." },
+  { categoria: "Servicio y misión", tipo: "Servicio", titulo: "Visita a un hogar de ancianos o albergue", nota: "Canciones, regalos hechos por los teens y oración por los residentes (Stg 1:27)." },
+  { categoria: "Servicio y misión", tipo: "Evangelismo", titulo: "Evangelismo en el parque con mimo y drama", nota: "Drama corto + testimonio + folletos en un parque de San Juan de Lurigancho." },
+  { categoria: "Servicio y misión", tipo: "Servicio", titulo: "Teens al servicio del culto", nota: "Un domingo al mes los teens apoyan en ujieres, alabanza, multimedia y bienvenida." },
+  { categoria: "Servicio y misión", tipo: "Evangelismo", titulo: "Campaña “Perú para Cristo” (Fiestas Patrias)", nota: "Oración por el país y apoyo a misiones del interior junto al ministerio de Evangelismo y Misiones." },
+  { categoria: "Talleres", tipo: "Taller", titulo: "Taller de Devocional Creativo: Mi tiempo con Dios", nota: "Cada teen arma su diario devocional (lettering, stickers, plan de lectura) y aprende a orar con la Biblia." },
+  { categoria: "Funday", tipo: "Evangelismo", titulo: "Trae un Amigo + Parrillada", nota: "Evangelismo relacional con comida y juegos." },
+  { categoria: "Dinámicas", tipo: "Evangelismo", titulo: "Noche de Héroes de la Fe", nota: "Personajes bíblicos, juegos y evangelismo; ideal como alternativa al 31 de octubre." },
+  { categoria: "Dinámicas", tipo: "Adoración", titulo: "Noche de Alabanza y Testimonios Teens", nota: "Espacio de adoración y testimonios; invitar amigos." },
+  { categoria: "Dinámicas", tipo: "Oración", titulo: "Vigilia Teens / Noche de Gratitud", nota: "Oración, gratitud y consagración." },
+  { categoria: "Servicio y misión", tipo: "Evangelismo", titulo: "Navidad con Propósito / Posada Evangelística", nota: "Bolsas navideñas y evangelismo en El Arenal Alto." },
+  { categoria: "Retiros y campamentos", tipo: "Enseñanza", titulo: "Preparación Teens para el Concurso Bíblico Nacional", nota: "Equipos de estudio y simulacros desde agosto, rumbo a la etapa final de septiembre." },
+);
+const IDEA_ICON = { Talleres: "🛠️", Funday: "🎉", Dinámicas: "🎲", "Retiros y campamentos": "⛺", "Servicio y misión": "🤝" };
+
+// Plan de enseñanza 2027 para Teens, alineado a los ejes mensuales del plan ICV "Pasión por su Obra 2026"
+// y a sus actividades juveniles. Actualizar los ejes cuando la iglesia publique su plan 2027.
+const TEENS_PLAN_2027 = [
+  { mes: "Enero", eje: "Vida Espiritual", versiculo: "Hechos 12", temas: ["Ayuno y oración para teens", "Mi devocional diario", "Orar como la iglesia de Hechos 12"], destacado: "Ayuno y oración congregacional + Campamento de Verano Teens" },
+  { mes: "Febrero", eje: "Un Amor Transformador", versiculo: "Lucas 6:31-35", temas: ["Amar como Jesús ama", "Amar al que me cae mal", "Amistades que suman"], destacado: "Aniversario Cristo Viene: número especial de los teens" },
+  { mes: "Marzo", eje: "La Prueba del Discipulado", versiculo: "Juan 13:34-35", temas: ["¿Quién soy en Cristo?", "Discípulo en el colegio", "Presión de grupo", "Amor que se nota"], destacado: "Karaoke y Picnic de Bienvenida al Cole" },
+  { mes: "Abril", eje: "El Llamado de Dios", versiculo: "Juan 13:34-35", temas: ["Dios me llama por mi nombre", "La Cruz y la Tumba Vacía", "Llamados a Servir", "Responder al llamado"], destacado: "Explosión Evangelística + Culto Evangelístico Juvenil" },
+  { mes: "Mayo", eje: "Vida en Abundancia", versiculo: "Juan 10:10", temas: ["Abundancia no es tener más", "Honrar a mis padres", "Ansiedad y fe", "Gozo que no depende de likes"], destacado: "Jornada de ayuda de misericordia Juvenil" },
+  { mes: "Junio", eje: "Comisionados para Salir", versiculo: "Lucas 24:45-48", temas: ["La Gran Comisión", "Mi testimonio en 3 minutos", "Evangelismo en redes", "Testigos en mi barrio"], destacado: "Intercambio de Culto Juvenil + Olimpiada Juvenil" },
+  { mes: "Julio", eje: "Sanidad Divina", versiculo: "Juan 8:58", temas: ["Jesús, el gran YO SOY", "Dios sana el corazón herido", "Perdonar para ser libre", "Orar por los enfermos"], destacado: "Noche de Talentos + Retiro Familiar" },
+  { mes: "Agosto", eje: "Exalta el Señorío de Cristo", versiculo: "Filipenses 2:9-11", temas: ["Jesús es Señor de mi vida", "Señor de mi tiempo y mis redes", "Lleno del Espíritu Santo"], destacado: "Intercambio de Culto Juvenil + inicio del Concurso Bíblico Nacional" },
+  { mes: "Septiembre", eje: "La Integridad de la Biblia", versiculo: "Salmo 19:7", temas: ["¿Cómo llegó la Biblia a nosotros?", "Cómo estudiar la Biblia", "Memorizar la Palabra", "Obedecer lo que leo"], destacado: "Culto especial por la Juventud + final del Concurso Bíblico" },
+  { mes: "Octubre", eje: "Siervos de Cristo", versiculo: "Marcos 16:15-18", temas: ["Servir como Jesús", "David y mis gigantes", "Ester: para esta hora"], destacado: "Campaña Evangelística + Adoración Pública Lima-Noreste" },
+  { mes: "Noviembre", eje: "El Único Camino de Salvación", versiculo: "Hechos 4:12", temas: ["¿Todos los caminos llevan a Dios?", "Proyecto de vida con propósito", "Compartiendo a Cristo"], destacado: "Talleres de Orientación Vocacional" },
+  { mes: "Diciembre", eje: "Cristo, la Necesidad Absoluta", versiculo: "Romanos 3:23", temas: ["Todos necesitamos a Cristo", "Emanuel: Dios con nosotros", "Metas espirituales del nuevo año"], destacado: "Fun Day Teens + Concierto en Vivo" },
+];
 
 // UUID fijo por fecha para cada propuesta base: al editarla/eliminarla se guarda una fila
 // en cronograma_adolescentes con este id que reemplaza a la versión base.
@@ -1945,7 +2007,7 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
   const baseIds = new Set(TEENS_2026.filter(a => a.propuesta).map(a => teensBaseId(a.fecha)));
   const norm = (a) => {
     if (a.titulo === undefined) return { fecha: a.fecha, tipo: a.tipo, titulo: a.actividad, responsable: a.responsable, nota: a.notas, estado: a.estado, propuesta: baseIds.has(a.id) || a.estado === "planificado", editable: true, raw: a };
-    if (!a.propuesta) return { fecha: a.fecha, tipo: a.tipo, titulo: a.titulo, responsable: a.responsable, nota: a.nota || a.dinamica, editable: false };
+    if (!a.propuesta) return { fecha: a.fecha, tipo: a.tipo, titulo: a.titulo, responsable: a.responsable, nota: a.nota || a.dinamica, iglesia: a.iglesia, editable: false };
     const raw = { id: teensBaseId(a.fecha), fecha: a.fecha, actividad: a.titulo, responsable: a.responsable, lugar: "Templo ICV", tipo: a.tipo, estado: "planificado", notas: a.nota };
     return { fecha: a.fecha, tipo: a.tipo, titulo: a.titulo, responsable: a.responsable, nota: a.nota, estado: "planificado", propuesta: true, editable: true, raw };
   };
@@ -2001,6 +2063,7 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 4, alignItems: "center" }}>
           <span style={{ fontSize: 10.5, fontWeight: 700, color: "#fff", background: teensTipoColor(a.tipo), padding: "2px 8px", borderRadius: 20 }}>{a.tipo}</span>
+          {a.iglesia && <span style={{ fontSize: 10, fontWeight: 700, color: G.dark, background: G.grayLight, padding: "2px 8px", borderRadius: 20 }}>PLAN ICV</span>}
           {a.propuesta && (a.estado === "planificado"
             ? <span style={{ fontSize: 10, fontWeight: 700, color: G.accentDark, background: G.accent + "22", padding: "2px 8px", borderRadius: 20 }}>PROPUESTA</span>
             : <span style={{ fontSize: 10, fontWeight: 700, color: G.success, background: G.success + "1a", padding: "2px 8px", borderRadius: 20, textTransform: "uppercase" }}>{a.estado}</span>)}
@@ -2026,7 +2089,7 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
           <div>
             <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1.5, opacity: 0.85 }}>Ministerio de Adolescentes · Teens</div>
             <h1 style={{ margin: "4px 0 6px", fontSize: 28, fontWeight: 800, fontFamily: fontTitle }}>Llamados a Servir</h1>
-            <div style={{ fontSize: 13, opacity: 0.9 }}>ICV San Juan de Lurigancho · Reuniones: Sábados 4:00–6:00 pm</div>
+            <div style={{ fontSize: 13, opacity: 0.9 }}>ICV El Arenal Alto, San Juan de Lurigancho · Sábados 4:00–6:00 pm · Culto de Jóvenes 7:00 pm</div>
           </div>
           {!readOnly && <Button variant="ghost" size="md" icon={Plus} style={{ background: "#fff", color: G.primary }} onClick={() => { setEditando({ ...blank, id: newUUID() }); setModal(true); }}>Nueva Actividad</Button>}
         </div>
@@ -2041,7 +2104,7 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
 
       {/* Tabs */}
       <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>
-        {[["calendario", "Calendario", Calendar], ["temario", "Temario", BookOpen], ["propuestas", "Propuestas", Star], ["programa", "Reunión", Clock]].map(([id, label, Icon]) => (
+        {[["calendario", "Calendario", Calendar], ["temario", "Temario", BookOpen], ["propuestas", "Propuestas", Star], ["plan", "Plan 2027", Target], ["programa", "Reunión", Clock]].map(([id, label, Icon]) => (
           <button key={id} onClick={() => setTab(id)} style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 16px", borderRadius: 9, border: tab === id ? `2px solid ${G.primary}` : `1.5px solid ${G.grayMid}`, background: tab === id ? G.primary + "10" : "#fff", color: tab === id ? G.primary : G.gray, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: font }}>
             <Icon size={15} /> {label}
           </button>
@@ -2084,7 +2147,7 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
             </div>
             {/* Leyenda */}
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 16, paddingTop: 14, borderTop: `1px solid ${G.grayMid}20` }}>
-              {["Enseñanza", "Evangelismo", "Adoración", "Recreación", "Taller", "Servicio", "Oración"].map(t => (
+              {["Enseñanza", "Evangelismo", "Adoración", "Recreación", "Taller", "Servicio", "Oración", "Iglesia"].map(t => (
                 <div key={t} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: G.gray }}>
                   <span style={{ width: 9, height: 9, borderRadius: 99, background: teensTipoColor(t) }} /> {t}
                 </div>
@@ -2153,6 +2216,35 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── PLAN 2027 ── */}
+      {tab === "plan" && (
+        <div>
+          <Card hover={false} style={{ marginBottom: 16, background: G.primary + "0a", borderLeft: `3px solid ${G.primary}` }}>
+            <div style={{ fontSize: 13, color: G.dark, lineHeight: 1.6 }}><strong>Plan de enseñanza 2027</strong> — cada mes sigue el eje y el versículo del plan anual de la iglesia (“Pasión por su Obra 2026”), con temas para adolescentes y la actividad juvenil destacada del mes.{!readOnly && " Pulsa un tema para programarlo en un sábado."}</div>
+          </Card>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+            {TEENS_PLAN_2027.map(p => (
+              <Card key={p.mes} hover style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: G.primary, textTransform: "uppercase", letterSpacing: 1 }}>{p.mes}</span>
+                  <span style={{ fontSize: 11, color: G.gray, fontStyle: "italic" }}>{p.versiculo}</span>
+                </div>
+                <div style={{ fontSize: 15.5, fontWeight: 800, color: G.dark, fontFamily: fontTitle }}>{p.eje}</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  {p.temas.map(t => (
+                    <button key={t} disabled={readOnly} onClick={() => { setEditando({ ...blank, id: newUUID(), fecha: "", actividad: t, tipo: "Enseñanza", responsable: "Por asignar", notas: `Eje del mes “${p.eje}” · ${p.versiculo}` }); setModal(true); }}
+                      style={{ textAlign: "left", background: G.grayLight, border: "none", borderRadius: 7, padding: "6px 10px", fontSize: 12.5, color: G.dark, cursor: readOnly ? "default" : "pointer", fontFamily: font }}>
+                      📖 {t}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ fontSize: 12, color: G.accentDark, marginTop: 2 }}><strong>⭐ Destacado:</strong> {p.destacado}</div>
+              </Card>
+            ))}
+          </div>
         </div>
       )}
 
