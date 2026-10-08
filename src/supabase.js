@@ -19,18 +19,15 @@ const firstNonEmpty = (...vals) => {
 };
 
 // La URL y la clave deben venir de la MISMA fuente para que coincidan.
-// Se prioriza la pareja de la integración Supabase↔Vercel (NEXT_PUBLIC_*),
-// que siempre está emparejada, y solo como último recurso las VITE_* manuales.
-const supabaseUrl = firstValidUrl(
-  env.NEXT_PUBLIC_SUPABASE_URL,
-  env.SUPABASE_URL,
-  env.VITE_SUPABASE_URL
-);
-const supabaseAnonKey = firstNonEmpty(
-  env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
-  env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  env.VITE_SUPABASE_ANON_KEY
-);
+// Se prioriza la pareja VITE_* (configurada a mano con el proyecto oficial de la iglesia);
+// la pareja NEXT_PUBLIC_* de la integración Supabase↔Vercel queda solo como respaldo.
+const vitePar = firstValidUrl(env.VITE_SUPABASE_URL) && firstNonEmpty(env.VITE_SUPABASE_ANON_KEY);
+const supabaseUrl = vitePar
+  ? firstValidUrl(env.VITE_SUPABASE_URL)
+  : firstValidUrl(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_URL);
+const supabaseAnonKey = vitePar
+  ? firstNonEmpty(env.VITE_SUPABASE_ANON_KEY)
+  : firstNonEmpty(env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
 let client = null;
 if (supabaseUrl && supabaseAnonKey) {
