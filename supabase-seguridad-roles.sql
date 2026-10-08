@@ -52,7 +52,10 @@ DECLARE
   v_email TEXT := 'jayala@tailoringconsult.pe';
   v_id UUID;
 BEGIN
-  SELECT id INTO v_id FROM auth.users WHERE lower(email) = lower(v_email);
+  -- Busca por email principal o por el email de Google (raw_user_meta_data), que pueden diferir
+  SELECT id INTO v_id FROM auth.users
+  WHERE lower(email) = lower(v_email) OR lower(raw_user_meta_data->>'email') = lower(v_email)
+  ORDER BY last_sign_in_at DESC NULLS LAST LIMIT 1;
   IF v_id IS NULL THEN
     RAISE EXCEPTION 'No existe la cuenta %. Inicia sesión una vez en la web y vuelve a ejecutar.', v_email;
   END IF;
