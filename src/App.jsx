@@ -172,6 +172,28 @@ const GlobalStyles = () => (
 // ─── UTILIDADES ─────────────────────────────────────────────────────
 const ROLES = { admin: "Super Administrador", teens: "Miembro · Adolescentes", usuario: "Miembro" };
 const rolLabel = (rol) => ROLES[rol] || ROLES.usuario;
+
+// ─── RUTAS ──────────────────────────────────────────────────────────
+// /  ·  /login  ·  /registro  ·  /tienda  ·  /panel/<sección>   (vercel.json reescribe todo a index.html)
+const navegar = (ruta, { reemplazar = false } = {}) => {
+  if (ruta === window.location.pathname + window.location.hash) return;
+  window.history[reemplazar ? "replaceState" : "pushState"]({}, "", ruta);
+  window.dispatchEvent(new PopStateEvent("popstate"));
+};
+const useRuta = () => {
+  const [ruta, setRuta] = useState(window.location.pathname);
+  useEffect(() => {
+    const h = () => setRuta(window.location.pathname);
+    window.addEventListener("popstate", h);
+    return () => window.removeEventListener("popstate", h);
+  }, []);
+  return ruta;
+};
+// Clic normal navega sin recargar; Ctrl/Cmd+clic abre en otra pestaña como un link normal
+const alClicLink = (ruta, extra) => (e) => {
+  if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+  e.preventDefault(); extra?.(); navegar(ruta);
+};
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
 const fmt = (n) => typeof n === "number" ? n.toLocaleString("es-PE") : n;
 const fmtMoney = (n) => `S/. ${fmt(n)}`;
@@ -563,7 +585,18 @@ const LandingPage = ({ onLogin, onTienda }) => {
     window.addEventListener("scroll", h);
     return () => window.removeEventListener("scroll", h);
   }, []);
-  const scrollTo = id => { const el = document.getElementById(id); if (el) window.scrollTo({ top: el.offsetTop - 68, behavior: "smooth" }); };
+  const scrollTo = id => {
+    const el = document.getElementById(id);
+    if (el) window.scrollTo({ top: el.offsetTop - 68, behavior: "smooth" });
+    window.history.replaceState({}, "", `/#${id}`);
+  };
+  // Al entrar con /#seccion (p. ej. un link compartido) baja a esa sección
+  useEffect(() => {
+    const id = window.location.hash.slice(1);
+    if (id) setTimeout(() => { const el = document.getElementById(id); if (el) window.scrollTo({ top: el.offsetTop - 68 }); }, 100);
+  }, []);
+  const footerLinks = { Nosotros: "#visitanos", Creencias: "#como-funciona", Liderazgo: "#ministerios", Contacto: "#contacto", "Visítanos": "#visitanos", "Grupos de Vida": "#ministerios", Servir: "#ministerios", Bautismo: "#contacto", Sermones: "#sermones", Blog: "#sermones", Devocionales: "#sermones", Tienda: "/tienda" };
+  const irA = (destino) => destino.startsWith("#") ? scrollTo(destino.slice(1)) : navegar(destino);
 
   const sermons = [
     { title: "El Poder que Transforma", speaker: "Pastor Daniel Caballero", series: "Avivamiento", date: "23 Feb", emoji: "🔥" },
@@ -618,7 +651,7 @@ const LandingPage = ({ onLogin, onTienda }) => {
           </div>
           <div className="nav-links" style={{ display: "flex", gap: 4 }}>
             {[{ l: "Visítanos", h: "visitanos" },{ l: "Sermones", h: "sermones" },{ l: "Ministerios", h: "ministerios" },{ l: "Cómo Funciona", h: "como-funciona" },{ l: "Eventos", h: "eventos" }].map(item => (
-              <button key={item.l} onClick={() => scrollTo(item.h)} className="nbtn" style={{ background: "none", border: "none", fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.75)", cursor: "pointer", padding: "10px 18px", fontFamily: font, transition: "color 0.2s" }} onMouseEnter={e => e.currentTarget.style.color = "#fff"} onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.75)"}>{item.l}</button>
+              <a key={item.l} href={`#${item.h}`} onClick={e => { e.preventDefault(); scrollTo(item.h); }} className="nbtn" style={{ display: "inline-block", textDecoration: "none", background: "none", border: "none", fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.75)", cursor: "pointer", padding: "10px 18px", fontFamily: font, transition: "color 0.2s" }} onMouseEnter={e => e.currentTarget.style.color = "#fff"} onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.75)"}>{item.l}</a>
             ))}
             <button onClick={onTienda} className="nbtn" style={{ background: "none", border: "none", fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.75)", cursor: "pointer", padding: "10px 18px", fontFamily: font, transition: "color 0.2s", display: "flex", alignItems: "center", gap: 5 }} onMouseEnter={e => e.currentTarget.style.color = "#fff"} onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.75)"}><ShoppingCart size={14} /> Tienda</button>
           </div>
@@ -941,14 +974,14 @@ const LandingPage = ({ onLogin, onTienda }) => {
               </div>
               <p style={{ margin: "0 0 24px", fontSize: 14, color: "#64748b", lineHeight: 1.7, maxWidth: 300 }}>Más de 106 años proclamando el evangelio de Jesucristo en el Perú y el mundo.</p>
               <div style={{ display: "flex", gap: 10 }}>
-                {[Facebook, Youtube, Instagram].map((Icon, i) => (
-                  <a key={i} href="#" style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b", transition: "all 0.2s", textDecoration: "none" }} onMouseEnter={e => { e.currentTarget.style.background = G.accent; e.currentTarget.style.color = "#fff"; }} onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "#64748b"; }}><Icon size={18} /></a>
+                {[[Facebook, CHURCH_DEFAULT.facebook], [Youtube, CHURCH_DEFAULT.youtube], [Instagram, CHURCH_DEFAULT.instagram]].map(([Icon, url], i) => (
+                  <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b", transition: "all 0.2s", textDecoration: "none" }} onMouseEnter={e => { e.currentTarget.style.background = G.accent; e.currentTarget.style.color = "#fff"; }} onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "#64748b"; }}><Icon size={18} /></a>
                 ))}
               </div>
             </div>
             {[{ title: "Iglesia", links: ["Nosotros","Creencias","Liderazgo","Contacto"] },{ title: "Conecta", links: ["Visítanos","Grupos de Vida","Servir","Bautismo"] },{ title: "Recursos", links: ["Sermones","Blog","Devocionales","Tienda"] }].map((col, i) => (
               <div key={i}><h4 style={{ margin: "0 0 18px", fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: 2, color: G.accent }}>{col.title}</h4>
-                {col.links.map((link, j) => (<div key={j} style={{ marginBottom: 12 }}><a href="#" style={{ fontSize: 14, color: "#64748b", textDecoration: "none", fontWeight: 500, transition: "color 0.2s" }} onMouseEnter={e => e.target.style.color = "#fff"} onMouseLeave={e => e.target.style.color = "#64748b"}>{link}</a></div>))}
+                {col.links.map((link, j) => (<div key={j} style={{ marginBottom: 12 }}><a href={footerLinks[link] === "/tienda" ? "/tienda" : `/${footerLinks[link] || ""}`} onClick={e => { if (e.metaKey || e.ctrlKey) return; e.preventDefault(); irA(footerLinks[link] || "#visitanos"); }} style={{ fontSize: 14, color: "#64748b", textDecoration: "none", fontWeight: 500, transition: "color 0.2s" }} onMouseEnter={e => e.target.style.color = "#fff"} onMouseLeave={e => e.target.style.color = "#64748b"}>{link}</a></div>))}
               </div>
             ))}
           </div>
@@ -2935,12 +2968,10 @@ const PortalUsuario = ({ userProfile, data }) => {
 // ═══════════════════════════════════════════════════════════════════
 // ─── DASHBOARD PRINCIPAL ────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════
-const Dashboard = ({ onLogout, userProfile }) => {
+const Dashboard = ({ onLogout, userProfile, seccion }) => {
   const isAdmin = userProfile?.rol === "admin";
   const isTeens = userProfile?.rol === "teens"; // Miembro con acceso de edición al ministerio de Adolescentes
   // Recordar la sección abierta para volver a ella al recargar
-  const [seccion, setSeccion] = useState(() => sessionStorage.getItem("ladp-seccion") || (isAdmin ? "dashboard" : isTeens ? "adolescentes" : "mi-perfil"));
-  useEffect(() => { sessionStorage.setItem("ladp-seccion", seccion); }, [seccion]);
   const [collapsed, setCollapsed] = useState(false);
   const [toastMsg, setToastMsg] = useState(null);
   const [config, setConfig] = useState(CHURCH_DEFAULT);
@@ -3021,6 +3052,9 @@ const Dashboard = ({ onLogout, userProfile }) => {
   };
   // Nunca mostrar una sección que el rol no tiene en su menú (p. ej. una guardada de otra sesión)
   const seccionVisible = menuItems.some(m => m.id === seccion) ? seccion : menuItems[0].id;
+  // /panel o una sección sin permiso → se corrige la URL a la sección real
+  useEffect(() => { if (seccion !== seccionVisible) navegar(`/panel/${seccionVisible}`, { reemplazar: true }); }, [seccion, seccionVisible]);
+  useEffect(() => { document.title = `${menuItems.find(m => m.id === seccionVisible)?.label} · LADP Admin`; }, [seccionVisible]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="dashboard-layout" style={{ display: "flex", height: "100vh", fontFamily: font, background: G.bg }}>
@@ -3035,10 +3069,10 @@ const Dashboard = ({ onLogout, userProfile }) => {
         </div>
         <nav style={{ flex: 1, padding: "10px 8px", overflowY: "auto", overflowX: "hidden" }}>
           {menuItems.map(item => (
-            <button key={item.id} onClick={() => setSeccion(item.id)} className={`sidebar-item ${seccionVisible === item.id ? "active" : ""}`} style={{ justifyContent: collapsed ? "center" : "flex-start", marginBottom: 1 }}>
+            <a key={item.id} href={`/panel/${item.id}`} onClick={alClicLink(`/panel/${item.id}`)} className={`sidebar-item ${seccionVisible === item.id ? "active" : ""}`} style={{ justifyContent: collapsed ? "center" : "flex-start", marginBottom: 1, textDecoration: "none" }}>
               <item.icon size={18} style={{ flexShrink: 0 }} />
               {!collapsed && <span className="sidebar-label" style={{ whiteSpace: "nowrap" }}>{item.label}</span>}
-            </button>
+            </a>
           ))}
         </nav>
         <div className="sidebar-bottom" style={{ padding: "10px 8px", borderTop: `1px solid ${G.grayMid}40` }}>
@@ -3418,9 +3452,16 @@ const TiendaPage = ({ onBack }) => {
 
 // ─── APP ROOT ────────────────────────────────────────────────────────
 export default function App() {
-  const [page, setPage] = useState("landing");
+  const ruta = useRuta();
   const [userProfile, setUserProfile] = useState(null);
   const [verificando, setVerificando] = useState(isSupabaseConfigured());
+
+  const page = ruta.startsWith("/panel") ? "dashboard"
+    : ruta === "/login" ? "login"
+    : ruta === "/registro" ? "register"
+    : ruta === "/tienda" ? "tienda"
+    : "landing";
+  const seccion = ruta.split("/")[2] || "";
 
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
@@ -3428,7 +3469,8 @@ export default function App() {
     const cargarPerfil = async (session) => {
       const profile = await getUserProfile();
       setUserProfile(profile || { id: session.user.id, nombre: session.user.email?.split("@")[0] || "Usuario", rol: "usuario", email: session.user.email });
-      setPage(p => (p === "landing" || p === "login" ? "dashboard" : p));
+      // Con sesión iniciada, login/registro llevan directo al panel
+      if (["/login", "/registro"].includes(window.location.pathname)) navegar("/panel", { reemplazar: true });
       setVerificando(false);
     };
 
@@ -3441,31 +3483,41 @@ export default function App() {
         setVerificando(false);
       } else if (event === "SIGNED_OUT") {
         setUserProfile(null);
-        setPage("landing");
+        navegar("/");
       }
     });
 
     return () => subscription.unsubscribe();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // El panel exige sesión: sin ella se manda al login
+  useEffect(() => {
+    if (!verificando && page === "dashboard" && !userProfile) navegar("/login", { reemplazar: true });
+  }, [verificando, page, userProfile]);
+
+  useEffect(() => {
+    if (page === "dashboard") return; // el panel pone su propio título
+    document.title = { landing: "LADP - Iglesia Cristo Viene", login: "Iniciar sesión · LADP", register: "Crear cuenta · LADP", tienda: "Tienda · LADP" }[page];
+    if (page !== "landing") window.scrollTo(0, 0);
+  }, [page]);
+
   const handleLogout = async () => {
-    sessionStorage.removeItem("ladp-seccion");
     await signOut();
     setUserProfile(null);
-    setPage("landing");
+    navegar("/");
   };
 
-  if (verificando) return (
+  if (verificando || (page === "dashboard" && !userProfile)) return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: font, color: G.gray, fontSize: 14 }}>Cargando…</div>
   );
 
   return (
     <div>
-      {page === "landing" && <LandingPage onLogin={() => setPage("login")} onTienda={() => setPage("tienda")} />}
-      {page === "login" && <Login onSuccess={(profile) => { setUserProfile(profile); setPage("dashboard"); }} onBack={() => setPage("landing")} onRegister={() => setPage("register")} />}
-      {page === "register" && <Register onSuccess={() => setPage("login")} onBack={() => setPage("login")} />}
-      {page === "dashboard" && <Dashboard onLogout={handleLogout} userProfile={userProfile} />}
-      {page === "tienda" && <TiendaPage onBack={() => setPage("landing")} />}
+      {page === "landing" && <LandingPage onLogin={() => navegar("/login")} onTienda={() => navegar("/tienda")} />}
+      {page === "login" && <Login onSuccess={(profile) => { setUserProfile(profile); navegar("/panel"); }} onBack={() => navegar("/")} onRegister={() => navegar("/registro")} />}
+      {page === "register" && <Register onSuccess={() => navegar("/login")} onBack={() => navegar("/login")} />}
+      {page === "dashboard" && <Dashboard onLogout={handleLogout} userProfile={userProfile} seccion={seccion} />}
+      {page === "tienda" && <TiendaPage onBack={() => navegar("/")} />}
     </div>
   );
 }
