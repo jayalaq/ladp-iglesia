@@ -151,7 +151,8 @@ export async function signInWithGoogle() {
   if (!isSupabaseConfigured()) return null;
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo: window.location.origin },
+    // Volver directo al panel (debe estar permitido en Supabase → Auth → Redirect URLs: <origen>/**)
+    options: { redirectTo: `${window.location.origin}/panel` },
   });
   if (error) { console.error("Google login error:", error.message); return null; }
   return data;

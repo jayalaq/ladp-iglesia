@@ -3466,11 +3466,12 @@ export default function App() {
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
 
-    const cargarPerfil = async (session) => {
+    const cargarPerfil = async (session, recienIngresa) => {
       const profile = await getUserProfile();
       setUserProfile(profile || { id: session.user.id, nombre: session.user.email?.split("@")[0] || "Usuario", rol: "usuario", email: session.user.email });
-      // Con sesión iniciada, login/registro llevan directo al panel
-      if (["/login", "/registro"].includes(window.location.pathname)) navegar("/panel", { reemplazar: true });
+      // Con sesión iniciada, login/registro llevan al panel; al volver de Google también desde el inicio
+      const enEntrada = ["/login", "/registro"].includes(window.location.pathname) || (recienIngresa && window.location.pathname === "/");
+      if (enEntrada) navegar("/panel", { reemplazar: true });
       setVerificando(false);
     };
 
@@ -3478,7 +3479,9 @@ export default function App() {
     // No se llama a Supabase dentro del callback (bloquea el cliente): se difiere con setTimeout.
     const { data: { subscription } } = onAuthStateChange((event, session) => {
       if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session) {
-        setTimeout(() => cargarPerfil(session), 0);
+        // Tokens en la URL = regreso del login con Google
+        const recienIngresa = event === "SIGNED_IN" || /access_token=/.test(window.location.hash);
+        setTimeout(() => cargarPerfil(session, recienIngresa), 0);
       } else if (event === "INITIAL_SESSION") {
         setVerificando(false);
       } else if (event === "SIGNED_OUT") {
