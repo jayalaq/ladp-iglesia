@@ -170,6 +170,8 @@ const GlobalStyles = () => (
 );
 
 // ─── UTILIDADES ─────────────────────────────────────────────────────
+const ROLES = { admin: "Super Administrador", teens: "Miembro · Adolescentes", usuario: "Miembro" };
+const rolLabel = (rol) => ROLES[rol] || ROLES.usuario;
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
 const fmt = (n) => typeof n === "number" ? n.toLocaleString("es-PE") : n;
 const fmtMoney = (n) => `S/. ${fmt(n)}`;
@@ -961,7 +963,7 @@ const LandingPage = ({ onLogin, onTienda }) => {
 };
 
 // ─── LOGIN ──────────────────────────────────────────────────────────
-const Login = ({ onSuccess, onBack, onRegister, onDemo }) => {
+const Login = ({ onSuccess, onBack, onRegister }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -1050,12 +1052,6 @@ const Login = ({ onSuccess, onBack, onRegister, onDemo }) => {
               <span style={{ fontSize: 13, color: G.gray }}>¿No tienes cuenta? </span>
               <button onClick={onRegister} style={{ background: "none", border: "none", color: G.primary, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: font }}>Crear cuenta</button>
             </div>
-            {onDemo && (
-              <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px dashed ${G.grayMid}70`, textAlign: "center" }}>
-                <button onClick={onDemo} style={{ background: G.accent + "12", border: `1.5px solid ${G.accent}60`, color: G.accentDark, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: font, padding: "9px 18px", borderRadius: 10 }}>👁 Entrar en modo demostración</button>
-                <div style={{ fontSize: 11, color: G.gray, marginTop: 6 }}>Explora la plataforma sin cuenta · los cambios no se guardan</div>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -2022,6 +2018,133 @@ const newUUID = () => crypto.randomUUID ? crypto.randomUUID() : uid();
 
 const PROGRAMA_REUNION = ["Bienvenida y oración", "Dinámica rompe hielo (10 min)", "Alabanza (15 min)", "Enseñanza bíblica (35 min)", "Dinámica de reflexión (15 min)", "Oración final", "Compartir"];
 
+// ─── ACTAS DE REUNIÓN DEL EQUIPO TEENS (privadas: admin + rol teens) ─
+const ActasAdolescentes = ({ data, setData, toast }) => {
+  const actas = [...(data.actas || [])].sort((a, b) => (b.fecha || "").localeCompare(a.fecha || "") || (b.hora || "").localeCompare(a.hora || ""));
+  const [editando, setEditando] = useState(null);
+  const [eliminar, setEliminar] = useState(null);
+  const [guardando, setGuardando] = useState(false);
+  const blankActa = () => ({ id: newUUID(), fecha: today(), hora: "19:30", lugar: "Templo ICV", dirige: "", asistentes: "", temas: "", acuerdos: "", tareas: [] });
+  const esNueva = (a) => !(data.actas || []).some(x => x.id === a.id);
+
+  // Guarda en Supabase; si falla, avisa y no finge que se guardó
+  const persistir = async (acta) => {
+    const saved = await upsertRecord("actas", acta, esNueva(acta));
+    if (!saved && isSupabaseConfigured()) { toast("No se pudo guardar el acta. Revisa tu conexión o permisos.", "error"); return null; }
+    const final = saved || acta;
+    setData(d => ({ ...d, actas: esNueva(acta) ? [final, ...(d.actas || [])] : (d.actas || []).map(x => x.id === acta.id ? final : x) }));
+    return final;
+  };
+  const guardar = async () => {
+    if (!editando.fecha) { toast("La fecha es obligatoria", "error"); return; }
+    setGuardando(true);
+    const acta = { ...editando, tareas: (editando.tareas || []).filter(t => t.texto?.trim()) };
+    const nueva = esNueva(acta);
+    const ok = await persistir(acta);
+    setGuardando(false);
+    if (ok) { toast(nueva ? "Acta registrada" : "Acta actualizada"); setEditando(null); }
+  };
+  const toggleTarea = (acta, idx) => persistir({ ...acta, tareas: acta.tareas.map((t, i) => i === idx ? { ...t, hecho: !t.hecho } : t) });
+  const confirmarEliminar = async () => {
+    const ok = await removeRecord("actas", eliminar.id);
+    if (ok === false) { toast("No se pudo eliminar el acta", "error"); return; }
+    setData(d => ({ ...d, actas: (d.actas || []).filter(x => x.id !== eliminar.id) }));
+    toast("Acta eliminada"); setEliminar(null);
+  };
+  const setTarea = (i, campo, valor) => setEditando(e => ({ ...e, tareas: e.tareas.map((t, j) => j === i ? { ...t, [campo]: valor } : t) }));
+
+  const pendientes = actas.flatMap(a => (a.tareas || []).map((t, i) => ({ ...t, acta: a, idx: i }))).filter(t => !t.hecho);
+  const Bloque = ({ titulo, texto }) => texto ? (
+    <div style={{ marginTop: 10 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: G.primary, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 3 }}>{titulo}</div>
+      <div style={{ fontSize: 13, color: G.dark, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{texto}</div>
+    </div>
+  ) : null;
+  const TareaItem = ({ t, onToggle }) => (
+    <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, color: t.hecho ? G.gray : G.dark, padding: "4px 0", cursor: "pointer" }}>
+      <input type="checkbox" checked={!!t.hecho} onChange={onToggle} style={{ marginTop: 3, accentColor: G.primary }} />
+      <span style={{ textDecoration: t.hecho ? "line-through" : "none", flex: 1 }}>{t.texto}
+        {(t.responsable || t.fecha) && <span style={{ color: G.gray, fontSize: 12 }}> · {[t.responsable, t.fecha && fmtDateShort(t.fecha)].filter(Boolean).join(" · ")}</span>}
+      </span>
+    </label>
+  );
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+        <div style={{ fontSize: 13, color: G.gray }}>Apuntes de las reuniones del equipo de Adolescentes. Solo los ve el equipo del ministerio y el Super Administrador.</div>
+        <Button variant="primary" size="sm" icon={Plus} onClick={() => setEditando(blankActa())}>Nueva acta</Button>
+      </div>
+
+      {pendientes.length > 0 && (
+        <Card hover={false} style={{ marginBottom: 14, borderLeft: `3px solid ${G.accent}` }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: G.dark, marginBottom: 6 }}>Tareas pendientes ({pendientes.length})</div>
+          {pendientes.map(t => <TareaItem key={t.acta.id + t.idx} t={t} onToggle={() => toggleTarea(t.acta, t.idx)} />)}
+        </Card>
+      )}
+
+      {actas.length === 0
+        ? <Card hover={false}><EmptyState icon={FileText} message="Aún no hay actas. Registra la primera reunión con “Nueva acta”." /></Card>
+        : actas.map(a => (
+          <Card key={a.id} hover={false} style={{ marginBottom: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: G.dark, fontFamily: fontTitle }}>Reunión del {fmtDate(a.fecha)}{a.hora ? ` · ${a.hora}` : ""}</div>
+                <div style={{ fontSize: 12, color: G.gray, marginTop: 2 }}>{[a.lugar, a.dirige && `Dirige: ${a.dirige}`].filter(Boolean).join(" · ")}</div>
+              </div>
+              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                <button onClick={() => setEditando({ ...a, tareas: a.tareas || [] })} style={{ background: "none", border: `1.5px solid ${G.grayMid}`, cursor: "pointer", padding: 6, borderRadius: 7, display: "flex" }}><Edit size={14} color={G.primary} /></button>
+                <button onClick={() => setEliminar(a)} style={{ background: "none", border: `1.5px solid ${G.grayMid}`, cursor: "pointer", padding: 6, borderRadius: 7, display: "flex" }}><Trash2 size={14} color={G.danger} /></button>
+              </div>
+            </div>
+            <Bloque titulo="Asistentes" texto={a.asistentes} />
+            <Bloque titulo="Temas tratados" texto={a.temas} />
+            <Bloque titulo="Acuerdos" texto={a.acuerdos} />
+            {(a.tareas || []).length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: G.primary, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 3 }}>Tareas</div>
+                {a.tareas.map((t, i) => <TareaItem key={i} t={t} onToggle={() => toggleTarea(a, i)} />)}
+              </div>
+            )}
+          </Card>
+        ))}
+
+      {editando && (
+        <Modal title={esNueva(editando) ? "Nueva acta de reunión" : "Editar acta"} onClose={() => setEditando(null)} width={640}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <Input label="Fecha" type="date" value={editando.fecha} onChange={e => setEditando({ ...editando, fecha: e.target.value })} required />
+              <Input label="Hora" type="time" value={editando.hora} onChange={e => setEditando({ ...editando, hora: e.target.value })} />
+              <Input label="Lugar" value={editando.lugar} onChange={e => setEditando({ ...editando, lugar: e.target.value })} />
+              <Input label="Dirige" value={editando.dirige} onChange={e => setEditando({ ...editando, dirige: e.target.value })} placeholder="Quién dirigió la reunión" />
+            </div>
+            <TextArea label="Asistentes" value={editando.asistentes} onChange={e => setEditando({ ...editando, asistentes: e.target.value })} rows={2} placeholder="Jorge, Priscila, Kevin…" />
+            <TextArea label="Temas tratados" value={editando.temas} onChange={e => setEditando({ ...editando, temas: e.target.value })} rows={4} />
+            <TextArea label="Acuerdos" value={editando.acuerdos} onChange={e => setEditando({ ...editando, acuerdos: e.target.value })} rows={4} />
+            <div>
+              <div style={{ fontSize: 12.5, color: G.dark, fontWeight: 600, marginBottom: 6 }}>Tareas</div>
+              {editando.tareas.map((t, i) => (
+                <div key={i} className="form-grid" style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr auto", gap: 8, marginBottom: 8, alignItems: "center" }}>
+                  <Input value={t.texto} onChange={e => setTarea(i, "texto", e.target.value)} placeholder="Qué hay que hacer" />
+                  <Input value={t.responsable} onChange={e => setTarea(i, "responsable", e.target.value)} placeholder="Responsable" />
+                  <Input type="date" value={t.fecha} onChange={e => setTarea(i, "fecha", e.target.value)} />
+                  <button onClick={() => setEditando(e => ({ ...e, tareas: e.tareas.filter((_, j) => j !== i) }))} style={{ background: "none", border: `1.5px solid ${G.grayMid}`, cursor: "pointer", padding: 8, borderRadius: 8, display: "flex", justifyContent: "center" }}><X size={14} color={G.danger} /></button>
+                </div>
+              ))}
+              <Button variant="outline" size="sm" icon={Plus} onClick={() => setEditando(e => ({ ...e, tareas: [...e.tareas, { texto: "", responsable: "", fecha: "", hecho: false }] }))}>Agregar tarea</Button>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
+            <Button variant="outline" size="md" onClick={() => setEditando(null)} fullWidth>Cancelar</Button>
+            <Button variant="primary" size="md" onClick={guardar} fullWidth icon={Save} disabled={guardando}>{guardando ? "Guardando…" : "Guardar acta"}</Button>
+          </div>
+        </Modal>
+      )}
+      {eliminar && <ConfirmDialog message={`¿Eliminar el acta del ${fmtDate(eliminar.fecha)}? Esta acción no se puede deshacer.`} onConfirm={confirmarEliminar} onCancel={() => setEliminar(null)} />}
+    </div>
+  );
+};
+
 const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
   const [modal, setModal] = useState(false);
   const [editando, setEditando] = useState(null);
@@ -2062,9 +2185,11 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
   const guardar = async () => {
     if (!editando.actividad || !editando.fecha) return;
     const exists = cronograma.find(c => c.id === editando.id);
-    const saved = await upsertRecord("cronograma", editando, !exists) || editando;
-    if (exists) setData({ ...data, cronograma: cronograma.map(c => c.id === editando.id ? saved : c) });
-    else setData({ ...data, cronograma: [saved, ...cronograma] });
+    const saved = await upsertRecord("cronograma", editando, !exists);
+    if (!saved && isSupabaseConfigured()) { toast("No se pudo guardar. Revisa tu conexión o permisos.", "error"); return; }
+    const final = saved || editando;
+    if (exists) setData({ ...data, cronograma: cronograma.map(c => c.id === editando.id ? final : c) });
+    else setData({ ...data, cronograma: [final, ...cronograma] });
     toast(exists || baseIds.has(editando.id) ? "Actividad actualizada" : "Actividad agregada");
     setModal(false); setEditando(null);
   };
@@ -2073,10 +2198,11 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
     if (baseIds.has(eliminar.id)) {
       // Una propuesta base no se borra: se marca como eliminada para que no reaparezca.
       const marcada = { ...eliminar, estado: "eliminado" };
-      const saved = await upsertRecord("cronograma", marcada, !exists) || marcada;
-      setData({ ...data, cronograma: exists ? cronograma.map(c => c.id === eliminar.id ? saved : c) : [saved, ...cronograma] });
+      const saved = await upsertRecord("cronograma", marcada, !exists);
+      if (!saved && isSupabaseConfigured()) { toast("No se pudo eliminar. Revisa tu conexión o permisos.", "error"); return; }
+      setData({ ...data, cronograma: exists ? cronograma.map(c => c.id === eliminar.id ? (saved || marcada) : c) : [saved || marcada, ...cronograma] });
     } else {
-      await removeRecord("cronograma", eliminar.id);
+      if (await removeRecord("cronograma", eliminar.id) === false) { toast("No se pudo eliminar. Revisa tu conexión o permisos.", "error"); return; }
       setData({ ...data, cronograma: cronograma.filter(c => c.id !== eliminar.id) });
     }
     toast("Actividad eliminada"); setEliminar(null);
@@ -2152,7 +2278,7 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
 
       {/* Tabs */}
       <div className="tabs-bar" style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
-        {[["calendario", "Calendario", Calendar], ["temario", "Temario", BookOpen], ["propuestas", "Propuestas", Star], ["plan", "Plan 2027", Target], ["programa", "Reunión", Clock]].map(([id, label, Icon]) => (
+        {[["calendario", "Calendario", Calendar], ["temario", "Temario", BookOpen], ["propuestas", "Propuestas", Star], ["plan", "Plan 2027", Target], ["programa", "Reunión", Clock], ...(readOnly ? [] : [["actas", "Actas", FileText]])].map(([id, label, Icon]) => (
           <button key={id} onClick={() => setTab(id)} style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 16px", borderRadius: 9, border: tab === id ? `2px solid ${G.primary}` : `1.5px solid ${G.grayMid}`, background: tab === id ? G.primary + "10" : "#fff", color: tab === id ? G.primary : G.gray, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: font }}>
             <Icon size={15} /> {label}
           </button>
@@ -2295,6 +2421,9 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
           </div>
         </div>
       )}
+
+      {/* ── ACTAS ── */}
+      {tab === "actas" && !readOnly && <ActasAdolescentes data={data} setData={setData} toast={toast} />}
 
       {/* ── PROGRAMA DE REUNIÓN ── */}
       {tab === "programa" && (
@@ -2549,7 +2678,7 @@ const ConfiguracionView = ({ config, setConfig, toast, currentUserId }) => {
     const ok = await updateUserRole(userId, newRol);
     if (ok) {
       setUsuarios(prev => prev.map(u => u.id === userId ? { ...u, rol: newRol } : u));
-      toast(`Rol actualizado a "${newRol === "admin" ? "Administrador" : "Usuario"}"`);
+      toast(`Rol actualizado a "${rolLabel(newRol)}"`);
     } else {
       toast("Error al actualizar el rol", "error");
     }
@@ -2608,16 +2737,17 @@ const ConfiguracionView = ({ config, setConfig, toast, currentUserId }) => {
                     <div style={{ fontSize: 12, color: G.gray, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.email || "Sin email registrado"}</div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                    <Badge variant={isAdminUser ? "success" : "default"}>{isAdminUser ? "Administrador" : "Usuario"}</Badge>
-                    {!isCurrentUser && (
+                    <Badge variant={isAdminUser ? "success" : u.rol === "teens" ? "primary" : "default"}>{rolLabel(u.rol)}</Badge>
+                    {/* Hay un solo Super Administrador: su rol no se edita y no se puede asignar a otros */}
+                    {!isCurrentUser && !isAdminUser && (
                       <select
                         value={u.rol}
                         disabled={updatingRole === u.id}
                         onChange={e => handleRoleChange(u.id, e.target.value)}
                         style={{ fontSize: 12, padding: "4px 8px", borderRadius: 7, border: `1.5px solid ${G.grayMid}`, background: "#fff", color: G.dark, cursor: "pointer", fontFamily: "inherit" }}
                       >
-                        <option value="usuario">Usuario</option>
-                        <option value="admin">Administrador</option>
+                        <option value="usuario">{ROLES.usuario}</option>
+                        <option value="teens">{ROLES.teens}</option>
                       </select>
                     )}
                   </div>
@@ -2807,8 +2937,9 @@ const PortalUsuario = ({ userProfile, data }) => {
 // ═══════════════════════════════════════════════════════════════════
 const Dashboard = ({ onLogout, userProfile }) => {
   const isAdmin = userProfile?.rol === "admin";
+  const isTeens = userProfile?.rol === "teens"; // Miembro con acceso de edición al ministerio de Adolescentes
   // Recordar la sección abierta para volver a ella al recargar
-  const [seccion, setSeccion] = useState(() => sessionStorage.getItem("ladp-seccion") || (isAdmin ? "dashboard" : "mi-perfil"));
+  const [seccion, setSeccion] = useState(() => sessionStorage.getItem("ladp-seccion") || (isAdmin ? "dashboard" : isTeens ? "adolescentes" : "mi-perfil"));
   useEffect(() => { sessionStorage.setItem("ladp-seccion", seccion); }, [seccion]);
   const [collapsed, setCollapsed] = useState(false);
   const [toastMsg, setToastMsg] = useState(null);
@@ -2825,6 +2956,7 @@ const Dashboard = ({ onLogout, userProfile }) => {
     publicaciones: initPublicaciones,
     gastos: initGastos,
     cronograma: initCronograma,
+    actas: [],
   });
 
   const [dbLoading, setDbLoading] = useState(false);
@@ -2861,6 +2993,8 @@ const Dashboard = ({ onLogout, userProfile }) => {
     { id: "tienda", label: "Tienda", icon: ShoppingCart },
     { id: "blog", label: "Blog", icon: FileText },
     { id: "configuracion", label: "Configuración", icon: Settings },
+  ] : isTeens ? [
+    { id: "adolescentes", label: "Adolescentes", icon: Star },
   ] : [
     { id: "mi-perfil", label: "Mi Perfil", icon: UserCheck },
     { id: "eventos", label: "Eventos", icon: Calendar },
@@ -2879,12 +3013,14 @@ const Dashboard = ({ onLogout, userProfile }) => {
     asistencia: <AsistenciaView data={data} setData={setData} toast={showToast} />,
     celulas: <CelulasView data={data} setData={setData} toast={showToast} />,
     ministerios: <MinisteriosView data={data} setData={setData} toast={showToast} />,
-    adolescentes: <AdolescentesView data={data} setData={setData} toast={showToast} readOnly={!isAdmin} />,
+    adolescentes: <AdolescentesView data={data} setData={setData} toast={showToast} readOnly={!isAdmin && !isTeens} />,
     evangelismo: <EvangelismoView />,
     tienda: <TiendaView data={data} setData={setData} toast={showToast} />,
     blog: <BlogView data={data} setData={setData} toast={showToast} readOnly={!isAdmin} />,
     configuracion: <ConfiguracionView config={config} setConfig={setConfig} toast={showToast} currentUserId={userProfile?.id} />,
   };
+  // Nunca mostrar una sección que el rol no tiene en su menú (p. ej. una guardada de otra sesión)
+  const seccionVisible = menuItems.some(m => m.id === seccion) ? seccion : menuItems[0].id;
 
   return (
     <div className="dashboard-layout" style={{ display: "flex", height: "100vh", fontFamily: font, background: G.bg }}>
@@ -2899,7 +3035,7 @@ const Dashboard = ({ onLogout, userProfile }) => {
         </div>
         <nav style={{ flex: 1, padding: "10px 8px", overflowY: "auto", overflowX: "hidden" }}>
           {menuItems.map(item => (
-            <button key={item.id} onClick={() => setSeccion(item.id)} className={`sidebar-item ${seccion === item.id ? "active" : ""}`} style={{ justifyContent: collapsed ? "center" : "flex-start", marginBottom: 1 }}>
+            <button key={item.id} onClick={() => setSeccion(item.id)} className={`sidebar-item ${seccionVisible === item.id ? "active" : ""}`} style={{ justifyContent: collapsed ? "center" : "flex-start", marginBottom: 1 }}>
               <item.icon size={18} style={{ flexShrink: 0 }} />
               {!collapsed && <span className="sidebar-label" style={{ whiteSpace: "nowrap" }}>{item.label}</span>}
             </button>
@@ -2932,13 +3068,13 @@ const Dashboard = ({ onLogout, userProfile }) => {
               <Avatar initials={(userProfile?.nombre || "U").slice(0, 2).toUpperCase()} size={28} color={G.primary} />
               <div>
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: G.dark, lineHeight: 1.2 }}>{userProfile?.nombre || "Usuario"}</div>
-                <div style={{ fontSize: 10.5, color: G.gray }}>{isAdmin ? "Administrador" : "Miembro"}</div>
+                <div style={{ fontSize: 10.5, color: G.gray }}>{rolLabel(userProfile?.rol)}</div>
               </div>
             </div>
           </div>
         </header>
         <main className="dashboard-main" style={{ flex: 1, overflowY: "auto", padding: 20 }}>
-          {views[seccion]}
+          {views[seccionVisible]}
         </main>
       </div>
     </div>
@@ -3281,17 +3417,13 @@ const TiendaPage = ({ onBack }) => {
 };
 
 // ─── APP ROOT ────────────────────────────────────────────────────────
-const DEMO_PROFILE = { id: "demo", nombre: "Invitado (Demo)", rol: "admin", email: "demo@icv.pe", demo: true };
-
 export default function App() {
-  // El modo demo no tiene sesión en Supabase: se recuerda en sessionStorage para sobrevivir al recargar
-  const demoGuardado = sessionStorage.getItem("ladp-demo") === "1";
-  const [page, setPage] = useState(demoGuardado ? "dashboard" : "landing");
-  const [userProfile, setUserProfile] = useState(demoGuardado ? DEMO_PROFILE : null);
-  const [verificando, setVerificando] = useState(!demoGuardado && isSupabaseConfigured());
+  const [page, setPage] = useState("landing");
+  const [userProfile, setUserProfile] = useState(null);
+  const [verificando, setVerificando] = useState(isSupabaseConfigured());
 
   useEffect(() => {
-    if (!isSupabaseConfigured() || demoGuardado) return;
+    if (!isSupabaseConfigured()) return;
 
     const cargarPerfil = async (session) => {
       const profile = await getUserProfile();
@@ -3317,9 +3449,8 @@ export default function App() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleLogout = async () => {
-    sessionStorage.removeItem("ladp-demo");
     sessionStorage.removeItem("ladp-seccion");
-    if (!userProfile?.demo) await signOut();
+    await signOut();
     setUserProfile(null);
     setPage("landing");
   };
@@ -3331,7 +3462,7 @@ export default function App() {
   return (
     <div>
       {page === "landing" && <LandingPage onLogin={() => setPage("login")} onTienda={() => setPage("tienda")} />}
-      {page === "login" && <Login onSuccess={(profile) => { setUserProfile(profile); setPage("dashboard"); }} onBack={() => setPage("landing")} onRegister={() => setPage("register")} onDemo={() => { sessionStorage.setItem("ladp-demo", "1"); setUserProfile(DEMO_PROFILE); setPage("dashboard"); }} />}
+      {page === "login" && <Login onSuccess={(profile) => { setUserProfile(profile); setPage("dashboard"); }} onBack={() => setPage("landing")} onRegister={() => setPage("register")} />}
       {page === "register" && <Register onSuccess={() => setPage("login")} onBack={() => setPage("login")} />}
       {page === "dashboard" && <Dashboard onLogout={handleLogout} userProfile={userProfile} />}
       {page === "tienda" && <TiendaPage onBack={() => setPage("landing")} />}
