@@ -150,10 +150,21 @@ CREATE TABLE IF NOT EXISTS cronograma_adolescentes (
   fecha DATE,
   actividad TEXT NOT NULL,
   responsable TEXT,
+  ministerio TEXT,
+  hora TEXT,
+  reflexion TEXT,
   lugar TEXT,
   tipo TEXT,
   estado TEXT DEFAULT 'planificado',
   notas TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS peticiones_oracion (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  peticion TEXT NOT NULL,
+  incluir_en_post BOOLEAN DEFAULT FALSE,
+  creado_por UUID DEFAULT auth.uid(),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -167,6 +178,9 @@ ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS avance INTEGER DEFAULT 0;
 ALTER TABLE eventos ADD COLUMN IF NOT EXISTS estado TEXT DEFAULT 'planificado';
 ALTER TABLE asistencia ADD COLUMN IF NOT EXISTS nuevos INTEGER DEFAULT 0;
 ALTER TABLE celulas ADD COLUMN IF NOT EXISTS lugar TEXT;
+ALTER TABLE cronograma_adolescentes ADD COLUMN IF NOT EXISTS ministerio TEXT;
+ALTER TABLE cronograma_adolescentes ADD COLUMN IF NOT EXISTS hora TEXT;
+ALTER TABLE cronograma_adolescentes ADD COLUMN IF NOT EXISTS reflexion TEXT;
 
 -- ─── ROW LEVEL SECURITY ───────────────────────────────────────────
 -- Habilitar RLS en todas las tablas
@@ -181,6 +195,7 @@ ALTER TABLE ministerios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE productos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE publicaciones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cronograma_adolescentes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE peticiones_oracion ENABLE ROW LEVEL SECURITY;
 
 -- Políticas: lectura pública, escritura autenticada
 CREATE POLICY "Public read" ON miembros FOR SELECT USING (true);

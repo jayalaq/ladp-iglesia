@@ -1961,6 +1961,7 @@ const TEENS_2026 = [
   { fecha: "2026-09-19", tipo: "Iglesia", titulo: "Culto especial por la Juventud", responsable: "ICV", iglesia: true },
   { fecha: "2026-09-27", tipo: "Iglesia", titulo: "Etapa final Concurso Bíblico Nacional", responsable: "ICV", iglesia: true },
   { fecha: "2026-10-08", tipo: "Iglesia", titulo: "Bautismo", responsable: "ICV", iglesia: true },
+  { fecha: "2026-10-10", tipo: "Oración", titulo: "Oraciones Matinales · Pasión por la Oración", ministerio: "Ministerio de Adolescentes", responsable: "Hno. Jorge Alaya", hora: "4:30–6:00 a. m.", reflexion: "Amós 3:7", editableBase: true },
   { fecha: "2026-10-17", tipo: "Iglesia", titulo: "Teología Musical", responsable: "ICV", iglesia: true },
   { fecha: "2026-10-24", tipo: "Iglesia", titulo: "Campaña Evangelística (23–24 oct)", responsable: "ICV", iglesia: true },
   { fecha: "2026-10-31", tipo: "Iglesia", titulo: "Adoración Pública Región Lima-Noreste · Aniversario LADP", responsable: "ICV", iglesia: true },
@@ -2046,7 +2047,7 @@ const TEENS_PLAN_2027 = [
 
 // UUID fijo por fecha para cada propuesta base: al editarla/eliminarla se guarda una fila
 // en cronograma_adolescentes con este id que reemplaza a la versión base.
-const teensBaseId = (fecha) => `7ee05000-0000-4000-8000-${fecha.replaceAll("-", "")}0000`;
+const teensBaseId = (fecha, variante = "") => `7ee05000-0000-4000-8000-${fecha.replaceAll("-", "")}${variante ? "0001" : "0000"}`;
 const newUUID = () => crypto.randomUUID ? crypto.randomUUID() : uid();
 
 const PROGRAMA_REUNION = ["Bienvenida y oración", "Dinámica rompe hielo (10 min)", "Alabanza (15 min)", "Enseñanza bíblica (35 min)", "Dinámica de reflexión (15 min)", "Oración final", "Compartir"];
@@ -2187,19 +2188,33 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
   const [tab, setTab] = useState("calendario");
 
   const cronograma = data.cronograma || [];
-  const blank = { fecha: today(), actividad: "", responsable: "", lugar: "Templo ICV", tipo: "Enseñanza", estado: "planificado", notas: "" };
+  const peticiones = data.peticiones || [];
+  const [peticionNueva, setPeticionNueva] = useState("");
+  const [peticionPublica, setPeticionPublica] = useState(false);
+  const [guardandoPeticion, setGuardandoPeticion] = useState(false);
+  const blank = { fecha: today(), actividad: "", ministerio: "", responsable: "", hora: "", reflexion: "", lugar: "Templo ICV", tipo: "Enseñanza", estado: "planificado", notas: "" };
 
   // Unifica el temario base (TEENS_2026) con lo que el admin guarda en Supabase.
   // Las propuestas base son editables: su versión editada (mismo id fijo) reemplaza a la base.
-  const baseIds = new Set(TEENS_2026.filter(a => a.propuesta).map(a => teensBaseId(a.fecha)));
+  const baseIds = new Set(TEENS_2026.filter(a => a.propuesta || a.editableBase).map(a => teensBaseId(a.fecha, a.editableBase ? "matutino" : "")));
+  const proposalIds = new Set(TEENS_2026.filter(a => a.propuesta).map(a => teensBaseId(a.fecha)));
   const norm = (a) => {
-    if (a.titulo === undefined) return { fecha: a.fecha, tipo: a.tipo, titulo: a.actividad, responsable: a.responsable, nota: a.notas, estado: a.estado, propuesta: baseIds.has(a.id) || a.estado === "planificado", editable: true, raw: a };
+    if (a.titulo === undefined) return { fecha: a.fecha, tipo: a.tipo, titulo: a.actividad, responsable: a.responsable, ministerio: a.ministerio, hora: a.hora, reflexion: a.reflexion, lugar: a.lugar, nota: a.notas, estado: a.estado, propuesta: proposalIds.has(a.id) || (!baseIds.has(a.id) && a.estado === "planificado"), editable: true, raw: a };
+    if (a.editableBase) {
+      const raw = { id: teensBaseId(a.fecha, "matutino"), fecha: a.fecha, actividad: a.titulo, ministerio: a.ministerio, responsable: a.responsable, hora: a.hora, reflexion: a.reflexion, lugar: "Templo ICV", tipo: a.tipo, estado: "confirmado", notas: a.nota || "" };
+      return { fecha: a.fecha, tipo: a.tipo, titulo: a.titulo, ministerio: a.ministerio, responsable: a.responsable, hora: a.hora, reflexion: a.reflexion, lugar: a.lugar || "Templo ICV", nota: a.nota, editable: true, raw };
+    }
     if (!a.propuesta) return { fecha: a.fecha, tipo: a.tipo, titulo: a.titulo, responsable: a.responsable, nota: a.nota || a.dinamica, iglesia: a.iglesia, editable: false };
     const raw = { id: teensBaseId(a.fecha), fecha: a.fecha, actividad: a.titulo, responsable: a.responsable, lugar: "Templo ICV", tipo: a.tipo, estado: "planificado", notas: a.nota };
     return { fecha: a.fecha, tipo: a.tipo, titulo: a.titulo, responsable: a.responsable, nota: a.nota, estado: "planificado", propuesta: true, editable: true, raw };
   };
   const guardadas = new Set(cronograma.map(c => c.id));
-  const todas = [...TEENS_2026.filter(a => !(a.propuesta && guardadas.has(teensBaseId(a.fecha)))).map(norm), ...cronograma.filter(c => c.estado !== "eliminado").map(norm)].filter(a => a.fecha);
+  const todas = [...TEENS_2026.filter(a => !((a.propuesta || a.editableBase) && guardadas.has(teensBaseId(a.fecha, a.editableBase ? "matutino" : "")))).map(norm), ...cronograma.filter(c => c.estado !== "eliminado").map(norm)].filter(a => a.fecha);
+  const matutinoId = teensBaseId("2026-10-10", "matutino");
+  const matutinoGuardado = cronograma.find(a => a.id === matutinoId);
+  const matutino = matutinoGuardado?.estado === "eliminado"
+    ? null
+    : todas.find(a => a.raw?.id === matutinoId) || norm(TEENS_2026.find(a => a.editableBase));
 
   const y = ref.getFullYear(), m = ref.getMonth();
   const pad = (n) => String(n).padStart(2, "0");
@@ -2241,6 +2256,186 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
     toast("Actividad eliminada"); setEliminar(null);
   };
 
+  const guardarPeticion = async () => {
+    const peticion = peticionNueva.trim();
+    if (!peticion || guardandoPeticion) return;
+    setGuardandoPeticion(true);
+    const nueva = { id: newUUID(), peticion, incluir_en_post: peticionPublica };
+    const saved = await upsertRecord("peticiones", nueva, true);
+    if (!saved && isSupabaseConfigured()) {
+      toast("No se pudo guardar. Verifica que la tabla de peticiones esté instalada y que tengas permisos.", "error");
+      setGuardandoPeticion(false);
+      return;
+    }
+    setData(d => ({ ...d, peticiones: [saved || nueva, ...(d.peticiones || [])] }));
+    setPeticionNueva("");
+    setPeticionPublica(false);
+    setGuardandoPeticion(false);
+    toast("Petición agregada");
+  };
+
+  const cambiarPublicacionPeticion = async (peticion) => {
+    const actualizada = { ...peticion, incluir_en_post: !peticion.incluir_en_post };
+    const saved = await upsertRecord("peticiones", actualizada, false);
+    if (!saved && isSupabaseConfigured()) {
+      toast("No se pudo actualizar la publicación de esta petición.", "error");
+      return;
+    }
+    setData(d => ({ ...d, peticiones: (d.peticiones || []).map(p => p.id === peticion.id ? (saved || actualizada) : p) }));
+  };
+
+  const eliminarPeticion = async (peticion) => {
+    if (await removeRecord("peticiones", peticion.id) === false) {
+      toast("No se pudo eliminar la petición.", "error");
+      return;
+    }
+    setData(d => ({ ...d, peticiones: (d.peticiones || []).filter(p => p.id !== peticion.id) }));
+    toast("Petición eliminada");
+  };
+
+  const peticionesDelPost = peticiones.filter(p => p.incluir_en_post);
+  const textoParaWhatsApp = [
+    `🙏 ${matutino?.titulo || "Oraciones Matinales · Pasión por la Oración"}`,
+    `${matutino?.fecha ? fmtDate(matutino.fecha) : "Sábado 10 de octubre de 2026"} · ${matutino?.hora || "4:30–6:00 a. m."}`,
+    matutino?.ministerio || "Ministerio de Adolescentes",
+    matutino?.responsable ? `Dirige: ${matutino.responsable}` : "",
+    matutino?.lugar ? `Lugar: ${matutino.lugar}` : "",
+    matutino?.reflexion ? `Reflexión bíblica: ${matutino.reflexion}` : "",
+    peticionesDelPost.length ? `\nPeticiones de oración:\n${peticionesDelPost.map(p => `• ${p.peticion}`).join("\n")}` : "",
+    "\n¡Te esperamos! Comparte esta invitación.",
+  ].filter(Boolean).join("\n");
+
+  const crearLienzoPost = () => {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("No se pudo crear la imagen del post.");
+    canvas.width = 1080;
+    const requestLines = [];
+    ctx.font = "26px Arial";
+    const wrap = (text, width) => {
+      const words = text.split(/\s+/);
+      const lines = [];
+      let line = "";
+      words.forEach(word => {
+        const next = line ? `${line} ${word}` : word;
+        if (line && ctx.measureText(next).width > width) {
+          lines.push(line);
+          line = word;
+        } else line = next;
+      });
+      if (line) lines.push(line);
+      return lines;
+    };
+    peticionesDelPost.forEach(p => requestLines.push(...wrap(`• ${p.peticion}`, 850), ""));
+    const requests = requestLines.length ? requestLines : ["Acompáñanos en este tiempo de oración."];
+    canvas.height = 1040 + requests.length * 38;
+
+    const background = ctx.createLinearGradient(0, 0, 1080, canvas.height);
+    background.addColorStop(0, "#32104d");
+    background.addColorStop(1, "#69318f");
+    ctx.fillStyle = background;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#ffffff";
+    ctx.globalAlpha = 0.08;
+    ctx.beginPath(); ctx.arc(970, 80, 230, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(60, canvas.height - 40, 250, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#e8c8ff";
+    ctx.font = "bold 27px Arial";
+    ctx.fillText("IGLESIA CRISTO VIENE · MINISTERIO DE ADOLESCENTES", 540, 100);
+    ctx.fillStyle = "#ffffff";
+    const headline = (matutino?.titulo || "Oraciones Matinales").split("·")[0].trim().toLocaleUpperCase();
+    let headlineSize = 66;
+    ctx.font = `bold ${headlineSize}px Arial`;
+    while (ctx.measureText(headline).width > 890 && headlineSize > 36) {
+      headlineSize -= 2;
+      ctx.font = `bold ${headlineSize}px Arial`;
+    }
+    ctx.fillText(headline, 540, 250);
+    ctx.fillStyle = "#f5d977";
+    ctx.font = "bold 36px Arial";
+    ctx.fillText("PASIÓN POR LA ORACIÓN", 540, 330);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.globalAlpha = 0.12;
+    ctx.beginPath(); ctx.roundRect(115, 390, 850, 300, 28); ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.font = "bold 34px Arial";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(matutino?.fecha ? fmtDate(matutino.fecha) : "Sábado 10 de octubre de 2026", 540, 445);
+    ctx.font = "bold 40px Arial";
+    ctx.fillText(matutino?.hora || "4:30–6:00 a. m.", 540, 505);
+    ctx.font = "28px Arial";
+    ctx.fillText(matutino?.ministerio || "Ministerio de Adolescentes", 540, 555);
+    ctx.font = "24px Arial";
+    ctx.fillText([matutino?.responsable && `Dirige: ${matutino.responsable}`, matutino?.lugar].filter(Boolean).join(" · "), 540, 605);
+
+    let yPost = 750;
+    if (matutino?.reflexion) {
+      ctx.fillStyle = "#f5d977";
+      ctx.font = "bold 30px Arial";
+      ctx.fillText(`REFLEXIÓN BÍBLICA · ${matutino.reflexion}`, 540, yPost);
+      yPost += 68;
+    }
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#f5d977";
+    ctx.font = "bold 30px Arial";
+    ctx.fillText("UNAMOS NUESTRAS ORACIONES", 115, yPost);
+    yPost += 55;
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "26px Arial";
+    requests.forEach(line => {
+      if (line) {
+        ctx.fillText(line, 125, yPost);
+        yPost += 38;
+      } else yPost += 14;
+    });
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#e8c8ff";
+    ctx.font = "24px Arial";
+    ctx.fillText("¡Te esperamos! Comparte esta invitación.", 540, canvas.height - 55);
+    return canvas;
+  };
+
+  const descargarPost = () => {
+    try {
+      const link = document.createElement("a");
+      link.download = "oraciones-matinales-adolescentes.png";
+      link.href = crearLienzoPost().toDataURL("image/png");
+      link.click();
+      toast("Post descargado como imagen");
+    } catch (error) {
+      console.error("Error creating matutino post:", error);
+      toast("No se pudo generar el post.", "error");
+    }
+  };
+
+  const compartirPost = async () => {
+    try {
+      const canvas = crearLienzoPost();
+      if (navigator.share && navigator.canShare) {
+        const blob = await new Promise((resolve, reject) => canvas.toBlob(image => image ? resolve(image) : reject(new Error("No se pudo generar la imagen.")), "image/png"));
+        const file = new File([blob], "oraciones-matinales-adolescentes.png", { type: "image/png" });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: matutino?.titulo || "Oraciones Matinales", text: textoParaWhatsApp });
+          return;
+        }
+      }
+      const link = document.createElement("a");
+      link.download = "oraciones-matinales-adolescentes.png";
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+      window.open(`https://wa.me/?text=${encodeURIComponent(textoParaWhatsApp)}`, "_blank", "noopener,noreferrer");
+      toast("Imagen descargada y mensaje listo para compartir por WhatsApp");
+    } catch (error) {
+      if (error?.name === "AbortError") return;
+      console.error("Error sharing matutino post:", error);
+      toast("No se pudo generar o compartir el post.", "error");
+    }
+  };
+
   const fmtFecha = (f) => { const d = new Date(f + "T12:00"); return `${d.getDate()} ${MESES_FULL[d.getMonth()].slice(0, 3)}`; };
   const diaSemana = (f) => DOW[new Date(f + "T12:00").getDay()];
   const hoyKey = today();
@@ -2275,6 +2470,9 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
             : <span style={{ fontSize: 10, fontWeight: 700, color: G.success, background: G.success + "1a", padding: "2px 8px", borderRadius: 20, textTransform: "uppercase" }}>{a.estado}</span>)}
         </div>
         <div style={{ fontSize: 14, fontWeight: 700, color: G.dark }}>{a.titulo}</div>
+        {a.ministerio && <div style={{ fontSize: 12, color: G.gray, marginTop: 3 }}>{a.ministerio}</div>}
+        {a.hora && <div style={{ fontSize: 12, color: G.gray, marginTop: 3 }}>🕓 {a.hora}</div>}
+        {a.reflexion && <div style={{ fontSize: 12, color: G.gray, marginTop: 3 }}>📖 Reflexión: {a.reflexion}</div>}
         {a.responsable && <div style={{ fontSize: 12, color: G.gray, marginTop: 2 }}>👤 {a.responsable}</div>}
         {a.nota && <div style={{ fontSize: 11.5, color: G.gray, marginTop: 3, fontStyle: "italic", lineHeight: 1.4 }}>{a.nota}</div>}
       </div>
@@ -2311,7 +2509,7 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
 
       {/* Tabs */}
       <div className="tabs-bar" style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
-        {[["calendario", "Calendario", Calendar], ["temario", "Temario", BookOpen], ["propuestas", "Propuestas", Star], ["plan", "Plan 2027", Target], ["programa", "Reunión", Clock], ...(readOnly ? [] : [["actas", "Actas", FileText]])].map(([id, label, Icon]) => (
+        {[["calendario", "Calendario", Calendar], ["matutino", "Matutino", Clock], ["temario", "Temario", BookOpen], ["propuestas", "Propuestas", Star], ["plan", "Plan 2027", Target], ["programa", "Reunión", Clock], ...(readOnly ? [] : [["actas", "Actas", FileText]])].map(([id, label, Icon]) => (
           <button key={id} onClick={() => setTab(id)} style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 16px", borderRadius: 9, border: tab === id ? `2px solid ${G.primary}` : `1.5px solid ${G.grayMid}`, background: tab === id ? G.primary + "10" : "#fff", color: tab === id ? G.primary : G.gray, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: font }}>
             <Icon size={15} /> {label}
           </button>
@@ -2372,6 +2570,80 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
               ? <div style={{ padding: "24px 0", textAlign: "center", color: G.gray, fontSize: 13 }}>Sin actividades {selDia ? "este día" : "este mes"}.</div>
               : <div style={{ overflowY: "auto", flex: 1, minHeight: 0, marginRight: -8, paddingRight: 8 }}>{listaDetalle.map((a, i) => ActividadRow(a, i, listaDetalle))}</div>}
           </Card>
+        </div>
+      )}
+
+      {/* ── MATUTINO Y POST ── */}
+      {tab === "matutino" && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16, alignItems: "start" }}>
+          <Card hover={false} style={{ background: "linear-gradient(135deg, #32104d, #69318f)", color: "#fff" }}>
+            <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1.5, color: "#e8c8ff" }}>Pasión por la Oración</div>
+            <h2 style={{ margin: "8px 0 16px", fontSize: 24, fontWeight: 800, fontFamily: fontTitle }}>{matutino?.titulo || "Matutino no programado"}</h2>
+            {matutino ? (
+              <div style={{ display: "grid", gap: 9, fontSize: 14 }}>
+                <div>📅 {fmtDate(matutino.fecha)}</div>
+                <div>🕓 {matutino.hora || "Hora por definir"}</div>
+                <div>🙏 {matutino.ministerio || "Ministerio de Adolescentes"}</div>
+                {matutino.responsable && <div>👤 {matutino.responsable}</div>}
+                {matutino.lugar && <div>📍 {matutino.lugar}</div>}
+                {matutino.reflexion && <div>📖 Reflexión bíblica: {matutino.reflexion}</div>}
+              </div>
+            ) : (
+              <div style={{ fontSize: 13 }}>La actividad fue retirada del cronograma.</div>
+            )}
+            {!readOnly && matutino?.raw && (
+              <Button variant="ghost" size="md" icon={Edit} style={{ marginTop: 18, background: "#fff", color: G.purple }} onClick={() => { setEditando({ ...matutino.raw }); setModal(true); }}>Editar datos del matutino</Button>
+            )}
+            <div style={{ marginTop: 18, fontSize: 12, color: "#f0dffb", lineHeight: 1.5 }}>
+              El post solo incluirá las peticiones que marques expresamente para compartir.
+            </div>
+          </Card>
+
+          <Card hover={false}>
+            <h3 style={{ margin: "0 0 5px", fontSize: 17, fontWeight: 800, color: G.dark, fontFamily: fontTitle }}>Peticiones de oración</h3>
+            <div style={{ marginBottom: 14, fontSize: 12, color: G.gray, lineHeight: 1.5 }}>Registra motivos para orar. Se mantienen privados hasta que marques que pueden aparecer en el post.</div>
+            {readOnly ? (
+              <div style={{ padding: "14px 0", color: G.gray, fontSize: 13 }}>Las peticiones son privadas y solo están disponibles para el equipo de Adolescentes.</div>
+            ) : (
+              <>
+                <TextArea label="Nueva petición" value={peticionNueva} onChange={e => setPeticionNueva(e.target.value)} placeholder="Escribe el motivo de oración..." rows={3} />
+                <label style={{ display: "flex", alignItems: "center", gap: 8, margin: "10px 0 14px", fontSize: 12, color: G.dark, cursor: "pointer" }}>
+                  <input type="checkbox" checked={peticionPublica} onChange={e => setPeticionPublica(e.target.checked)} />
+                  Incluir esta petición en el post para compartir
+                </label>
+                <Button variant="primary" size="md" icon={Plus} onClick={guardarPeticion} disabled={!peticionNueva.trim() || guardandoPeticion}>
+                  {guardandoPeticion ? "Guardando…" : "Agregar petición"}
+                </Button>
+                <div style={{ display: "grid", gap: 9, marginTop: 18 }}>
+                  {peticiones.length === 0
+                    ? <div style={{ padding: "12px 0", color: G.gray, fontSize: 13 }}>Aún no hay peticiones registradas.</div>
+                    : peticiones.map(p => (
+                      <div key={p.id} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: 12, border: `1px solid ${G.grayMid}70`, borderRadius: 9 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, color: G.dark, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{p.peticion}</div>
+                          <label style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 8, fontSize: 11, color: p.incluir_en_post ? G.purple : G.gray, cursor: "pointer" }}>
+                            <input type="checkbox" checked={!!p.incluir_en_post} onChange={() => cambiarPublicacionPeticion(p)} />
+                            {p.incluir_en_post ? "Se compartirá en el post" : "Mantener privada"}
+                          </label>
+                        </div>
+                        <button aria-label="Eliminar petición" onClick={() => eliminarPeticion(p)} style={{ border: 0, background: "none", color: G.danger, padding: 3, cursor: "pointer" }}><Trash2 size={15} /></button>
+                      </div>
+                    ))}
+                </div>
+              </>
+            )}
+          </Card>
+
+          {!readOnly && (
+            <Card hover={false} style={{ gridColumn: "1 / -1" }}>
+              <h3 style={{ margin: "0 0 5px", fontSize: 17, fontWeight: 800, color: G.dark, fontFamily: fontTitle }}>Publicar y compartir</h3>
+              <div style={{ marginBottom: 14, fontSize: 12, color: G.gray, lineHeight: 1.5 }}>Genera una imagen del matutino. En móviles puedes compartirla desde el menú del dispositivo; si no está disponible, se descarga el post y se abre WhatsApp con el mensaje listo.</div>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <Button variant="primary" size="md" icon={Share2} onClick={compartirPost} disabled={!matutino}>Generar post y compartir por WhatsApp</Button>
+                <Button variant="outline" size="md" icon={Download} onClick={descargarPost} disabled={!matutino}>Descargar imagen PNG</Button>
+              </div>
+            </Card>
+          )}
         </div>
       )}
 
@@ -2484,14 +2756,17 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
         <Modal title={cronograma.find(c => c.id === editando.id) || baseIds.has(editando.id) ? "Editar Actividad" : "Nueva Actividad"} onClose={() => { setModal(false); setEditando(null); }} width={600}>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <Input label="Actividad" value={editando.actividad} onChange={e => setEditando({ ...editando, actividad: e.target.value })} required />
+            <Input label="Ministerio" value={editando.ministerio || ""} onChange={e => setEditando({ ...editando, ministerio: e.target.value })} />
             <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <Input label="Fecha" value={editando.fecha} onChange={e => setEditando({ ...editando, fecha: e.target.value })} type="date" required />
               <Input label="Responsable" value={editando.responsable} onChange={e => setEditando({ ...editando, responsable: e.target.value })} />
             </div>
             <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <Select label="Tipo" value={editando.tipo} onChange={e => setEditando({ ...editando, tipo: e.target.value })} options={TEENS_TIPOS} />
-              <Input label="Lugar" value={editando.lugar} onChange={e => setEditando({ ...editando, lugar: e.target.value })} />
+              <Input label="Hora" value={editando.hora || ""} onChange={e => setEditando({ ...editando, hora: e.target.value })} placeholder="4:30–6:00 a. m." />
             </div>
+            <Input label="Lugar" value={editando.lugar || ""} onChange={e => setEditando({ ...editando, lugar: e.target.value })} />
+            <Input label="Reflexión bíblica" value={editando.reflexion || ""} onChange={e => setEditando({ ...editando, reflexion: e.target.value })} placeholder="Pasaje bíblico" />
             <Select label="Estado" value={editando.estado} onChange={e => setEditando({ ...editando, estado: e.target.value })} options={["planificado", "confirmado", "realizado"]} />
             <TextArea label="Notas" value={editando.notas} onChange={e => setEditando({ ...editando, notas: e.target.value })} rows={3} />
           </div>
@@ -2988,6 +3263,7 @@ const Dashboard = ({ onLogout, userProfile, seccion }) => {
     gastos: initGastos,
     cronograma: initCronograma,
     actas: [],
+    peticiones: [],
   });
 
   const [dbLoading, setDbLoading] = useState(false);

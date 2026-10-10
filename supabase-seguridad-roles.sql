@@ -90,6 +90,9 @@ BEGIN
 END $$;
 
 -- ─── 5. CRONOGRAMA DE ADOLESCENTES: admin + teens ───────────────────
+ALTER TABLE cronograma_adolescentes ADD COLUMN IF NOT EXISTS ministerio TEXT;
+ALTER TABLE cronograma_adolescentes ADD COLUMN IF NOT EXISTS hora TEXT;
+ALTER TABLE cronograma_adolescentes ADD COLUMN IF NOT EXISTS reflexion TEXT;
 DROP POLICY IF EXISTS "Auth insert" ON cronograma_adolescentes;
 DROP POLICY IF EXISTS "Auth update" ON cronograma_adolescentes;
 DROP POLICY IF EXISTS "Auth delete" ON cronograma_adolescentes;
@@ -124,6 +127,26 @@ CREATE POLICY "Teens leen actas" ON actas_adolescentes FOR SELECT USING (puede_e
 CREATE POLICY "Teens crean actas" ON actas_adolescentes FOR INSERT WITH CHECK (puede_editar_teens());
 CREATE POLICY "Teens editan actas" ON actas_adolescentes FOR UPDATE USING (puede_editar_teens()) WITH CHECK (puede_editar_teens());
 CREATE POLICY "Teens borran actas" ON actas_adolescentes FOR DELETE USING (puede_editar_teens());
+
+-- ─── 7. PETICIONES PARA EL MATUTINO (privadas: solo admin + teens) ──
+CREATE TABLE IF NOT EXISTS peticiones_oracion (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  peticion TEXT NOT NULL,
+  incluir_en_post BOOLEAN DEFAULT FALSE,
+  creado_por UUID DEFAULT auth.uid(),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE peticiones_oracion ADD COLUMN IF NOT EXISTS creado_por UUID DEFAULT auth.uid();
+ALTER TABLE peticiones_oracion ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Teens leen peticiones" ON peticiones_oracion;
+DROP POLICY IF EXISTS "Teens crean peticiones" ON peticiones_oracion;
+DROP POLICY IF EXISTS "Teens editan peticiones" ON peticiones_oracion;
+DROP POLICY IF EXISTS "Teens borran peticiones" ON peticiones_oracion;
+CREATE POLICY "Teens leen peticiones" ON peticiones_oracion FOR SELECT USING (puede_editar_teens());
+CREATE POLICY "Teens crean peticiones" ON peticiones_oracion FOR INSERT WITH CHECK (puede_editar_teens());
+CREATE POLICY "Teens editan peticiones" ON peticiones_oracion FOR UPDATE USING (puede_editar_teens()) WITH CHECK (puede_editar_teens());
+CREATE POLICY "Teens borran peticiones" ON peticiones_oracion FOR DELETE USING (puede_editar_teens());
 
 -- ─── Verificación ───────────────────────────────────────────────────
 SELECT u.email, p.rol FROM user_profiles p JOIN auth.users u ON u.id = p.id ORDER BY p.rol, u.email;
