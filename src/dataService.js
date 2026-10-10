@@ -15,6 +15,7 @@ const TABLE_MAP = {
   gastos: "gastos",
   cronograma: "cronograma_adolescentes",
   actas: "actas_adolescentes",
+  peticiones: "peticiones_oracion",
 };
 
 // ─── FETCH ALL ─────────────────────────────────────────────────────

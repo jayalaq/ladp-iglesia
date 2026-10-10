@@ -3,7 +3,9 @@
 -- Ejecutar en: Supabase Dashboard → SQL Editor
 --
 -- Úsalo si YA habías corrido supabase-schema.sql antes y solo quieres
--- aplicar lo nuevo: tabla del cronograma + columnas que faltaban.
+-- aplicar lo nuevo: cronograma editable, datos del matutino y peticiones
+-- de oración. Luego ejecuta supabase-seguridad-roles.sql para protegerlas
+-- y habilitar el acceso exclusivo del equipo de Adolescentes.
 -- (En una base nueva corre supabase-schema.sql completo en su lugar.)
 -- ═══════════════════════════════════════════════════════════════════
 
@@ -23,6 +25,9 @@ CREATE TABLE IF NOT EXISTS cronograma_adolescentes (
   fecha DATE,
   actividad TEXT NOT NULL,
   responsable TEXT,
+  ministerio TEXT,
+  hora TEXT,
+  reflexion TEXT,
   lugar TEXT,
   tipo TEXT,
   estado TEXT DEFAULT 'planificado',
@@ -30,7 +35,20 @@ CREATE TABLE IF NOT EXISTS cronograma_adolescentes (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE cronograma_adolescentes ADD COLUMN IF NOT EXISTS ministerio TEXT;
+ALTER TABLE cronograma_adolescentes ADD COLUMN IF NOT EXISTS hora TEXT;
+ALTER TABLE cronograma_adolescentes ADD COLUMN IF NOT EXISTS reflexion TEXT;
+
+CREATE TABLE IF NOT EXISTS peticiones_oracion (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  peticion TEXT NOT NULL,
+  incluir_en_post BOOLEAN DEFAULT FALSE,
+  creado_por UUID DEFAULT auth.uid(),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 ALTER TABLE cronograma_adolescentes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE peticiones_oracion ENABLE ROW LEVEL SECURITY;
 
 -- Políticas (DROP + CREATE para que sea seguro re-ejecutar)
 DROP POLICY IF EXISTS "Public read" ON cronograma_adolescentes;
