@@ -2234,7 +2234,7 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
     if (!editando.actividad || !editando.fecha) return;
     const exists = cronograma.find(c => c.id === editando.id);
     const saved = await upsertRecord("cronograma", editando, !exists);
-    if (!saved && isSupabaseConfigured()) { toast("No se pudo guardar. Revisa tu conexión o permisos.", "error"); return; }
+    if (!saved && isSupabaseConfigured()) { toast("No se pudo guardar: verifica la instalación y permisos del cronograma en Supabase.", "error"); return; }
     const final = saved || editando;
     if (exists) setData({ ...data, cronograma: cronograma.map(c => c.id === editando.id ? final : c) });
     else setData({ ...data, cronograma: [final, ...cronograma] });

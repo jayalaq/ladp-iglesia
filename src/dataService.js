@@ -28,7 +28,7 @@ export async function fetchAll(key) {
     .select("*")
     .order("created_at", { ascending: false });
   if (error) {
-    console.error(`Error fetching ${key}:`, error.message);
+    console.error(`Error fetching ${key}:`, { message: error.message, code: error.code, details: error.details, hint: error.hint });
     return null;
   }
   return data;
@@ -45,7 +45,7 @@ export async function insertRow(key, row) {
     .select()
     .single();
   if (error) {
-    console.error(`Error inserting into ${key}:`, error.message);
+    console.error(`Error inserting into ${key}:`, { message: error.message, code: error.code, details: error.details, hint: error.hint });
     return null;
   }
   return data;
@@ -63,7 +63,7 @@ export async function updateRow(key, id, updates) {
     .select()
     .single();
   if (error) {
-    console.error(`Error updating ${key}:`, error.message);
+    console.error(`Error updating ${key}:`, { message: error.message, code: error.code, details: error.details, hint: error.hint });
     return null;
   }
   return data;
