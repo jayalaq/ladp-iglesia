@@ -18,16 +18,16 @@ const firstNonEmpty = (...vals) => {
   return "";
 };
 
-// La URL y la clave deben venir de la MISMA fuente para que coincidan.
-// Se prioriza la pareja VITE_* (configurada a mano con el proyecto oficial de la iglesia);
-// la pareja NEXT_PUBLIC_* de la integración Supabase↔Vercel queda solo como respaldo.
-const vitePar = firstValidUrl(env.VITE_SUPABASE_URL) && firstNonEmpty(env.VITE_SUPABASE_ANON_KEY);
-const supabaseUrl = vitePar
-  ? firstValidUrl(env.VITE_SUPABASE_URL)
-  : firstValidUrl(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_URL);
-const supabaseAnonKey = vitePar
-  ? firstNonEmpty(env.VITE_SUPABASE_ANON_KEY)
-  : firstNonEmpty(env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+// Keep each URL paired with a key from the same provider. Prefer the
+// Supabase↔Vercel integration values; VITE_* is used by GitHub Actions builds.
+const supabaseConfig = [
+  [env.SUPABASE_URL, firstNonEmpty(env.SUPABASE_ANON_KEY, env.SUPABASE_PUBLISHABLE_KEY)],
+  [env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY],
+  [env.NEXT_PUBLIC_SUPABASE_URL, firstNonEmpty(env.NEXT_PUBLIC_SUPABASE_ANON_KEY, env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)],
+]
+  .map(([url, key]) => [firstValidUrl(url), firstNonEmpty(key)])
+  .find(([url, key]) => url && key) || ["", ""];
+const [supabaseUrl, supabaseAnonKey] = supabaseConfig;
 
 let client = null;
 if (supabaseUrl && supabaseAnonKey) {
