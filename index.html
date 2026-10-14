@@ -3,10 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Las Asambleas de Dios del Perú - Plataforma de administración integral para la iglesia. Recursos bíblicos, tienda cristiana y más." />
+    <meta name="description" content="Iglesia Cristo Viene (LADP) · El Arenal Alto, San Juan de Lurigancho. Horarios, ministerios, actividades y plataforma de la iglesia." />
     <meta name="theme-color" content="#1a3a5c" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛪</text></svg>" />
     <title>LADP - Iglesia Cristo Viene</title>
+    <script>
+      // La versión antigua en Cloudflare (workers.dev) redirige al sitio oficial conservando ruta y #tokens
+      if (location.hostname.endsWith(".workers.dev")) {
+        location.replace("https://ladp-iglesiacristoviene.vercel.app" + location.pathname + location.search + location.hash);
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

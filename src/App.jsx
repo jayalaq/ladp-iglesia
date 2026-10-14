@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Heart, Users, Target, Calendar, BarChart2, Plus, Search, DollarSign, Award, Clock, Trash2, Menu, ArrowRight, Mail, Lock, Eye, EyeOff, Check, LogOut, Bell, Phone, MapPin, Play, Facebook, Youtube, Instagram, Download, Send, UserPlus, UserCheck, FileText, Activity, MessageCircle, AlertCircle, Edit, Settings, Globe, Palette, Save, ShoppingCart, BookOpen, CreditCard, Package, Grid, List, Share2, Bookmark, ChevronDown, ChevronRight, X, Filter, TrendingUp, PieChart, Home, Layers, Printer, MoreVertical, RefreshCw, ChevronLeft, Star, Upload, Copy, ExternalLink, Mic } from "lucide-react";
 import { isSupabaseConfigured } from "./supabase";
-import { loadAllData, insertRow, updateRow, deleteRow, upsertRecord, removeRecord, signIn, signOut, signInWithGoogle, signUp, getUserProfile, getSession, onAuthStateChange, getUsers, updateUserRole } from "./dataService";
+import { loadAllData, insertRow, updateRow, deleteRow, upsertRecord, removeRecord, enviarPublico, getConfig, saveConfig, signIn, signOut, signInWithGoogle, signUp, getUserProfile, getSession, onAuthStateChange, getUsers, updateUserRole } from "./dataService";
 
 // ─── PALETA DE COLORES ──────────────────────────────────────────────
 const G = {
@@ -199,22 +199,44 @@ const fmt = (n) => typeof n === "number" ? n.toLocaleString("es-PE") : n;
 const fmtMoney = (n) => `S/. ${fmt(n)}`;
 const fmtDate = (d) => d ? new Date(d + "T12:00").toLocaleDateString("es-PE", { day: "numeric", month: "short", year: "numeric" }) : "—";
 const fmtDateShort = (d) => d ? new Date(d + "T12:00").toLocaleDateString("es-PE", { day: "numeric", month: "short" }) : "—";
-const today = () => new Date().toISOString().slice(0,10);
+// Fecha local (Lima); toISOString daría el día siguiente después de las 7 pm
+const fechaLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const today = () => fechaLocal(new Date());
 const monthName = (m) => ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"][m];
 
 // ─── DATOS DE IGLESIA ───────────────────────────────────────────────
+// Valores por defecto (página de Facebook de ICV); el Super Administrador los edita en Configuración
+// y se guardan en la tabla `configuracion` de Supabase.
 const CHURCH_DEFAULT = {
-  nombre: "Las Asambleas de Dios del Perú",
-  abreviatura: "LADP",
-  lema: "Iglesia de Avivamiento y Evangelismo",
-  direccion: "Av. Colombia 325, Pueblo Libre, Lima",
-  telefono: "+51 913 629 693",
-  email: "sedenacional@ladp.org.pe",
-  pastor: "Rev. Daniel Caballero",
+  nombre: "Iglesia Cristo Viene",
+  abreviatura: "ICV",
+  lema: "Pasión por su Obra 2026",
+  direccion: "Mz I Lte 3, El Arenal Alto, San Juan de Lurigancho, Lima",
+  telefono: "",
+  whatsapp: "",
+  email: "juventud.cristoviene@gmail.com",
+  pastor: "",
   fundacion: 1919,
   facebook: "https://www.facebook.com/ladpicv",
-  youtube: "https://www.youtube.com/c/LasAsambleasdeDiosdelPerú",
-  instagram: "https://www.instagram.com/lasasambleasdediosdelperu/",
+  youtube: "https://www.youtube.com/@ladpiglesiacristoviene5630",
+  instagram: "",
+};
+
+// Horarios de la semana (página de Facebook de ICV)
+const HORARIOS_ICV = [
+  { dia: "Martes", items: ["Culto de oración · 7:00 pm"] },
+  { dia: "Jueves", items: ["Escuela EDYL · 7:00 pm"] },
+  { dia: "Sábado", items: ["Reunión de adolescentes · 4:00 pm", "Culto de jóvenes · 7:00 pm"] },
+  { dia: "Domingo", items: ["1er culto · 9:50 am – 12:00 pm", "2do culto · 6:00 – 8:00 pm", "Anexo ICV · 6:00 – 8:00 pm"] },
+];
+
+// Configuración de la iglesia: valores por defecto + lo guardado en Supabase
+const useChurchConfig = () => {
+  const [config, setConfig] = useState(CHURCH_DEFAULT);
+  useEffect(() => {
+    getConfig().then(datos => { if (datos) setConfig(c => ({ ...c, ...datos })); });
+  }, []);
+  return [config, setConfig];
 };
 
 // ─── DATOS INICIALES ────────────────────────────────────────────────
@@ -576,10 +598,13 @@ const PageHeader = ({ title, subtitle, actions }) => (
 );
 
 // ─── LANDING PAGE ──────────────────────────────────────────────────
+const ASUNTOS_CONTACTO = ["Quiero visitar la iglesia", "Información de células", "Necesito oración", "Quiero servir", "Otro"];
+
 const LandingPage = ({ onLogin, onTienda }) => {
   const [scrolled, setScrolled] = useState(false);
   const [hoveredMin, setHoveredMin] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [config] = useChurchConfig();
   useEffect(() => {
     const h = () => setScrolled(window.scrollY > 50);
     window.addEventListener("scroll", h);
@@ -598,29 +623,54 @@ const LandingPage = ({ onLogin, onTienda }) => {
   const footerLinks = { Nosotros: "#visitanos", Creencias: "#como-funciona", Liderazgo: "#ministerios", Contacto: "#contacto", "Visítanos": "#visitanos", "Grupos de Vida": "#ministerios", Servir: "#ministerios", Bautismo: "#contacto", Sermones: "#sermones", Blog: "#sermones", Devocionales: "#sermones", Tienda: "/tienda" };
   const irA = (destino) => destino.startsWith("#") ? scrollTo(destino.slice(1)) : navegar(destino);
 
-  const sermons = [
-    { title: "El Poder que Transforma", speaker: "Pastor Daniel Caballero", series: "Avivamiento", date: "23 Feb", emoji: "🔥" },
-    { title: "Fe para Tiempos Difíciles", speaker: "Rev. José Martínez", series: "Esperanza", date: "16 Feb", emoji: "⚡" },
-    { title: "El Llamado del Discípulo", speaker: "Pastora Carmen López", series: "Discipulado", date: "9 Feb", emoji: "✝️" },
+  // Ejes del plan anual ICV "Pasión por su Obra 2026": el del mes actual y los dos siguientes
+  const EJES_2026 = [
+    ["Enero", "Vida Espiritual", "Hechos 12", "🔥"], ["Febrero", "Un Amor Transformador", "Lucas 6:31-35", "❤️"],
+    ["Marzo", "La Prueba del Discipulado", "Juan 13:34-35", "✝️"], ["Abril", "El Llamado de Dios", "Juan 13:34-35", "📣"],
+    ["Mayo", "Vida en Abundancia", "Juan 10:10", "🌿"], ["Junio", "Comisionados para Salir", "Lucas 24:45-48", "🌎"],
+    ["Julio", "Sanidad Divina", "Juan 8:58", "🙌"], ["Agosto", "Exalta el Señorío de Cristo", "Filipenses 2:9-11", "👑"],
+    ["Septiembre", "La Integridad de la Biblia", "Salmo 19:7", "📖"], ["Octubre", "Siervos de Cristo", "Marcos 16:15-18", "🤝"],
+    ["Noviembre", "El Único Camino de Salvación", "Hechos 4:12", "✨"], ["Diciembre", "Cristo, la Necesidad Absoluta", "Romanos 3:23", "🎄"],
   ];
+  const mesActual = new Date().getMonth();
+  const sermons = [0, 1, 2].map(k => EJES_2026[(mesActual + k) % 12]).map(([mes, eje, cita, emoji]) => ({ title: eje, speaker: cita, series: mes, emoji }));
   const minis = [
-    { name: "Niños", emoji: "🧒", desc: "Un lugar donde los niños descubren el amor de Dios", color: "#ec4899" },
-    { name: "Jóvenes", emoji: "🎸", desc: "Comunidad y propósito para la próxima generación", color: "#8b5cf6" },
-    { name: "Mujeres", emoji: "💜", desc: "Encuentros, retiros y discipulado femenino", color: "#f59e0b" },
-    { name: "Hombres", emoji: "💪", desc: "Fortaleciendo líderes y hombres de integridad", color: "#2563eb" },
-    { name: "Misiones", emoji: "🌎", desc: "Llevando el evangelio hasta lo último de la tierra", color: "#10b981" },
-    { name: "Alabanza", emoji: "🎵", desc: "Adoración que transforma vidas y toca el cielo", color: "#ef4444" },
+    { name: "Kids", emoji: "🧒", desc: "Culto Kids, Fun Day y Escuela Bíblica para los más pequeños", color: "#ec4899" },
+    { name: "Adolescentes", emoji: "⭐", desc: "Teens “Llamados a Servir”: sábados 4:00 pm", color: "#f59e0b" },
+    { name: "Jóvenes", emoji: "🎸", desc: "Culto de jóvenes: sábados 7:00 pm", color: "#8b5cf6" },
+    { name: "Damas y Varones", emoji: "💜", desc: "Talleres, encuentros y discipulado para la familia", color: "#2563eb" },
+    { name: "Misiones", emoji: "🌎", desc: "Evangelismo local y viajes misioneros al Amazonas y Villa Rica", color: "#10b981" },
+    { name: "Música y Danza", emoji: "🎵", desc: "Talleres de música, danza y artes para servir en la adoración", color: "#ef4444" },
   ];
-  const testimonials = [
-    { name: "María G.", text: "Llegué rota y encontré una familia. La célula cambió mi vida completamente.", role: "Miembro desde 2020" },
-    { name: "Carlos M.", text: "Aquí aprendí que Dios tenía un propósito. Me bauticé y ahora sirvo como diácono.", role: "Diácono" },
-    { name: "Ana S.", text: "El ministerio de niños impactó tanto a mis hijos que ahora toda la familia sirve.", role: "Maestra Esc. Dominical" },
+  // Próximas actividades del plan anual ICV
+  const PLAN_ICV = [
+    { name: "Campaña Evangelística", fecha: "2026-10-23", place: "ICV · El Arenal Alto", emoji: "📣" },
+    { name: "Adoración Pública Región Lima-Noreste", fecha: "2026-10-31", place: "Aniversario LADP", emoji: "🎉" },
+    { name: "Talleres de Orientación Vocacional", fecha: "2026-11-21", place: "ICV", emoji: "🧭" },
+    { name: "Fun Day Kids", fecha: "2026-11-28", place: "ICV", emoji: "🎈" },
+    { name: "Entrega de Canastas y Concierto en Vivo", fecha: "2026-12-19", place: "ICV", emoji: "🎶" },
+    { name: "Fun Day Teens", fecha: "2026-12-26", place: "ICV", emoji: "⭐" },
+    { name: "Acción de Gracias ICV", fecha: "2026-12-27", place: "ICV", emoji: "🙏" },
   ];
-  const events = [
-    { name: "106 Aniversario LADP", date: "22 Mar", place: "Huánuco", emoji: "🎉", featured: true },
-    { name: "Vigilia de Oración", date: "7 Mar", place: "Templo Central", emoji: "🙏" },
-    { name: "Retiro de Jóvenes", date: "15 Abr", place: "Cieneguilla", emoji: "⛺" },
-  ];
+  const proximos = PLAN_ICV.filter(e => e.fecha >= today()).slice(0, 3);
+  const events = proximos.map((e, i) => ({ ...e, date: fmtDateShort(e.fecha), featured: i === 0 }));
+
+  // Formulario de contacto → tabla mensajes_contacto (la ve el Super Administrador en Bandeja)
+  const contactoVacio = { nombre: "", email: "", telefono: "", asunto: ASUNTOS_CONTACTO[0], mensaje: "", web: "" };
+  const [contacto, setContacto] = useState(contactoVacio);
+  const [contactoEstado, setContactoEstado] = useState(""); // "" | "enviando" | "ok" | mensaje de error
+  const irAContacto = (asunto) => { setContacto(c => ({ ...c, asunto })); setContactoEstado(""); scrollTo("contacto"); };
+  const enviarContacto = async (e) => {
+    e.preventDefault();
+    if (contacto.web) { setContactoEstado("ok"); return; } // bot: se descarta sin avisar
+    const nombre = contacto.nombre.trim(), mensaje = contacto.mensaje.trim();
+    if (nombre.length < 2 || mensaje.length < 5) { setContactoEstado("Escribe tu nombre y un mensaje."); return; }
+    if (!contacto.email.trim() && !contacto.telefono.trim()) { setContactoEstado("Déjanos un correo o teléfono para responderte."); return; }
+    setContactoEstado("enviando");
+    const ok = await enviarPublico("mensajes", { nombre, email: contacto.email.trim() || null, telefono: contacto.telefono.trim() || null, asunto: contacto.asunto, mensaje });
+    if (ok) { setContacto(contactoVacio); setContactoEstado("ok"); }
+    else setContactoEstado("No se pudo enviar. Inténtalo de nuevo o escríbenos por Facebook.");
+  };
 
   return (
     <div style={{ fontFamily: font, color: G.dark, background: "#fff", overflowX: "hidden" }}>
@@ -683,7 +733,7 @@ const LandingPage = ({ onLogin, onTienda }) => {
         <div style={{ maxWidth: 940, margin: "0 auto", textAlign: "center", position: "relative", padding: "0 32px" }} className="fadeup">
           <div style={{ display: "inline-flex", alignItems: "center", gap: 10, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", padding: "8px 20px", borderRadius: 30, marginBottom: 36, backdropFilter: "blur(10px)" }}>
             <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444", animation: "pulse 1.5s ease infinite", boxShadow: "0 0 8px #ef4444" }} />
-            <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.8)", letterSpacing: 2, textTransform: "uppercase" }}>En Vivo · Domingos 9:00 AM & 6:00 PM</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.8)", letterSpacing: 2, textTransform: "uppercase" }}>Domingos 9:50 AM y 6:00 PM</span>
           </div>
           <h1 className="hero-title" style={{ margin: "0 0 28px", fontSize: "clamp(48px, 7vw, 96px)", fontWeight: 800, lineHeight: 1.02, letterSpacing: -4, color: "#fff", fontFamily: fontTitle }}>Un lugar donde<br /><span className="gradient-animate" style={{ background: `linear-gradient(135deg, ${G.accent}, ${G.accentLight}, #fff, ${G.accent})`, backgroundSize: "200% 200%", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>todo cambia</span></h1>
           <p className="hero-subtitle" style={{ margin: "0 auto 48px", fontSize: "clamp(16px, 2vw, 20px)", lineHeight: 1.7, color: "rgba(255,255,255,0.6)", maxWidth: 580 }}>Somos una iglesia llena del Espíritu Santo donde cualquier persona puede encontrar esperanza, comunidad y propósito.</p>
@@ -712,7 +762,7 @@ const LandingPage = ({ onLogin, onTienda }) => {
             <STag>Visítanos</STag>
             <h2 style={{ margin: "0 0 20px", fontSize: "clamp(36px, 4vw, 56px)", fontWeight: 800, color: G.dark, lineHeight: 1.08, letterSpacing: -2, fontFamily: fontTitle }}>Tu primera visita será <span style={{ color: G.accent }}>inolvidable</span></h2>
             <p style={{ margin: "0 0 36px", fontSize: 17, lineHeight: 1.8, color: G.gray }}>No importa de dónde vengas. Aquí encontrarás una comunidad genuina con los brazos abiertos.</p>
-            {[{ icon: Clock, label: "Horarios", value: "Domingos 9:00 AM y 6:00 PM · Miércoles 7:00 PM" },{ icon: MapPin, label: "Dirección", value: "Av. Colombia 325, Pueblo Libre, Lima" },{ icon: Users, label: "¿Qué esperar?", value: "Alabanza contemporánea · Mensaje relevante · Ministerio infantil" }].map((item, i) => (
+            {[{ icon: Clock, label: "Horarios", value: "Domingos 9:50 am y 6:00 pm · Martes 7:00 pm (oración)" },{ icon: MapPin, label: "Dirección", value: config.direccion },{ icon: Users, label: "¿Qué esperar?", value: "Alabanza contemporánea · Mensaje relevante · Ministerio infantil" }].map((item, i) => (
               <div key={i} style={{ display: "flex", gap: 16, alignItems: "flex-start", marginBottom: 20 }}>
                 <div style={{ width: 48, height: 48, borderRadius: 14, background: G.accent + "10", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><item.icon size={22} color={G.accent} /></div>
                 <div><div style={{ fontSize: 13, fontWeight: 800, color: G.dark, textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>{item.label}</div><div style={{ fontSize: 15, color: G.gray, lineHeight: 1.6 }}>{item.value}</div></div>
@@ -732,13 +782,13 @@ const LandingPage = ({ onLogin, onTienda }) => {
         <div style={{ position: "absolute", inset: 0, backgroundImage: `radial-gradient(rgba(200,145,58,0.04) 1px, transparent 1px)`, backgroundSize: "40px 40px", pointerEvents: "none" }} />
         <div style={{ maxWidth: 1200, margin: "0 auto", position: "relative" }}>
           <div style={{ textAlign: "center", marginBottom: 64 }}>
-            <STag>Últimos Sermones</STag>
+            <STag>Pasión por su Obra 2026</STag>
             <h2 style={{ margin: "0 0 16px", fontSize: "clamp(36px, 4.5vw, 56px)", fontWeight: 800, color: "#fff", letterSpacing: -2, fontFamily: fontTitle }}>La Palabra que transforma</h2>
-            <p style={{ margin: "0 auto", fontSize: 17, color: "rgba(255,255,255,0.5)", maxWidth: 500 }}>Mira nuestros mensajes más recientes</p>
+            <p style={{ margin: "0 auto", fontSize: 17, color: "rgba(255,255,255,0.5)", maxWidth: 500 }}>El eje bíblico de cada mes · las prédicas están en nuestro canal de YouTube</p>
           </div>
           <div className="sermon-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 24 }}>
             {sermons.map((s, i) => (
-              <div key={i} className="scard" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 20, cursor: "pointer", overflow: "hidden" }}>
+              <div key={i} className="scard" onClick={() => window.open(config.youtube, "_blank", "noopener")} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 20, cursor: "pointer", overflow: "hidden" }}>
                 <div style={{ background: `linear-gradient(135deg, ${G.primaryDark}, ${G.primary}80)`, padding: "48px 32px 40px", position: "relative" }}>
                   <div style={{ fontSize: 56, marginBottom: 16 }}>{s.emoji}</div>
                   <div style={{ position: "absolute", top: 20, right: 20, background: "rgba(255,255,255,0.1)", borderRadius: 10, padding: "8px 14px", display: "flex", alignItems: "center", gap: 6 }}><Play size={14} color="#fff" /><span style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>Ver</span></div>
@@ -746,13 +796,13 @@ const LandingPage = ({ onLogin, onTienda }) => {
                 </div>
                 <div style={{ padding: "28px 32px 32px" }}>
                   <h3 style={{ margin: "0 0 10px", fontSize: 22, fontWeight: 800, color: "#fff", lineHeight: 1.25, fontFamily: fontTitle }}>{s.title}</h3>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: "rgba(255,255,255,0.4)" }}><span style={{ fontWeight: 700, color: "rgba(255,255,255,0.6)" }}>{s.speaker}</span><span>·</span><span>{s.date}</span></div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: "rgba(255,255,255,0.4)" }}><span style={{ fontWeight: 700, color: "rgba(255,255,255,0.6)" }}>{s.speaker}</span></div>
                 </div>
               </div>
             ))}
           </div>
           <div style={{ textAlign: "center", marginTop: 48 }}>
-            <button style={{ padding: "14px 36px", fontSize: 15, fontWeight: 700, background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, cursor: "pointer", fontFamily: font, display: "inline-flex", alignItems: "center", gap: 8, transition: "all 0.2s" }} onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.1)"; e.currentTarget.style.color = "#fff"; }} onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "rgba(255,255,255,0.7)"; }}>Ver Todos los Sermones <ArrowRight size={16} /></button>
+            <button onClick={() => window.open(config.youtube, "_blank", "noopener")} style={{ padding: "14px 36px", fontSize: 15, fontWeight: 700, background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, cursor: "pointer", fontFamily: font, display: "inline-flex", alignItems: "center", gap: 8, transition: "all 0.2s" }} onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.1)"; e.currentTarget.style.color = "#fff"; }} onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "rgba(255,255,255,0.7)"; }}>Ver Todos los Sermones <ArrowRight size={16} /></button>
           </div>
         </div>
       </section>
@@ -793,7 +843,7 @@ const LandingPage = ({ onLogin, onTienda }) => {
             {["Grupos para todas las edades y etapas de la vida","Reuniones semanales en hogares de toda Lima","Estudio bíblico, oración y compañerismo genuino","Líderes capacitados que te acompañan"].map((txt, i) => (
               <div key={i} style={{ display: "flex", gap: 14, alignItems: "center", marginBottom: 16 }}><div style={{ width: 28, height: 28, borderRadius: 8, background: G.accent + "14", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Check size={15} color={G.accent} /></div><span style={{ fontSize: 15, color: G.dark, fontWeight: 500 }}>{txt}</span></div>
             ))}
-            <button style={{ marginTop: 20, padding: "14px 32px", fontSize: 15, fontWeight: 700, background: `linear-gradient(135deg, ${G.primary}, ${G.primaryLight})`, color: "#fff", border: "none", borderRadius: 12, cursor: "pointer", fontFamily: font, display: "inline-flex", alignItems: "center", gap: 8, transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"} onMouseLeave={e => e.currentTarget.style.transform = "none"}>Encuentra tu Grupo <ArrowRight size={16} /></button>
+            <button onClick={() => irAContacto("Información de células")} style={{ marginTop: 20, padding: "14px 32px", fontSize: 15, fontWeight: 700, background: `linear-gradient(135deg, ${G.primary}, ${G.primaryLight})`, color: "#fff", border: "none", borderRadius: 12, cursor: "pointer", fontFamily: font, display: "inline-flex", alignItems: "center", gap: 8, transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"} onMouseLeave={e => e.currentTarget.style.transform = "none"}>Encuentra tu Grupo <ArrowRight size={16} /></button>
           </div>
         </div>
       </section>
@@ -807,7 +857,7 @@ const LandingPage = ({ onLogin, onTienda }) => {
           </div>
           <div className="como-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 32, position: "relative" }}>
             {[
-              { step: "01", emoji: "🚪", title: "Visítanos", desc: "Ven cualquier domingo a las 9:00 AM o 6:00 PM. No necesitas registro previo — ¡solo ven como eres!", detail: "Estamos ubicados en Av. Principal 123. El ambiente es acogedor y el equipo de recepción te dará la bienvenida.", color: G.primary },
+              { step: "01", emoji: "🚪", title: "Visítanos", desc: "Ven cualquier domingo a las 9:50 AM o 6:00 PM. No necesitas registro previo — ¡solo ven como eres!", detail: "Estamos en Mz I Lte 3, El Arenal Alto (San Juan de Lurigancho). El ambiente es acogedor y el equipo de recepción te dará la bienvenida.", color: G.primary },
               { step: "02", emoji: "🤝", title: "Conéctate", desc: "Únete a un Grupo de Vida cerca de tu hogar. Comparte vida real con personas que te acompañan en la fe.", detail: "Los Grupos de Vida se reúnen entre semana en diferentes distritos. Puedes encontrar el más cercano en nuestra plataforma.", color: G.accent },
               { step: "03", emoji: "📖", title: "Crece", desc: "Participa en la Escuela Bíblica, retiros y talleres diseñados para fortalecer tu relación con Dios.", detail: "La Escuela Bíblica ofrece niveles desde principiante hasta avanzado. Los retiros se realizan trimestralmente.", color: G.success },
               { step: "04", emoji: "✨", title: "Sirve", desc: "Descubre tus dones y úsalos en uno de nuestros ministerios. ¡Hay un lugar especial para ti aquí!", detail: "Contamos con ministerios de alabanza, jóvenes, niños, ayuda social, comunicaciones y más. Todos son bienvenidos.", color: G.purple },
@@ -906,26 +956,25 @@ const LandingPage = ({ onLogin, onTienda }) => {
           <div style={{ position: "absolute", top: -60, right: -60, width: 240, height: 240, borderRadius: "50%", background: `radial-gradient(circle, ${G.accent}20, transparent)`, pointerEvents: "none" }} />
           <div style={{ flex: 1, minWidth: 280, position: "relative" }}>
             <h2 style={{ margin: "0 0 12px", fontSize: "clamp(28px, 3.5vw, 40px)", fontWeight: 800, color: "#fff", fontFamily: fontTitle, letterSpacing: -1 }}>Tienda Cristiana LADP - ICV</h2>
-            <p style={{ margin: 0, fontSize: 16, color: "rgba(255,255,255,0.7)", lineHeight: 1.6 }}>Biblias, libros, devocionales, música y más. Envío a todo el Perú con pago seguro por Yape, Plin o tarjeta.</p>
+            <p style={{ margin: 0, fontSize: 16, color: "rgba(255,255,255,0.7)", lineHeight: 1.6 }}>Biblias, libros, devocionales, música y más. Haz tu pedido en línea y la iglesia te contacta para coordinar el pago y la entrega.</p>
           </div>
           <div className="tienda-cta-stats" style={{ display: "flex", gap: 36, flexShrink: 0 }}>
-            {[{ n: "50+", l: "Productos" },{ n: "4.8★", l: "Valoración" }].map((s,i) => (<div key={i} style={{ textAlign: "center" }}><div style={{ fontSize: 28, fontWeight: 800, color: G.accent, fontFamily: fontTitle }}>{s.n}</div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600 }}>{s.l}</div></div>))}
+            {[{ n: `${SHOP_PRODUCTS.length}`, l: "Productos" },{ n: "Lima", l: "Recojo en ICV" }].map((s,i) => (<div key={i} style={{ textAlign: "center" }}><div style={{ fontSize: 28, fontWeight: 800, color: G.accent, fontFamily: fontTitle }}>{s.n}</div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600 }}>{s.l}</div></div>))}
           </div>
           <button onClick={onTienda} style={{ padding: "16px 36px", fontSize: 15, fontWeight: 800, background: G.accent, color: "#fff", border: "none", borderRadius: 14, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 10, transition: "all 0.3s", boxShadow: `0 6px 24px ${G.accent}40`, flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.transform = "translateY(-3px)"} onMouseLeave={e => e.currentTarget.style.transform = "none"}>
             <ShoppingCart size={18} /> Ir a la Tienda <ArrowRight size={16} />
           </button>
         </div>
       </section>
-      {/* ═══ TESTIMONIALS ═══ */}
-      <section className="landing-section" style={{ padding: "100px 32px", background: G.grayLight }}>
+      {/* ═══ HORARIOS ═══ */}
+      <section id="horarios" className="landing-section" style={{ padding: "100px 32px", background: G.grayLight }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: 56 }}><STag>Testimonios</STag><h2 style={{ margin: "0 0 16px", fontSize: "clamp(32px, 3.5vw, 48px)", fontWeight: 800, color: G.dark, letterSpacing: -1.5, fontFamily: fontTitle }}>Historias que inspiran</h2></div>
-          <div className="testimonials-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }}>
-            {testimonials.map((t, i) => (
-              <div key={i} className="tcard" style={{ background: "#fff", borderRadius: 20, padding: "36px 32px", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
-                <div style={{ display: "flex", gap: 4, marginBottom: 20 }}>{[1,2,3,4,5].map(s => <Star key={s} size={16} color={G.accent} fill={G.accent} />)}</div>
-                <p style={{ margin: "0 0 24px", fontSize: 16, color: G.dark, lineHeight: 1.7, fontStyle: "italic", fontFamily: fontTitle, fontWeight: 400 }}>"{t.text}"</p>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}><Avatar initials={t.name.split(" ").map(n => n[0]).join("")} size={42} color={G.primary} /><div><div style={{ fontSize: 14, fontWeight: 800, color: G.dark }}>{t.name}</div><div style={{ fontSize: 12, color: G.gray }}>{t.role}</div></div></div>
+          <div style={{ textAlign: "center", marginBottom: 48 }}><STag>Acompáñanos</STag><h2 style={{ margin: "0 0 12px", fontSize: "clamp(32px, 3.5vw, 48px)", fontWeight: 800, color: G.dark, letterSpacing: -1.5, fontFamily: fontTitle }}>Horarios de la semana</h2><p style={{ margin: 0, fontSize: 16, color: G.gray }}>{config.direccion}</p></div>
+          <div className="testimonials-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 20 }}>
+            {HORARIOS_ICV.map(h => (
+              <div key={h.dia} className="tcard" style={{ background: "#fff", borderRadius: 20, padding: "28px 26px", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
+                <div style={{ fontSize: 12, fontWeight: 800, color: G.accent, textTransform: "uppercase", letterSpacing: 2, marginBottom: 12 }}>{h.dia}</div>
+                {h.items.map(it => <div key={it} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 15, color: G.dark, marginBottom: 8, lineHeight: 1.4 }}><Clock size={15} color={G.primary} style={{ marginTop: 3, flexShrink: 0 }} />{it}</div>)}
               </div>
             ))}
           </div>
@@ -938,29 +987,41 @@ const LandingPage = ({ onLogin, onTienda }) => {
         <div style={{ maxWidth: 760, margin: "0 auto", textAlign: "center", position: "relative", color: "#fff" }}>
           <div style={{ width: 80, height: 80, borderRadius: 24, background: `linear-gradient(135deg, ${G.accent}, ${G.accentLight})`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 28px", boxShadow: `0 8px 32px ${G.accent}30` }}><Heart size={36} color="#fff" /></div>
           <h2 style={{ margin: "0 0 20px", fontSize: "clamp(36px, 5vw, 60px)", fontWeight: 800, fontFamily: fontTitle, letterSpacing: -2, lineHeight: 1.05 }}>Tu generosidad<br />cambia vidas</h2>
-          <p style={{ margin: "0 auto 44px", fontSize: 18, opacity: 0.7, lineHeight: 1.7, maxWidth: 540 }}>Cada ofrenda permite que miles conozcan a Cristo y llevemos esperanza a comunidades necesitadas.</p>
+          <p style={{ margin: "0 auto 44px", fontSize: 18, opacity: 0.7, lineHeight: 1.7, maxWidth: 540 }}>Cada ofrenda sostiene la obra de Dios en San Juan de Lurigancho y apoya las misiones en el Perú.</p>
           <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
             {["Diezmo","Ofrenda","Misiones"].map((opt, i) => (
-              <button key={i} style={{ padding: "20px 36px", background: i === 0 ? G.accent : "rgba(255,255,255,0.06)", color: "#fff", border: i === 0 ? "none" : "1px solid rgba(255,255,255,0.12)", borderRadius: 16, cursor: "pointer", fontFamily: font, textAlign: "center", transition: "all 0.3s", minWidth: 140, boxShadow: i === 0 ? `0 8px 28px ${G.accent}40` : "none" }} onMouseEnter={e => e.currentTarget.style.transform = "translateY(-4px)"} onMouseLeave={e => e.currentTarget.style.transform = "none"}><div style={{ fontSize: 14, fontWeight: 800, letterSpacing: 0.5 }}>{opt}</div><div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>Dar ahora</div></button>
+              <button key={i} onClick={() => irAContacto(`Quiero ofrendar: ${opt}`)} style={{ padding: "20px 36px", background: i === 0 ? G.accent : "rgba(255,255,255,0.06)", color: "#fff", border: i === 0 ? "none" : "1px solid rgba(255,255,255,0.12)", borderRadius: 16, cursor: "pointer", fontFamily: font, textAlign: "center", transition: "all 0.3s", minWidth: 140, boxShadow: i === 0 ? `0 8px 28px ${G.accent}40` : "none" }} onMouseEnter={e => e.currentTarget.style.transform = "translateY(-4px)"} onMouseLeave={e => e.currentTarget.style.transform = "none"}><div style={{ fontSize: 14, fontWeight: 800, letterSpacing: 0.5 }}>{opt}</div><div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>Dar ahora</div></button>
             ))}
           </div>
-          <p style={{ marginTop: 32, fontSize: 13, opacity: 0.4 }}>Transferencia · Yape · Plin · Tarjeta de crédito</p>
+          <p style={{ marginTop: 32, fontSize: 13, opacity: 0.55 }}>Escríbenos y te enviamos los datos para ofrendar</p>
         </div>
       </section>
       {/* ═══ CONTACT ═══ */}
       <section id="contacto" className="landing-section" style={{ padding: "100px 32px", background: "#fff" }}>
         <div style={{ maxWidth: 800, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 48 }}><STag>Contáctanos</STag><h2 style={{ margin: "0 0 14px", fontSize: "clamp(32px, 3.5vw, 48px)", fontWeight: 800, color: G.dark, letterSpacing: -1.5, fontFamily: fontTitle }}>¿Tienes preguntas?</h2><p style={{ margin: 0, fontSize: 17, color: G.gray }}>Nos encantaría saber de ti</p></div>
-          <div className="contacto-grid" style={{ background: G.grayLight, borderRadius: 24, padding: "48px 44px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
-            <Input label="Nombre" placeholder="Tu nombre" />
-            <Input label="Email" placeholder="tu@email.com" type="email" icon={Mail} />
-            <Input label="Teléfono" placeholder="+51 999 123 456" icon={Phone} />
-            <Select label="Asunto" options={["Quiero visitar la iglesia","Información de células","Necesito oración","Quiero servir","Otro"]} />
-            <div style={{ gridColumn: "1/-1" }}><TextArea label="Mensaje" placeholder="Cuéntanos cómo podemos ayudarte..." rows={4} /></div>
-            <div style={{ gridColumn: "1/-1", display: "flex", justifyContent: "center", marginTop: 8 }}>
-              <button style={{ padding: "16px 48px", fontSize: 15, fontWeight: 800, background: `linear-gradient(135deg, ${G.primary}, ${G.primaryLight})`, color: "#fff", border: "none", borderRadius: 14, cursor: "pointer", fontFamily: font, display: "inline-flex", alignItems: "center", gap: 10, transition: "all 0.2s", boxShadow: `0 6px 24px ${G.primary}20` }} onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"} onMouseLeave={e => e.currentTarget.style.transform = "none"}><Send size={17} /> Enviar Mensaje</button>
-            </div>
-          </div>
+          <form onSubmit={enviarContacto} className="contacto-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+            {contactoEstado === "ok" ? (
+              <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "32px 20px", background: G.successLight, borderRadius: 16 }}>
+                <Check size={36} color={G.success} />
+                <h3 style={{ margin: "10px 0 6px", fontSize: 20, fontWeight: 800, color: G.dark, fontFamily: fontTitle }}>¡Mensaje enviado!</h3>
+                <p style={{ margin: "0 0 16px", fontSize: 14, color: G.gray }}>Gracias por escribirnos. Te responderemos pronto.</p>
+                <button type="button" onClick={() => setContactoEstado("")} style={{ background: "none", border: "none", color: G.primary, fontWeight: 700, cursor: "pointer", fontFamily: font }}>Enviar otro mensaje</button>
+              </div>
+            ) : (<>
+              <Input label="Nombre" value={contacto.nombre} onChange={e => setContacto({ ...contacto, nombre: e.target.value })} placeholder="Tu nombre" required />
+              <Input label="Correo electrónico" type="email" value={contacto.email} onChange={e => setContacto({ ...contacto, email: e.target.value })} placeholder="tu@email.com" />
+              <Input label="Teléfono / WhatsApp" value={contacto.telefono} onChange={e => setContacto({ ...contacto, telefono: e.target.value })} placeholder="+51 999 123 456" />
+              <Select label="Asunto" value={contacto.asunto} onChange={e => setContacto({ ...contacto, asunto: e.target.value })} options={ASUNTOS_CONTACTO.includes(contacto.asunto) ? ASUNTOS_CONTACTO : [contacto.asunto, ...ASUNTOS_CONTACTO]} />
+              <div style={{ gridColumn: "1/-1" }}><TextArea label="Mensaje" value={contacto.mensaje} onChange={e => setContacto({ ...contacto, mensaje: e.target.value })} placeholder="Cuéntanos cómo podemos ayudarte..." rows={4} required /></div>
+              {/* Campo trampa para bots: las personas no lo ven */}
+              <input type="text" tabIndex={-1} autoComplete="off" value={contacto.web} onChange={e => setContacto({ ...contacto, web: e.target.value })} style={{ position: "absolute", left: -9999, width: 1, height: 1, opacity: 0 }} aria-hidden="true" />
+              {contactoEstado && contactoEstado !== "enviando" && <div style={{ gridColumn: "1/-1", fontSize: 13, color: G.danger, textAlign: "center" }}>{contactoEstado}</div>}
+              <div style={{ gridColumn: "1/-1", display: "flex", justifyContent: "center", marginTop: 8 }}>
+                <button type="submit" disabled={contactoEstado === "enviando"} style={{ padding: "16px 48px", fontSize: 15, fontWeight: 800, background: `linear-gradient(135deg, ${G.primary}, ${G.primaryLight})`, color: "#fff", border: "none", borderRadius: 14, cursor: "pointer", fontFamily: font, display: "inline-flex", alignItems: "center", gap: 10, boxShadow: `0 6px 24px ${G.primary}20`, opacity: contactoEstado === "enviando" ? 0.7 : 1 }}><Send size={17} /> {contactoEstado === "enviando" ? "Enviando…" : "Enviar Mensaje"}</button>
+              </div>
+            </>)}
+          </form>
         </div>
       </section>
       {/* ═══ FOOTER ═══ */}
@@ -974,7 +1035,7 @@ const LandingPage = ({ onLogin, onTienda }) => {
               </div>
               <p style={{ margin: "0 0 24px", fontSize: 14, color: "#64748b", lineHeight: 1.7, maxWidth: 300 }}>Más de 106 años proclamando el evangelio de Jesucristo en el Perú y el mundo.</p>
               <div style={{ display: "flex", gap: 10 }}>
-                {[[Facebook, CHURCH_DEFAULT.facebook], [Youtube, CHURCH_DEFAULT.youtube], [Instagram, CHURCH_DEFAULT.instagram]].map(([Icon, url], i) => (
+                {[[Facebook, config.facebook], [Youtube, config.youtube], [Instagram, config.instagram]].filter(([, url]) => url).map(([Icon, url], i) => (
                   <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b", transition: "all 0.2s", textDecoration: "none" }} onMouseEnter={e => { e.currentTarget.style.background = G.accent; e.currentTarget.style.color = "#fff"; }} onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "#64748b"; }}><Icon size={18} /></a>
                 ))}
               </div>
@@ -1097,7 +1158,7 @@ const Login = ({ onSuccess, onBack, onRegister }) => {
 // ═══════════════════════════════════════════════════════════════════
 
 // ─── VISTA PRINCIPAL DASHBOARD ──────────────────────────────────────
-const DashboardView = ({ data }) => {
+const DashboardView = ({ data, config }) => {
   const { miembros, donaciones, proyectos, eventos, asistencia, gastos } = data;
   const totalIngresos = donaciones.filter(d => d.estado === "completado").reduce((a, d) => a + d.monto, 0);
   const totalGastos = gastos.filter(g => g.estado === "pagado").reduce((a, g) => a + g.monto, 0);
@@ -1105,21 +1166,30 @@ const DashboardView = ({ data }) => {
   const activos = miembros.filter(m => m.estado === "activo").length;
   const promAsist = asistencia.length > 0 ? Math.round(asistencia.reduce((a, d) => a + d.total, 0) / asistencia.length) : 0;
 
+  // Ingresos de los últimos 6 meses
   const donByMonth = {};
-  donaciones.filter(d => d.estado === "completado").forEach(d => {
-    const m = new Date(d.fecha + "T12:00").getMonth();
-    donByMonth[m] = (donByMonth[m] || 0) + d.monto;
+  donaciones.filter(d => d.estado === "completado" && d.fecha).forEach(d => {
+    const k = d.fecha.slice(0, 7);
+    donByMonth[k] = (donByMonth[k] || 0) + Number(d.monto || 0);
   });
-  const chartData = [10, 11, 0, 1, 2].map(m => ({ label: monthName(m), value: donByMonth[m] || 0 }));
+  const hoy = new Date();
+  const chartData = Array.from({ length: 6 }, (_, i) => {
+    const f = new Date(hoy.getFullYear(), hoy.getMonth() - 5 + i, 1);
+    const k = `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, "0")}`;
+    return { label: monthName(f.getMonth()), value: donByMonth[k] || 0 };
+  });
+  const anio = String(hoy.getFullYear());
+  const nuevosAnio = miembros.filter(m => (m.desde || "").startsWith(anio)).length;
+  const ultimaDonacion = [...donaciones].sort((a, b) => (b.fecha || "").localeCompare(a.fecha || ""))[0];
 
   return (
     <div className="fadein">
-      <PageHeader title="Dashboard" subtitle={`Resumen general — ${CHURCH_DEFAULT.nombre}`} />
+      <PageHeader title="Dashboard" subtitle={`Resumen general — ${config.nombre}`} />
       <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 16 }}>
-        <StatCard label="Miembros Activos" value={activos} icon={Users} color={G.primary} trend={`+${miembros.filter(m => m.desde >= "2025-01").length}`} />
-        <StatCard label="Ingresos (S/.)" value={`${(totalIngresos / 1000).toFixed(1)}K`} icon={TrendingUp} color={G.success} trend="+8%" />
+        <StatCard label="Miembros Activos" value={activos} icon={Users} color={G.primary} trend={nuevosAnio ? `+${nuevosAnio} en ${anio}` : undefined} />
+        <StatCard label="Ingresos (S/.)" value={totalIngresos >= 1000 ? `${(totalIngresos / 1000).toFixed(1)}K` : fmt(totalIngresos)} icon={TrendingUp} color={G.success} />
         <StatCard label="Balance (S/.)" value={fmtMoney(balance)} icon={DollarSign} color={balance >= 0 ? G.success : G.danger} />
-        <StatCard label="Asistencia Promedio" value={promAsist} icon={Activity} color={G.purple} trend="+5%" />
+        <StatCard label="Asistencia Promedio" value={promAsist} icon={Activity} color={G.purple} />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 20, marginBottom: 20 }}>
         <Card hover={false}>
@@ -1129,8 +1199,8 @@ const DashboardView = ({ data }) => {
         <Card hover={false}>
           <h3 style={{ margin: "0 0 16px", fontSize: 14.5, fontWeight: 700, color: G.dark }}>Actividad Reciente</h3>
           {[
-            { icon: Heart, text: `Donación de ${fmtMoney(donaciones[0]?.monto || 0)}`, time: fmtDateShort(donaciones[0]?.fecha), color: G.success },
-            { icon: UserCheck, text: `${miembros.filter(m => m.desde >= "2025-01").length} nuevos miembros este año`, time: "2025", color: G.primary },
+            { icon: Heart, text: ultimaDonacion ? `Última donación: ${fmtMoney(ultimaDonacion.monto)}` : "Aún no hay donaciones registradas", time: ultimaDonacion ? fmtDateShort(ultimaDonacion.fecha) : "—", color: G.success },
+            { icon: UserCheck, text: `${nuevosAnio} ${nuevosAnio === 1 ? "miembro nuevo" : "miembros nuevos"} este año`, time: anio, color: G.primary },
             { icon: Target, text: `${proyectos.filter(p => p.estado === "activo").length} proyectos activos`, time: "En curso", color: G.warning },
           ].map((item, i) => (
             <div key={i} style={{ display: "flex", gap: 12, alignItems: "center", padding: "10px 0", borderBottom: i < 2 ? `1px solid ${G.grayMid}20` : "none" }}>
@@ -1170,6 +1240,7 @@ const DashboardView = ({ data }) => {
               </div>
             </div>
           ))}
+          {proyectos.filter(p => p.estado === "activo").length === 0 && <p style={{ fontSize: 13, color: G.gray }}>No hay proyectos activos</p>}
         </Card>
       </div>
     </div>
@@ -2052,7 +2123,183 @@ const newUUID = () => crypto.randomUUID ? crypto.randomUUID() : uid();
 
 const PROGRAMA_REUNION = ["Bienvenida y oración", "Dinámica rompe hielo (10 min)", "Alabanza (15 min)", "Enseñanza bíblica (35 min)", "Dinámica de reflexión (15 min)", "Oración final", "Compartir"];
 
+// ─── INTEGRANTES, ASISTENCIA Y CUMPLEAÑOS (admin + rol teens) ─────────
+const ultimoSabado = () => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 1) % 7)); return fechaLocal(d); };
+const edadDe = (nac) => { if (!nac) return null; const n = new Date(nac + "T12:00"), h = new Date(); let e = h.getFullYear() - n.getFullYear(); if (h < new Date(h.getFullYear(), n.getMonth(), n.getDate())) e--; return e; };
+
+const TeensIntegrantes = ({ data, setData, toast }) => {
+  const integrantes = [...(data.integrantes || [])].sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
+  const activos = integrantes.filter(i => i.activo !== false);
+  const registros = [...(data.asistenciaTeens || [])].sort((a, b) => b.fecha.localeCompare(a.fecha));
+  const [fecha, setFecha] = useState(ultimoSabado());
+  const registroDia = registros.find(r => r.fecha === fecha);
+  const [presentes, setPresentes] = useState(registroDia?.presentes || []);
+  const [visitantes, setVisitantes] = useState(registroDia?.visitantes || 0);
+  const [editando, setEditando] = useState(null);
+  const [eliminar, setEliminar] = useState(null);
+  const [guardando, setGuardando] = useState(false);
+
+  // Al cambiar de fecha se carga lo registrado ese día (o vacío)
+  useEffect(() => {
+    const r = (data.asistenciaTeens || []).find(x => x.fecha === fecha);
+    setPresentes(r?.presentes || []); setVisitantes(r?.visitantes || 0);
+  }, [fecha, data.asistenciaTeens]);
+
+  const mes = new Date().getMonth();
+  const cumpleMes = activos.filter(i => i.fecha_nacimiento && new Date(i.fecha_nacimiento + "T12:00").getMonth() === mes)
+    .sort((a, b) => a.fecha_nacimiento.slice(5).localeCompare(b.fecha_nacimiento.slice(5)));
+  const promedio = registros.length ? Math.round(registros.reduce((t, r) => t + (r.presentes?.length || 0) + (r.visitantes || 0), 0) / registros.length) : 0;
+
+  const guardarAsistencia = async () => {
+    setGuardando(true);
+    const fila = { ...(registroDia || { id: newUUID() }), fecha, presentes, visitantes: Number(visitantes) || 0 };
+    const saved = await upsertRecord("asistenciaTeens", fila, !registroDia);
+    setGuardando(false);
+    if (!saved && isSupabaseConfigured()) { toast("No se pudo guardar la asistencia. Revisa tu conexión o permisos.", "error"); return; }
+    setData(d => ({ ...d, asistenciaTeens: registroDia ? (d.asistenciaTeens || []).map(r => r.id === fila.id ? (saved || fila) : r) : [saved || fila, ...(d.asistenciaTeens || [])] }));
+    toast(`Asistencia del ${fmtDateShort(fecha)} guardada`);
+  };
+  const guardarIntegrante = async () => {
+    if (!editando.nombre?.trim()) { toast("El nombre es obligatorio", "error"); return; }
+    const nuevo = !(data.integrantes || []).some(i => i.id === editando.id);
+    const fila = { ...editando, nombre: editando.nombre.trim(), fecha_nacimiento: editando.fecha_nacimiento || null };
+    const saved = await upsertRecord("integrantes", fila, nuevo);
+    if (!saved && isSupabaseConfigured()) { toast("No se pudo guardar. Revisa tu conexión o permisos.", "error"); return; }
+    setData(d => ({ ...d, integrantes: nuevo ? [saved || fila, ...(d.integrantes || [])] : (d.integrantes || []).map(i => i.id === fila.id ? (saved || fila) : i) }));
+    toast(nuevo ? "Integrante agregado" : "Integrante actualizado"); setEditando(null);
+  };
+  const confirmarEliminar = async () => {
+    if (await removeRecord("integrantes", eliminar.id) === false) { toast("No se pudo eliminar", "error"); return; }
+    setData(d => ({ ...d, integrantes: (d.integrantes || []).filter(i => i.id !== eliminar.id) }));
+    toast("Integrante eliminado"); setEliminar(null);
+  };
+  const toggle = (id) => setPresentes(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+
+  return (
+    <div>
+      <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 14 }}>
+        <StatCard label="Integrantes activos" value={activos.length} icon={Users} color={G.primary} />
+        <StatCard label="Asistencia promedio" value={promedio} icon={Activity} color={G.success} />
+        <StatCard label={`Cumpleaños de ${MESES_FULL[mes]}`} value={cumpleMes.length} icon={Award} color={G.accent} />
+      </div>
+
+      <div className="split-grid" style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 14, alignItems: "start" }}>
+        <Card hover={false}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: G.dark, fontFamily: fontTitle }}>Pasar asistencia</h3>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input type="date" value={fecha} onChange={e => setFecha(e.target.value)} style={{ padding: "7px 10px", borderRadius: 8, border: `1.5px solid ${G.grayMid}`, fontFamily: font, fontSize: 13 }} />
+              {registroDia && <Badge variant="success">Registrada</Badge>}
+            </div>
+          </div>
+          {activos.length === 0
+            ? <EmptyState icon={Users} message="Primero agrega a los integrantes del grupo" />
+            : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 6 }}>
+                {activos.map(i => (
+                  <label key={i.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 8, cursor: "pointer", fontSize: 13, color: G.dark, background: presentes.includes(i.id) ? G.success + "14" : G.grayLight, border: `1.5px solid ${presentes.includes(i.id) ? G.success + "60" : "transparent"}` }}>
+                    <input type="checkbox" checked={presentes.includes(i.id)} onChange={() => toggle(i.id)} style={{ accentColor: G.success }} />{i.nombre}
+                  </label>
+                ))}
+              </div>}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
+            <label style={{ fontSize: 13, color: G.dark, display: "flex", alignItems: "center", gap: 8 }}>Visitantes
+              <input type="number" min="0" value={visitantes} onChange={e => setVisitantes(e.target.value)} style={{ width: 70, padding: "6px 8px", borderRadius: 8, border: `1.5px solid ${G.grayMid}`, fontFamily: font }} />
+            </label>
+            <span style={{ fontSize: 13, color: G.gray }}>Total: <strong style={{ color: G.dark }}>{presentes.length + (Number(visitantes) || 0)}</strong></span>
+            <Button variant="primary" size="sm" icon={Save} onClick={guardarAsistencia} disabled={guardando}>{guardando ? "Guardando…" : "Guardar asistencia"}</Button>
+          </div>
+          {registros.length > 0 && (
+            <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px solid ${G.grayMid}30` }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: G.primary, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Historial</div>
+              {registros.slice(0, 8).map(r => (
+                <button key={r.id} onClick={() => setFecha(r.fecha)} style={{ display: "flex", justifyContent: "space-between", width: "100%", background: r.fecha === fecha ? G.primary + "0d" : "none", border: "none", padding: "6px 8px", borderRadius: 6, cursor: "pointer", fontFamily: font, fontSize: 13, color: G.dark }}>
+                  <span>{fmtDate(r.fecha)}</span><span style={{ color: G.gray }}>{(r.presentes?.length || 0)} + {r.visitantes || 0} visitantes</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {cumpleMes.length > 0 && (
+            <Card hover={false} style={{ borderLeft: `3px solid ${G.accent}` }}>
+              <h3 style={{ margin: "0 0 8px", fontSize: 15, fontWeight: 800, color: G.dark, fontFamily: fontTitle }}>🎂 Cumpleaños de {MESES_FULL[mes]}</h3>
+              {cumpleMes.map(i => <div key={i.id} style={{ fontSize: 13, color: G.dark, padding: "3px 0" }}><strong>{new Date(i.fecha_nacimiento + "T12:00").getDate()}</strong> · {i.nombre} <span style={{ color: G.gray }}>({edadDe(i.fecha_nacimiento) + 1} años)</span></div>)}
+            </Card>
+          )}
+          <Card hover={false}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: G.dark, fontFamily: fontTitle }}>Integrantes ({integrantes.length})</h3>
+              <Button variant="outline" size="sm" icon={Plus} onClick={() => setEditando({ id: newUUID(), nombre: "", fecha_nacimiento: "", apoderado: "", telefono: "", activo: true, notas: "" })}>Agregar</Button>
+            </div>
+            {integrantes.length === 0 && <div style={{ fontSize: 13, color: G.gray, padding: "8px 0" }}>Aún no hay integrantes registrados.</div>}
+            {integrantes.map((i, k) => (
+              <div key={i.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: k < integrantes.length - 1 ? `1px solid ${G.grayMid}20` : "none", opacity: i.activo === false ? 0.5 : 1 }}>
+                <Avatar initials={(i.nombre || "?").split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase()} size={32} color={G.primary} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: G.dark }}>{i.nombre}{i.activo === false && " (inactivo)"}</div>
+                  <div style={{ fontSize: 11.5, color: G.gray }}>{[i.fecha_nacimiento && `${edadDe(i.fecha_nacimiento)} años`, i.apoderado && `Apoderado: ${i.apoderado}`, i.telefono].filter(Boolean).join(" · ")}</div>
+                </div>
+                <button onClick={() => setEditando({ ...i, fecha_nacimiento: i.fecha_nacimiento || "" })} style={{ background: "none", border: `1.5px solid ${G.grayMid}`, cursor: "pointer", padding: 6, borderRadius: 7, display: "flex" }}><Edit size={13} color={G.primary} /></button>
+                <button onClick={() => setEliminar(i)} style={{ background: "none", border: `1.5px solid ${G.grayMid}`, cursor: "pointer", padding: 6, borderRadius: 7, display: "flex" }}><Trash2 size={13} color={G.danger} /></button>
+              </div>
+            ))}
+          </Card>
+        </div>
+      </div>
+
+      {editando && (
+        <Modal title={(data.integrantes || []).some(i => i.id === editando.id) ? "Editar integrante" : "Nuevo integrante"} onClose={() => setEditando(null)} width={520}>
+          <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div style={{ gridColumn: "1/-1" }}><Input label="Nombre" value={editando.nombre} onChange={e => setEditando({ ...editando, nombre: e.target.value })} required /></div>
+            <Input label="Fecha de nacimiento" type="date" value={editando.fecha_nacimiento} onChange={e => setEditando({ ...editando, fecha_nacimiento: e.target.value })} />
+            <Select label="Estado" value={editando.activo === false ? "inactivo" : "activo"} onChange={e => setEditando({ ...editando, activo: e.target.value === "activo" })} options={["activo", "inactivo"]} />
+            <Input label="Apoderado" value={editando.apoderado} onChange={e => setEditando({ ...editando, apoderado: e.target.value })} />
+            <Input label="Teléfono del apoderado" value={editando.telefono} onChange={e => setEditando({ ...editando, telefono: e.target.value })} />
+            <div style={{ gridColumn: "1/-1" }}><TextArea label="Notas" value={editando.notas} onChange={e => setEditando({ ...editando, notas: e.target.value })} rows={2} /></div>
+          </div>
+          <div style={{ fontSize: 11.5, color: G.gray, marginTop: 10 }}>Datos de menores: solo los ve el equipo de Adolescentes y el Super Administrador.</div>
+          <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+            <Button variant="outline" size="md" onClick={() => setEditando(null)} fullWidth>Cancelar</Button>
+            <Button variant="primary" size="md" onClick={guardarIntegrante} fullWidth icon={Save}>Guardar</Button>
+          </div>
+        </Modal>
+      )}
+      {eliminar && <ConfirmDialog message={`¿Eliminar a ${eliminar.nombre}? Se mantiene su historial de asistencia como número.`} onConfirm={confirmarEliminar} onCancel={() => setEliminar(null)} />}
+    </div>
+  );
+};
+
 // ─── ACTAS DE REUNIÓN DEL EQUIPO TEENS (privadas: admin + rol teens) ─
+// Texto plano del acta (WhatsApp) y versión imprimible (PDF desde el diálogo de impresión)
+const textoActa = (a) => [
+  `*Acta de reunión · Equipo Teens ICV*`,
+  `${fmtDate(a.fecha)}${a.hora ? ` · ${a.hora}` : ""}${a.lugar ? ` · ${a.lugar}` : ""}`,
+  a.dirige && `Dirige: ${a.dirige}`,
+  a.asistentes && `\n*Asistentes:* ${a.asistentes}`,
+  a.temas && `\n*Temas tratados:*\n${a.temas}`,
+  a.acuerdos && `\n*Acuerdos:*\n${a.acuerdos}`,
+  (a.tareas || []).length > 0 && `\n*Tareas:*\n${a.tareas.map(t => `${t.hecho ? "✅" : "▫️"} ${t.texto}${t.responsable ? ` (${t.responsable})` : ""}${t.fecha ? ` · ${fmtDateShort(t.fecha)}` : ""}`).join("\n")}`,
+].filter(Boolean).join("\n");
+
+const imprimirActa = (a) => {
+  const esc = (t) => String(t || "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const bloque = (titulo, texto) => texto ? `<h3>${titulo}</h3><p>${esc(texto).replace(/\n/g, "<br>")}</p>` : "";
+  const tareas = (a.tareas || []).length ? `<h3>Tareas</h3><ul>${a.tareas.map(t => `<li>${t.hecho ? "☑" : "☐"} ${esc(t.texto)}${t.responsable ? ` — ${esc(t.responsable)}` : ""}${t.fecha ? ` · ${esc(fmtDateShort(t.fecha))}` : ""}</li>`).join("")}</ul>` : "";
+  const w = window.open("", "_blank");
+  if (!w) return;
+  w.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Acta ${esc(fmtDate(a.fecha))}</title>
+<style>body{font-family:system-ui,sans-serif;max-width:720px;margin:32px auto;padding:0 24px;color:#0f1923;line-height:1.5}
+h1{font-size:20px;margin:0}h2{font-size:14px;color:#556;font-weight:500;margin:4px 0 20px}h3{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:#1a3a5c;margin:18px 0 4px}
+p,li{font-size:14px}ul{padding-left:18px}.pie{margin-top:40px;font-size:11px;color:#889}</style></head><body>
+<h1>Acta de reunión · Equipo de Adolescentes (Teens)</h1>
+<h2>Iglesia Cristo Viene · ${esc(fmtDate(a.fecha))}${a.hora ? ` · ${esc(a.hora)}` : ""}${a.lugar ? ` · ${esc(a.lugar)}` : ""}${a.dirige ? ` · Dirige: ${esc(a.dirige)}` : ""}</h2>
+${bloque("Asistentes", a.asistentes)}${bloque("Temas tratados", a.temas)}${bloque("Acuerdos", a.acuerdos)}${tareas}
+<div class="pie">Generado desde la plataforma LADP · ICV</div>
+<script>window.onload=()=>{window.print()}</script></body></html>`);
+  w.document.close();
+};
+
 const ActasAdolescentes = ({ data, setData, toast }) => {
   const actas = [...(data.actas || [])].sort((a, b) => (b.fecha || "").localeCompare(a.fecha || "") || (b.hora || "").localeCompare(a.hora || ""));
   const [editando, setEditando] = useState(null);
@@ -2127,6 +2374,8 @@ const ActasAdolescentes = ({ data, setData, toast }) => {
                 <div style={{ fontSize: 12, color: G.gray, marginTop: 2 }}>{[a.lugar, a.dirige && `Dirige: ${a.dirige}`].filter(Boolean).join(" · ")}</div>
               </div>
               <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                <a href={`https://wa.me/?text=${encodeURIComponent(textoActa(a))}`} target="_blank" rel="noopener noreferrer" title="Compartir por WhatsApp" style={{ border: `1.5px solid ${G.grayMid}`, padding: 6, borderRadius: 7, display: "flex" }}><MessageCircle size={14} color={G.success} /></a>
+                <button title="Imprimir o guardar en PDF" onClick={() => imprimirActa(a)} style={{ background: "none", border: `1.5px solid ${G.grayMid}`, cursor: "pointer", padding: 6, borderRadius: 7, display: "flex" }}><Printer size={14} color={G.primary} /></button>
                 <button onClick={() => setEditando({ ...a, tareas: a.tareas || [] })} style={{ background: "none", border: `1.5px solid ${G.grayMid}`, cursor: "pointer", padding: 6, borderRadius: 7, display: "flex" }}><Edit size={14} color={G.primary} /></button>
                 <button onClick={() => setEliminar(a)} style={{ background: "none", border: `1.5px solid ${G.grayMid}`, cursor: "pointer", padding: 6, borderRadius: 7, display: "flex" }}><Trash2 size={14} color={G.danger} /></button>
               </div>
@@ -2509,7 +2758,7 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
 
       {/* Tabs */}
       <div className="tabs-bar" style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
-        {[["calendario", "Calendario", Calendar], ["matutino", "Matutino", Clock], ["temario", "Temario", BookOpen], ["propuestas", "Propuestas", Star], ["plan", "Plan 2027", Target], ["programa", "Reunión", Clock], ...(readOnly ? [] : [["actas", "Actas", FileText]])].map(([id, label, Icon]) => (
+        {[["calendario", "Calendario", Calendar], ["matutino", "Matutino", Clock], ["temario", "Temario", BookOpen], ["propuestas", "Propuestas", Star], ["plan", "Plan 2027", Target], ["programa", "Reunión", Clock], ...(readOnly ? [] : [["integrantes", "Asistencia", Users], ["actas", "Actas", FileText]])].map(([id, label, Icon]) => (
           <button key={id} onClick={() => setTab(id)} style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 16px", borderRadius: 9, border: tab === id ? `2px solid ${G.primary}` : `1.5px solid ${G.grayMid}`, background: tab === id ? G.primary + "10" : "#fff", color: tab === id ? G.primary : G.gray, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: font }}>
             <Icon size={15} /> {label}
           </button>
@@ -2728,6 +2977,7 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
       )}
 
       {/* ── ACTAS ── */}
+      {tab === "integrantes" && !readOnly && <TeensIntegrantes data={data} setData={setData} toast={toast} />}
       {tab === "actas" && !readOnly && <ActasAdolescentes data={data} setData={setData} toast={toast} />}
 
       {/* ── PROGRAMA DE REUNIÓN ── */}
@@ -2972,7 +3222,14 @@ const ConfiguracionView = ({ config, setConfig, toast, currentUserId }) => {
   const [usuarios, setUsuarios] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [updatingRole, setUpdatingRole] = useState(null);
-  const guardar = () => toast("Configuración guardada correctamente");
+  const [guardando, setGuardando] = useState(false);
+  const guardar = async () => {
+    setGuardando(true);
+    const ok = await saveConfig(config);
+    setGuardando(false);
+    if (ok) toast("Configuración guardada");
+    else toast("No se pudo guardar la configuración. Revisa tu conexión o permisos.", "error");
+  };
 
   useEffect(() => {
     if (tab !== "usuarios") return;
@@ -3009,6 +3266,7 @@ const ConfiguracionView = ({ config, setConfig, toast, currentUserId }) => {
             <div style={{ gridColumn: "1/-1" }}><Input label="Lema" value={config.lema} onChange={e => setConfig({ ...config, lema: e.target.value })} /></div>
             <div style={{ gridColumn: "1/-1" }}><Input label="Dirección" value={config.direccion} onChange={e => setConfig({ ...config, direccion: e.target.value })} icon={MapPin} /></div>
             <Input label="Teléfono" value={config.telefono} onChange={e => setConfig({ ...config, telefono: e.target.value })} icon={Phone} />
+            <Input label="WhatsApp (solo números, con 51)" value={config.whatsapp} onChange={e => setConfig({ ...config, whatsapp: e.target.value.replace(/\D/g, "") })} placeholder="51999123456" icon={MessageCircle} />
             <Input label="Email" value={config.email} onChange={e => setConfig({ ...config, email: e.target.value })} icon={Mail} />
             <Input label="Pastor Principal" value={config.pastor} onChange={e => setConfig({ ...config, pastor: e.target.value })} />
             <Input label="Año de Fundación" value={config.fundacion} onChange={e => setConfig({ ...config, fundacion: Number(e.target.value) })} type="number" />
@@ -3066,7 +3324,7 @@ const ConfiguracionView = ({ config, setConfig, toast, currentUserId }) => {
         )}
         {tab !== "usuarios" && (
           <div style={{ marginTop: 28, paddingTop: 20, borderTop: `1px solid ${G.grayMid}40`, display: "flex", justifyContent: "flex-end" }}>
-            <Button variant="primary" size="md" onClick={guardar} icon={Save}>Guardar Cambios</Button>
+            <Button variant="primary" size="md" onClick={guardar} icon={Save} disabled={guardando}>{guardando ? "Guardando…" : "Guardar Cambios"}</Button>
           </div>
         )}
       </Card>
@@ -3240,6 +3498,100 @@ const PortalUsuario = ({ userProfile, data }) => {
   );
 };
 
+// ─── BANDEJA: MENSAJES DE CONTACTO Y PEDIDOS DE LA TIENDA (solo Super Administrador) ─
+const BandejaView = ({ data, setData, toast }) => {
+  const [tab, setTab] = useState("mensajes");
+  const [eliminar, setEliminar] = useState(null); // { key, item }
+  const mensajes = [...(data.mensajes || [])].sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
+  const pedidos = [...(data.pedidos || [])].sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
+  const nuevosMsg = mensajes.filter(m => m.estado === "nuevo").length;
+  const nuevosPed = pedidos.filter(p => p.estado === "nuevo").length;
+
+  const actualizar = async (key, item, cambios) => {
+    const saved = await upsertRecord(key, { ...item, ...cambios }, false);
+    if (!saved && isSupabaseConfigured()) { toast("No se pudo actualizar. Revisa tu conexión o permisos.", "error"); return; }
+    setData(d => ({ ...d, [key]: (d[key] || []).map(x => x.id === item.id ? (saved || { ...item, ...cambios }) : x) }));
+  };
+  const confirmarEliminar = async () => {
+    const { key, item } = eliminar;
+    if (await removeRecord(key, item.id) === false) { toast("No se pudo eliminar", "error"); return; }
+    setData(d => ({ ...d, [key]: (d[key] || []).filter(x => x.id !== item.id) }));
+    toast("Eliminado"); setEliminar(null);
+  };
+  const soloNumeros = (t) => (t || "").replace(/\D/g, "");
+  const waLink = (tel, texto) => { const n = soloNumeros(tel); return n ? `https://wa.me/${n.length === 9 ? "51" + n : n}?text=${encodeURIComponent(texto)}` : null; };
+  const fechaHora = (iso) => iso ? new Date(iso).toLocaleString("es-PE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+  const BotonIcono = ({ onClick, icon: Icon, color, title }) => (
+    <button title={title} onClick={onClick} style={{ background: "none", border: `1.5px solid ${G.grayMid}`, cursor: "pointer", padding: 6, borderRadius: 7, display: "flex" }}><Icon size={14} color={color} /></button>
+  );
+
+  return (
+    <div className="fadein">
+      <PageHeader title="Bandeja" subtitle="Mensajes del formulario de contacto y pedidos de la tienda" />
+      <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 16 }}>
+        <StatCard label="Mensajes nuevos" value={nuevosMsg} icon={Mail} color={G.primary} onClick={() => setTab("mensajes")} />
+        <StatCard label="Pedidos nuevos" value={nuevosPed} icon={ShoppingCart} color={G.accent} onClick={() => setTab("pedidos")} />
+      </div>
+      <TabBar tabs={[{ id: "mensajes", label: `Mensajes (${mensajes.length})`, icon: Mail }, { id: "pedidos", label: `Pedidos (${pedidos.length})`, icon: ShoppingCart }]} active={tab} onChange={setTab} />
+
+      {tab === "mensajes" && (mensajes.length === 0
+        ? <Card hover={false}><EmptyState icon={Mail} message="Aún no llegan mensajes del formulario de contacto" /></Card>
+        : mensajes.map(m => (
+          <Card key={m.id} hover={false} style={{ marginBottom: 12, borderLeft: m.estado === "nuevo" ? `3px solid ${G.primary}` : `3px solid transparent` }}>
+            <div className="list-row" style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+              <div className="list-main" style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 14, fontWeight: 800, color: G.dark }}>{m.nombre}</span>
+                  <Badge variant={m.estado === "nuevo" ? "primary" : "default"}>{m.estado === "nuevo" ? "Nuevo" : "Atendido"}</Badge>
+                  {m.asunto && <Badge variant="purple">{m.asunto}</Badge>}
+                </div>
+                <div style={{ fontSize: 12, color: G.gray, marginTop: 2 }}>{[m.email, m.telefono, fechaHora(m.created_at)].filter(Boolean).join(" · ")}</div>
+                <div style={{ fontSize: 13.5, color: G.dark, marginTop: 8, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{m.mensaje}</div>
+              </div>
+              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                {waLink(m.telefono, `Hola ${m.nombre}, te escribimos de la Iglesia Cristo Viene por tu mensaje.`) && <a href={waLink(m.telefono, `Hola ${m.nombre}, te escribimos de la Iglesia Cristo Viene por tu mensaje.`)} target="_blank" rel="noopener noreferrer" title="Responder por WhatsApp" style={{ border: `1.5px solid ${G.grayMid}`, padding: 6, borderRadius: 7, display: "flex" }}><MessageCircle size={14} color={G.success} /></a>}
+                {m.email && <a href={`mailto:${m.email}?subject=${encodeURIComponent("Iglesia Cristo Viene: " + (m.asunto || "tu mensaje"))}`} title="Responder por correo" style={{ border: `1.5px solid ${G.grayMid}`, padding: 6, borderRadius: 7, display: "flex" }}><Mail size={14} color={G.primary} /></a>}
+                <BotonIcono title={m.estado === "nuevo" ? "Marcar como atendido" : "Marcar como nuevo"} icon={Check} color={m.estado === "nuevo" ? G.success : G.gray} onClick={() => actualizar("mensajes", m, { estado: m.estado === "nuevo" ? "atendido" : "nuevo" })} />
+                <BotonIcono title="Eliminar" icon={Trash2} color={G.danger} onClick={() => setEliminar({ key: "mensajes", item: m })} />
+              </div>
+            </div>
+          </Card>
+        )))}
+
+      {tab === "pedidos" && (pedidos.length === 0
+        ? <Card hover={false}><EmptyState icon={ShoppingCart} message="Aún no llegan pedidos de la tienda" /></Card>
+        : pedidos.map(p => {
+          const c = p.cliente || {};
+          return (
+            <Card key={p.id} hover={false} style={{ marginBottom: 12, borderLeft: p.estado === "nuevo" ? `3px solid ${G.accent}` : `3px solid transparent` }}>
+              <div className="list-row" style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                <div className="list-main" style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 14, fontWeight: 800, color: G.dark }}>{p.numero}</span>
+                    <span style={{ fontSize: 14, fontWeight: 800, color: G.primary }}>{fmtMoney(Number(p.total))}</span>
+                    <Badge variant={p.estado === "nuevo" ? "warning" : p.estado === "cancelado" ? "danger" : "success"}>{p.estado}</Badge>
+                  </div>
+                  <div style={{ fontSize: 12, color: G.gray, marginTop: 2 }}>{[c.nombre, c.telefono, c.email, p.metodo, fechaHora(p.created_at)].filter(Boolean).join(" · ")}</div>
+                  {(c.direccion || c.distrito) && <div style={{ fontSize: 12, color: G.gray }}>📍 {[c.direccion, c.distrito, c.ciudad].filter(Boolean).join(", ")}</div>}
+                  <div style={{ fontSize: 13, color: G.dark, marginTop: 6 }}>{(p.items || []).map(it => `${it.qty} × ${it.titulo}`).join(" · ")}</div>
+                  {c.notas && <div style={{ fontSize: 12, color: G.gray, fontStyle: "italic", marginTop: 4 }}>{c.notas}</div>}
+                </div>
+                <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
+                  {waLink(c.telefono, `Hola ${c.nombre || ""}, te escribimos de la Iglesia Cristo Viene por tu pedido ${p.numero}.`) && <a href={waLink(c.telefono, `Hola ${c.nombre || ""}, te escribimos de la Iglesia Cristo Viene por tu pedido ${p.numero}.`)} target="_blank" rel="noopener noreferrer" title="Escribir por WhatsApp" style={{ border: `1.5px solid ${G.grayMid}`, padding: 6, borderRadius: 7, display: "flex" }}><MessageCircle size={14} color={G.success} /></a>}
+                  <select value={p.estado} onChange={e => actualizar("pedidos", p, { estado: e.target.value })} style={{ fontSize: 12, padding: "5px 8px", borderRadius: 7, border: `1.5px solid ${G.grayMid}`, background: "#fff", fontFamily: font }}>
+                    {["nuevo", "confirmado", "entregado", "cancelado"].map(e => <option key={e} value={e}>{e}</option>)}
+                  </select>
+                  <BotonIcono title="Eliminar" icon={Trash2} color={G.danger} onClick={() => setEliminar({ key: "pedidos", item: p })} />
+                </div>
+              </div>
+            </Card>
+          );
+        }))}
+      {eliminar && <ConfirmDialog message="¿Eliminar este registro? No se puede deshacer." onConfirm={confirmarEliminar} onCancel={() => setEliminar(null)} />}
+    </div>
+  );
+};
+
 // ═══════════════════════════════════════════════════════════════════
 // ─── DASHBOARD PRINCIPAL ────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════
@@ -3249,36 +3601,43 @@ const Dashboard = ({ onLogout, userProfile, seccion }) => {
   // Recordar la sección abierta para volver a ella al recargar
   const [collapsed, setCollapsed] = useState(false);
   const [toastMsg, setToastMsg] = useState(null);
-  const [config, setConfig] = useState(CHURCH_DEFAULT);
+  const [config, setConfig] = useChurchConfig();
+  // Con Supabase se muestran solo datos reales; los de ejemplo quedan para desarrollo sin base de datos
+  const demo = (arr) => (isSupabaseConfigured() ? [] : arr);
   const [data, setData] = useState({
-    miembros: initMiembros,
-    donaciones: initDonaciones,
-    proyectos: initProyectos,
-    eventos: initEventos,
-    asistencia: initAsistencia,
-    celulas: initCelulas,
-    ministerios: initMinisterios,
-    productos: initProductos,
-    publicaciones: initPublicaciones,
-    gastos: initGastos,
-    cronograma: initCronograma,
+    miembros: demo(initMiembros),
+    donaciones: demo(initDonaciones),
+    proyectos: demo(initProyectos),
+    eventos: demo(initEventos),
+    asistencia: demo(initAsistencia),
+    celulas: demo(initCelulas),
+    ministerios: demo(initMinisterios),
+    productos: demo(initProductos),
+    publicaciones: demo(initPublicaciones),
+    gastos: demo(initGastos),
+    cronograma: demo(initCronograma),
     actas: [],
     peticiones: [],
+    mensajes: [],
+    pedidos: [],
+    integrantes: [],
+    asistenciaTeens: [],
   });
 
   const [dbLoading, setDbLoading] = useState(false);
 
-  // Load data from Supabase if configured, otherwise use mock data
+  // Carga los datos de Supabase (sin Supabase se quedan los de ejemplo)
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
     setDbLoading(true);
     loadAllData().then(remoteData => {
       if (remoteData) {
-        const merged = { ...data };
-        Object.keys(remoteData).forEach(key => {
-          if (remoteData[key] && remoteData[key].length > 0) merged[key] = remoteData[key];
+        // Se usa lo que devuelve la base de datos aunque esté vacío (null = error al leer esa tabla)
+        setData(d => {
+          const merged = { ...d };
+          Object.keys(remoteData).forEach(key => { if (remoteData[key]) merged[key] = remoteData[key]; });
+          return merged;
         });
-        setData(merged);
       }
       setDbLoading(false);
     });
@@ -3299,6 +3658,7 @@ const Dashboard = ({ onLogout, userProfile, seccion }) => {
     { id: "evangelismo", label: "Evangelismo y Misiones", icon: Globe },
     { id: "tienda", label: "Tienda", icon: ShoppingCart },
     { id: "blog", label: "Blog", icon: FileText },
+    { id: "bandeja", label: "Bandeja", icon: Mail },
     { id: "configuracion", label: "Configuración", icon: Settings },
   ] : isTeens ? [
     { id: "adolescentes", label: "Adolescentes", icon: Star },
@@ -3312,7 +3672,7 @@ const Dashboard = ({ onLogout, userProfile, seccion }) => {
 
   const views = {
     "mi-perfil": <PortalUsuario userProfile={userProfile} data={data} />,
-    dashboard: <DashboardView data={data} />,
+    dashboard: <DashboardView data={data} config={config} />,
     miembros: <MiembrosView data={data} setData={setData} toast={showToast} />,
     finanzas: <FinanzasView data={data} setData={setData} toast={showToast} />,
     proyectos: <ProyectosView data={data} setData={setData} toast={showToast} />,
@@ -3324,6 +3684,7 @@ const Dashboard = ({ onLogout, userProfile, seccion }) => {
     evangelismo: <EvangelismoView />,
     tienda: <TiendaView data={data} setData={setData} toast={showToast} />,
     blog: <BlogView data={data} setData={setData} toast={showToast} readOnly={!isAdmin} />,
+    bandeja: <BandejaView data={data} setData={setData} toast={showToast} />,
     configuracion: <ConfiguracionView config={config} setConfig={setConfig} toast={showToast} currentUserId={userProfile?.id} />,
   };
   // Nunca mostrar una sección que el rol no tiene en su menú (p. ej. una guardada de otra sesión)
@@ -3448,10 +3809,20 @@ const TiendaPage = ({ onBack }) => {
   const cartCount = cart.reduce((a, c) => a + c.qty, 0);
   const envio = cartTotal >= 100 ? 0 : 10;
 
-  const confirmarPedido = () => {
-    const num = "LADP-" + Date.now().toString(36).toUpperCase();
+  // El pedido se guarda en pedidos_tienda (lo ve el Super Administrador en Bandeja); no se cobra en línea
+  const [enviandoPedido, setEnviandoPedido] = useState(false);
+  const [pedidoError, setPedidoError] = useState(null);
+  const confirmarPedido = async () => {
+    if (enviandoPedido) return;
+    if (!orderData.nombre.trim() || !(orderData.telefono.trim() || orderData.email.trim())) { setPedidoError("Completa tu nombre y un teléfono o correo"); setCheckoutStep(1); return; }
+    const num = "ICV-" + Date.now().toString(36).toUpperCase();
+    const items = cart.map(c => ({ id: c.id, titulo: c.titulo, precio: c.precio, qty: c.qty }));
+    setEnviandoPedido(true);
+    const ok = await enviarPublico("pedidos", { numero: num, cliente: { ...orderData }, items, total: cartTotal + envio, metodo: orderData.metodo });
+    setEnviandoPedido(false);
+    if (!ok && isSupabaseConfigured()) { setPedidoError("No se pudo enviar el pedido. Inténtalo de nuevo."); return; }
     setOrderNumber(num);
-    setPedidos(prev => [...prev, { id: num, items: [...cart], total: cartTotal + envio, fecha: today(), estado: "procesando", datos: { ...orderData } }]);
+    setPedidos(prev => [...prev, { id: num, items: [...cart], total: cartTotal + envio, fecha: today(), estado: "enviado", datos: { ...orderData } }]);
     setCart([]);
     setCheckoutStep(1);
     setView("confirmacion");
@@ -3570,7 +3941,7 @@ const TiendaPage = ({ onBack }) => {
                 <div style={{ width: 22, height: 22, borderRadius: "50%", border: orderData.metodo === m.id ? `6px solid ${G.accent}` : `2px solid ${G.grayMid}`, transition: "all 0.2s" }} />
               </div>
             ))}
-          </div><div style={{ display: "flex", justifyContent: "space-between", marginTop: 24 }}><Button variant="outline" size="md" onClick={() => setCheckoutStep(2)} icon={ChevronLeft}>Atrás</Button><Button variant="primary" size="lg" onClick={confirmarPedido} icon={Check}>Confirmar Pedido</Button></div></div>)}
+          </div><div style={{ display: "flex", justifyContent: "space-between", marginTop: 24 }}><Button variant="outline" size="md" onClick={() => setCheckoutStep(2)} icon={ChevronLeft}>Atrás</Button><Button variant="primary" size="lg" onClick={confirmarPedido} icon={Check} disabled={enviandoPedido}>{enviandoPedido ? "Enviando…" : "Enviar Pedido"}</Button></div></div>)}
         </Card>
         {/* Order summary sidebar */}
         <div>
@@ -3597,12 +3968,12 @@ const TiendaPage = ({ onBack }) => {
   const Confirmacion = () => (
     <div className="fadein" style={{ maxWidth: 600, margin: "0 auto", textAlign: "center", padding: "40px 0" }}>
       <div style={{ width: 88, height: 88, borderRadius: "50%", background: G.successLight, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px" }}><Check size={40} color={G.success} /></div>
-      <h1 style={{ margin: "0 0 12px", fontSize: 32, fontWeight: 800, color: G.dark, fontFamily: fontTitle }}>¡Pedido Confirmado!</h1>
-      <p style={{ margin: "0 0 8px", fontSize: 16, color: G.gray }}>Gracias por tu compra. Tu pedido ha sido registrado exitosamente.</p>
+      <h1 style={{ margin: "0 0 12px", fontSize: 32, fontWeight: 800, color: G.dark, fontFamily: fontTitle }}>¡Pedido enviado!</h1>
+      <p style={{ margin: "0 0 8px", fontSize: 16, color: G.gray }}>Gracias. Tu pedido llegó a la iglesia; aún no se ha cobrado nada.</p>
       <div style={{ display: "inline-block", background: G.grayLight, padding: "10px 24px", borderRadius: 10, margin: "16px 0 32px" }}><span style={{ fontSize: 13, color: G.gray }}>N° de Pedido: </span><span style={{ fontSize: 16, fontWeight: 800, color: G.primary, fontFamily: fontTitle }}>{orderNumber}</span></div>
       <Card hover={false} style={{ textAlign: "left", marginBottom: 24 }}>
         <h4 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 700, color: G.dark }}>¿Qué sigue?</h4>
-        {["Recibirás un email de confirmación con los detalles de tu pedido","Te enviaremos las instrucciones de pago por WhatsApp","Una vez confirmado el pago, despacharemos tu pedido en 24-48 horas","Recibirás un código de seguimiento por email"].map((s,i) => (
+        {["La iglesia revisa tu pedido y te contacta por WhatsApp o correo","Te enviamos los datos para pagar con el método que elegiste","Coordinamos contigo la entrega o el recojo en ICV"].map((s,i) => (
           <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start", marginBottom: 12 }}>
             <div style={{ width: 24, height: 24, borderRadius: "50%", background: G.primary + "14", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 12, fontWeight: 800, color: G.primary }}>{i + 1}</div>
             <span style={{ fontSize: 13.5, color: G.gray, lineHeight: 1.5 }}>{s}</span>
@@ -3644,6 +4015,7 @@ const TiendaPage = ({ onBack }) => {
     <div style={{ fontFamily: font, color: G.dark, background: G.bg, minHeight: "100vh" }}>
       <GlobalStyles />
       {cartToast && <Toast message={`"${cartToast}" añadido al carrito`} type="success" onClose={() => setCartToast(null)} />}
+      {pedidoError && <Toast message={pedidoError} type="error" onClose={() => setPedidoError(null)} />}
       {showCart && <CartSidebar />}
       {/* ─── Store Header ─── */}
       <header style={{ background: "#fff", borderBottom: `1px solid ${G.grayMid}40`, padding: "0 32px", position: "sticky", top: 0, zIndex: 100 }}>
