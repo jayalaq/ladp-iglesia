@@ -16,7 +16,14 @@ const TABLE_MAP = {
   cronograma: "cronograma_adolescentes",
   actas: "actas_adolescentes",
   peticiones: "peticiones_oracion",
+  mensajes: "mensajes_contacto",
+  pedidos: "pedidos_tienda",
+  integrantes: "teens_integrantes",
+  asistenciaTeens: "teens_asistencia",
 };
+
+// Tablas que se cargan en el panel (configuracion se lee aparte con getConfig)
+const PANEL_KEYS = Object.keys(TABLE_MAP);
 
 // ─── FETCH ALL ─────────────────────────────────────────────────────
 export async function fetchAll(key) {
@@ -82,6 +89,36 @@ export async function deleteRow(key, id) {
   return true;
 }
 
+// ─── ENVÍO PÚBLICO (sin sesión) ────────────────────────────────────
+// Para formularios de visitantes: el visitante puede insertar pero no leer la tabla,
+// así que no se pide la fila de vuelta (.select() fallaría por RLS).
+export async function enviarPublico(key, row) {
+  if (!isSupabaseConfigured()) return false;
+  const table = TABLE_MAP[key];
+  if (!table) return false;
+  const { error } = await supabase.from(table).insert(row);
+  if (error) {
+    console.error(`Error enviando a ${key}:`, { message: error.message, code: error.code });
+    return false;
+  }
+  return true;
+}
+
+// ─── CONFIGURACIÓN DE LA IGLESIA ───────────────────────────────────
+export async function getConfig() {
+  if (!isSupabaseConfigured()) return null;
+  const { data, error } = await supabase.from("configuracion").select("datos").eq("id", "general").maybeSingle();
+  if (error) { console.error("Error leyendo configuración:", error.message); return null; }
+  return data?.datos || null;
+}
+
+export async function saveConfig(datos) {
+  if (!isSupabaseConfigured()) return false;
+  const { error } = await supabase.from("configuracion").upsert({ id: "general", datos, updated_at: new Date().toISOString() });
+  if (error) { console.error("Error guardando configuración:", error.message); return false; }
+  return true;
+}
+
 // ─── UPSERT / REMOVE ───────────────────────────────────────────────
 export async function upsertRecord(key, item, isNew) {
   const { created_at, ...rest } = item;
@@ -98,7 +135,7 @@ export async function removeRecord(key, id) {
 // Loads all tables at once, returns null values for tables that fail
 export async function loadAllData() {
   if (!isSupabaseConfigured()) return null;
-  const keys = Object.keys(TABLE_MAP);
+  const keys = PANEL_KEYS;
   const results = await Promise.all(keys.map((k) => fetchAll(k)));
   const data = {};
   keys.forEach((k, i) => {
