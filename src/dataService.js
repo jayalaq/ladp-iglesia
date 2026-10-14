@@ -215,6 +215,8 @@ export async function getUserProfile() {
       id: user.id,
       nombre: user.user_metadata?.full_name || user.email?.split("@")[0] || "Usuario",
       rol: "usuario",
+      estado: "pendiente",
+      permisos: {},
       email: user.email,
     };
     // La consulta del perfil no debe colgar el login (p.ej. RLS mal configurada)
@@ -248,13 +250,36 @@ export async function getUsers() {
   return data || [];
 }
 
-export async function updateUserRole(userId, rol) {
+// Estado (pendiente / activo / bloqueado) y permisos por sección; solo el Super Administrador
+export async function updateUserAccess(userId, { estado, permisos }) {
   if (!isSupabaseConfigured()) return false;
   const { error } = await supabase
     .from("user_profiles")
-    .update({ rol })
+    .update({ estado, permisos })
     .eq("id", userId);
-  if (error) { console.error("Error updating role:", error.message); return false; }
+  if (error) { console.error("Error updating access:", error.message); return false; }
+  return true;
+}
+
+// ─── INVITACIONES (correos autorizados antes de su primer ingreso) ──
+export async function getInvitaciones() {
+  if (!isSupabaseConfigured()) return [];
+  const { data, error } = await supabase.from("invitaciones").select("*").order("created_at", { ascending: false });
+  if (error) { console.error("Error fetching invitaciones:", error.message); return []; }
+  return data || [];
+}
+
+export async function guardarInvitacion({ email, nombre, permisos }) {
+  if (!isSupabaseConfigured()) return false;
+  const { error } = await supabase.from("invitaciones").upsert({ email: email.trim().toLowerCase(), nombre, permisos });
+  if (error) { console.error("Error guardando invitación:", error.message); return false; }
+  return true;
+}
+
+export async function borrarInvitacion(email) {
+  if (!isSupabaseConfigured()) return false;
+  const { error } = await supabase.from("invitaciones").delete().eq("email", email);
+  if (error) { console.error("Error borrando invitación:", error.message); return false; }
   return true;
 }
 
