@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Heart, Users, Target, Calendar, BarChart2, Plus, Search, DollarSign, Award, Clock, Trash2, Menu, ArrowRight, Mail, Lock, Eye, EyeOff, Check, LogOut, Bell, Phone, MapPin, Play, Facebook, Youtube, Instagram, Download, Send, UserPlus, UserCheck, FileText, Activity, MessageCircle, AlertCircle, Edit, Settings, Globe, Palette, Save, ShoppingCart, BookOpen, CreditCard, Package, Grid, List, Share2, Bookmark, ChevronDown, ChevronRight, X, Filter, TrendingUp, PieChart, Home, Layers, Printer, MoreVertical, RefreshCw, ChevronLeft, Star, Upload, Copy, ExternalLink, Mic } from "lucide-react";
 import { isSupabaseConfigured } from "./supabase";
-import { loadAllData, insertRow, updateRow, deleteRow, upsertRecord, removeRecord, enviarPublico, getConfig, saveConfig, signIn, signOut, signInWithGoogle, signUp, getUserProfile, getSession, onAuthStateChange, getUsers, updateUserRole } from "./dataService";
+import { loadAllData, insertRow, updateRow, deleteRow, upsertRecord, removeRecord, enviarPublico, getConfig, saveConfig, signIn, signOut, signInWithGoogle, signUp, getUserProfile, getSession, onAuthStateChange, getUsers, updateUserAccess, getInvitaciones, guardarInvitacion, borrarInvitacion } from "./dataService";
 
 // ─── PALETA DE COLORES ──────────────────────────────────────────────
 const G = {
@@ -172,6 +172,41 @@ const GlobalStyles = () => (
 // ─── UTILIDADES ─────────────────────────────────────────────────────
 const ROLES = { admin: "Super Administrador", teens: "Miembro · Adolescentes", usuario: "Miembro" };
 const rolLabel = (rol) => ROLES[rol] || ROLES.usuario;
+
+// ─── ACCESOS POR SECCIÓN ────────────────────────────────────────────
+// permisos de cada perfil: { seccion: "ver" | "editar" }. Ver/Editar por separado solo donde la
+// sección tiene modo de solo lectura; en las demás el acceso es de gestión completa.
+// Configuración y Accesos son exclusivos del Super Administrador.
+const SECCIONES = [
+  { id: "dashboard", label: "Dashboard", icon: BarChart2, niveles: ["ver"] },
+  { id: "mi-perfil", label: "Mi Perfil", icon: UserCheck, niveles: ["ver"] },
+  { id: "miembros", label: "Miembros", icon: Users, niveles: ["editar"] },
+  { id: "finanzas", label: "Finanzas", icon: DollarSign, niveles: ["editar"] },
+  { id: "proyectos", label: "Proyectos", icon: Target, niveles: ["editar"] },
+  { id: "eventos", label: "Eventos", icon: Calendar, niveles: ["ver", "editar"] },
+  { id: "asistencia", label: "Asistencia", icon: Activity, niveles: ["editar"] },
+  { id: "celulas", label: "Células", icon: Home, niveles: ["editar"] },
+  { id: "ministerios", label: "Ministerios", icon: Layers, niveles: ["editar"] },
+  { id: "adolescentes", label: "Adolescentes", icon: Star, niveles: ["ver", "editar"] },
+  { id: "evangelismo", label: "Evangelismo y Misiones", icon: Globe, niveles: ["ver"] },
+  { id: "tienda", label: "Tienda", icon: ShoppingCart, niveles: ["editar"] },
+  { id: "blog", label: "Blog", icon: FileText, niveles: ["ver", "editar"] },
+  { id: "bandeja", label: "Bandeja", icon: Mail, niveles: ["editar"] },
+];
+const PERMISOS_MIEMBRO = { "mi-perfil": "ver", eventos: "ver", adolescentes: "ver", evangelismo: "ver", blog: "ver" };
+const PLANTILLAS_ACCESO = [
+  { id: "teens-equipo", label: "Equipo Adolescentes (gestiona)", permisos: { adolescentes: "editar" } },
+  { id: "teens-ver", label: "Adolescente (solo ver)", permisos: { adolescentes: "ver" } },
+  { id: "miembro", label: "Miembro", permisos: PERMISOS_MIEMBRO },
+];
+// Perfiles anteriores a supabase-accesos.sql no traen estado: se respeta su rol de siempre
+const permisosDe = (perfil) => {
+  if (!perfil) return {};
+  if (perfil.estado === undefined) return perfil.rol === "teens" ? { adolescentes: "editar" } : PERMISOS_MIEMBRO;
+  return perfil.estado === "activo" ? (perfil.permisos || {}) : {};
+};
+const ESTADOS_ACCESO = { pendiente: { label: "Pendiente", variant: "warning" }, activo: { label: "Activo", variant: "success" }, bloqueado: { label: "Bloqueado", variant: "danger" } };
+const resumenPermisos = (permisos = {}) => SECCIONES.filter(s => permisos[s.id]).map(s => s.label + (s.niveles.length > 1 ? (permisos[s.id] === "editar" ? " (gestiona)" : " (ver)") : "")).join(" · ");
 
 // ─── RUTAS ──────────────────────────────────────────────────────────
 // /  ·  /login  ·  /registro  ·  /tienda  ·  /panel/<sección>   (vercel.json reescribe todo a index.html)
@@ -3217,11 +3252,8 @@ const EvangelismoView = () => {
 };
 
 // ─── CONFIGURACIÓN ──────────────────────────────────────────────────
-const ConfiguracionView = ({ config, setConfig, toast, currentUserId }) => {
+const ConfiguracionView = ({ config, setConfig, toast }) => {
   const [tab, setTab] = useState("general");
-  const [usuarios, setUsuarios] = useState([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
-  const [updatingRole, setUpdatingRole] = useState(null);
   const [guardando, setGuardando] = useState(false);
   const guardar = async () => {
     setGuardando(true);
@@ -3231,32 +3263,12 @@ const ConfiguracionView = ({ config, setConfig, toast, currentUserId }) => {
     else toast("No se pudo guardar la configuración. Revisa tu conexión o permisos.", "error");
   };
 
-  useEffect(() => {
-    if (tab !== "usuarios") return;
-    setLoadingUsers(true);
-    getUsers().then(data => { setUsuarios(data); setLoadingUsers(false); });
-  }, [tab]);
-
-  const handleRoleChange = async (userId, newRol) => {
-    if (userId === currentUserId) { toast("No puedes cambiar tu propio rol", "error"); return; }
-    setUpdatingRole(userId);
-    const ok = await updateUserRole(userId, newRol);
-    if (ok) {
-      setUsuarios(prev => prev.map(u => u.id === userId ? { ...u, rol: newRol } : u));
-      toast(`Rol actualizado a "${rolLabel(newRol)}"`);
-    } else {
-      toast("Error al actualizar el rol", "error");
-    }
-    setUpdatingRole(null);
-  };
-
   return (
     <div className="fadein">
       <PageHeader title="Configuración" subtitle="Administra la plataforma y datos de la iglesia" />
       <TabBar tabs={[
         { id: "general", label: "General", icon: Globe },
         { id: "redes", label: "Redes Sociales", icon: Share2 },
-        { id: "usuarios", label: "Usuarios", icon: Users },
       ]} active={tab} onChange={setTab} />
       <Card hover={false}>
         {tab === "general" && (
@@ -3279,54 +3291,258 @@ const ConfiguracionView = ({ config, setConfig, toast, currentUserId }) => {
             <Input label="Instagram" value={config.instagram} onChange={e => setConfig({ ...config, instagram: e.target.value })} icon={Instagram} />
           </div>
         )}
-        {tab === "usuarios" && (
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, fontFamily: fontTitle, color: G.dark }}>Usuarios del Sistema</h3>
-              <Badge variant="default">{usuarios.length} registrados</Badge>
+        <div style={{ marginTop: 28, paddingTop: 20, borderTop: `1px solid ${G.grayMid}40`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <a href="/panel/accesos" onClick={alClicLink("/panel/accesos")} style={{ fontSize: 13, color: G.primary, fontWeight: 600 }}>Usuarios y permisos → Accesos</a>
+          <Button variant="primary" size="md" onClick={guardar} icon={Save} disabled={guardando}>{guardando ? "Guardando…" : "Guardar Cambios"}</Button>
+        </div>
+      </Card>
+    </div>
+  );
+};
+
+// ─── ACCESOS: USUARIOS, PERMISOS E INVITACIONES (solo Super Administrador) ──
+const PermisosEditor = ({ permisos, onChange }) => {
+  const set = (id, nivel) => {
+    const next = { ...permisos };
+    if (nivel) next[id] = nivel; else delete next[id];
+    onChange(next);
+  };
+  const check = (checked, onToggle, label) => (
+    <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, color: G.dark, cursor: "pointer", userSelect: "none" }}>
+      <input type="checkbox" checked={checked} onChange={e => onToggle(e.target.checked)} style={{ width: 16, height: 16, accentColor: G.primary, cursor: "pointer" }} />
+      {label}
+    </label>
+  );
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+        {PLANTILLAS_ACCESO.map(p => (
+          <button key={p.id} type="button" onClick={() => onChange({ ...p.permisos })} style={{ fontSize: 12, padding: "5px 11px", borderRadius: 7, border: `1.5px solid ${G.primary}30`, background: "#fff", color: G.primary, fontWeight: 600, cursor: "pointer", fontFamily: font }}>{p.label}</button>
+        ))}
+        <button type="button" onClick={() => onChange({})} style={{ fontSize: 12, padding: "5px 11px", borderRadius: 7, border: `1.5px solid ${G.grayMid}`, background: "#fff", color: G.gray, fontWeight: 600, cursor: "pointer", fontFamily: font }}>Quitar todo</button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 6 }}>
+        {SECCIONES.map(sec => {
+          const nivel = permisos[sec.id];
+          const doble = sec.niveles.length > 1;
+          return (
+            <div key={sec.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 9, background: nivel ? `${G.primary}08` : G.grayLight, border: `1.5px solid ${nivel ? G.primary + "30" : "transparent"}` }}>
+              <sec.icon size={15} color={nivel ? G.primary : G.gray} style={{ flexShrink: 0 }} />
+              <span style={{ flex: 1, fontSize: 12.5, fontWeight: 600, color: G.dark, minWidth: 0 }}>{sec.label}</span>
+              {doble ? (
+                <>
+                  {check(!!nivel, v => set(sec.id, v ? "ver" : null), "Ver")}
+                  {check(nivel === "editar", v => set(sec.id, v ? "editar" : "ver"), "Editar")}
+                </>
+              ) : check(!!nivel, v => set(sec.id, v ? sec.niveles[0] : null), sec.niveles[0] === "editar" ? "Gestionar" : "Ver")}
             </div>
-            {loadingUsers ? (
-              <div style={{ textAlign: "center", padding: 32, color: G.gray }}>Cargando usuarios...</div>
-            ) : usuarios.length === 0 ? (
-              <div style={{ textAlign: "center", padding: 32, color: G.gray, fontSize: 13.5 }}>No hay usuarios registrados aún</div>
-            ) : usuarios.map(u => {
-              const isCurrentUser = u.id === currentUserId;
-              const isAdminUser = u.rol === "admin";
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+const AccesosView = ({ toast, currentUserId }) => {
+  const [usuarios, setUsuarios] = useState([]);
+  const [invitaciones, setInvitaciones] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [editando, setEditando] = useState(null); // { id, nombre, email, estado, permisos }
+  const [invitando, setInvitando] = useState(null); // { email, nombre, permisos }
+  const [compartir, setCompartir] = useState(null); // { email, nombre } recién autorizado
+  const [guardando, setGuardando] = useState(false);
+  const [quitar, setQuitar] = useState(null);
+  const enlace = `${window.location.origin}/login`;
+
+  const recargar = useCallback(async () => {
+    const [u, i] = await Promise.all([getUsers(), getInvitaciones()]);
+    const orden = { pendiente: 0, activo: 1, bloqueado: 2 };
+    setUsuarios(u.sort((a, b) => (a.rol === "admin" ? -1 : b.rol === "admin" ? 1 : (orden[a.estado] ?? 1) - (orden[b.estado] ?? 1))));
+    setInvitaciones(i);
+    setCargando(false);
+  }, []);
+  useEffect(() => { recargar(); }, [recargar]);
+
+  const mensaje = (inv) => `¡Hola${inv.nombre ? " " + inv.nombre.split(" ")[0] : ""}! 👋 Ya tienes acceso a la plataforma de la Iglesia Cristo Viene. Entra aquí y pulsa “Continuar con Google” usando tu cuenta ${inv.email}: ${enlace}`;
+  const copiar = async (texto) => {
+    try { await navigator.clipboard.writeText(texto); toast("Copiado"); } catch { toast("No se pudo copiar", "error"); }
+  };
+
+  const guardarUsuario = async () => {
+    setGuardando(true);
+    const ok = await updateUserAccess(editando.id, { estado: editando.estado, permisos: editando.permisos });
+    setGuardando(false);
+    if (!ok) { toast("No se pudo guardar. ¿Ya ejecutaste supabase-accesos.sql?", "error"); return; }
+    toast(`Accesos de ${editando.nombre} actualizados`);
+    setEditando(null);
+    recargar();
+  };
+
+  const autorizar = async () => {
+    const email = invitando.email.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { toast("Escribe un correo válido", "error"); return; }
+    if (!Object.keys(invitando.permisos).length) { toast("Marca al menos una sección", "error"); return; }
+    setGuardando(true);
+    const ok = await guardarInvitacion({ ...invitando, email });
+    setGuardando(false);
+    if (!ok) { toast("No se pudo autorizar. ¿Ya ejecutaste supabase-accesos.sql?", "error"); return; }
+    setInvitando(null);
+    setCompartir({ email, nombre: invitando.nombre });
+    recargar();
+  };
+
+  const confirmarQuitar = async () => {
+    const ok = await borrarInvitacion(quitar.email);
+    setQuitar(null);
+    if (!ok) { toast("No se pudo quitar la invitación", "error"); return; }
+    toast("Invitación eliminada");
+    recargar();
+  };
+
+  const pendientes = usuarios.filter(u => u.estado === "pendiente").length;
+
+  return (
+    <div className="fadein">
+      <PageHeader title="Accesos" subtitle="Quién entra a la plataforma y qué secciones ve" actions={
+        <Button variant="primary" size="md" icon={UserPlus} onClick={() => setInvitando({ email: "", nombre: "", permisos: { adolescentes: "ver" } })}>Autorizar correo</Button>
+      } />
+
+      <Card hover={false} style={{ marginBottom: 16, background: `${G.primary}06`, border: `1px solid ${G.primary}20` }}>
+        <div style={{ fontSize: 13, color: G.dark, lineHeight: 1.65 }}>
+          <strong>Cómo funciona:</strong> 1) Autoriza el correo (Gmail) y marca las secciones. 2) Envíale el enlace por WhatsApp. 3) La persona entra con <em>Continuar con Google</em> y ve solo lo que marcaste.
+          Quien entra sin estar autorizado queda <Badge variant="warning">Pendiente</Badge> hasta que lo apruebes aquí.
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 10, flexWrap: "wrap" }}>
+          <code style={{ fontSize: 12.5, background: "#fff", padding: "6px 10px", borderRadius: 7, border: `1px solid ${G.grayMid}60` }}>{enlace}</code>
+          <Button variant="outline" size="sm" icon={Copy} onClick={() => copiar(enlace)}>Copiar enlace</Button>
+        </div>
+      </Card>
+
+      {cargando ? (
+        <div style={{ textAlign: "center", padding: 32, color: G.gray }}>Cargando usuarios…</div>
+      ) : (
+        <>
+          <h3 style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 800, color: G.dark, fontFamily: fontTitle, display: "flex", alignItems: "center", gap: 8 }}><Users size={17} color={G.primary} />Usuarios {pendientes > 0 && <Badge variant="warning">{pendientes} por aprobar</Badge>}</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 22 }}>
+            {usuarios.length === 0 && <EmptyState icon={Users} message="Nadie ha iniciado sesión todavía" />}
+            {usuarios.map(u => {
+              const esAdmin = u.rol === "admin";
+              const est = ESTADOS_ACCESO[u.estado] || ESTADOS_ACCESO.activo;
               return (
-                <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", background: isCurrentUser ? `${G.primary}08` : G.grayLight, borderRadius: 11, marginBottom: 10, border: isCurrentUser ? `1.5px solid ${G.primary}30` : "1.5px solid transparent" }}>
-                  <Avatar initials={(u.nombre || "U").slice(0, 2).toUpperCase()} size={40} color={isAdminUser ? G.primary : G.gray} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13.5, fontWeight: 700, color: G.dark, display: "flex", alignItems: "center", gap: 6 }}>
-                      {u.nombre}
-                      {isCurrentUser && <Badge variant="default" size="sm">Tú</Badge>}
+                <Card key={u.id} hover={false} style={{ padding: "12px 14px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", border: u.estado === "pendiente" ? `1.5px solid ${G.warning}60` : undefined }}>
+                  <Avatar initials={(u.nombre || "U").slice(0, 2).toUpperCase()} size={38} color={esAdmin ? G.primary : G.gray} />
+                  <div style={{ flex: 1, minWidth: 180 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: G.dark, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      {u.nombre}{u.id === currentUserId && <Badge size="sm">Tú</Badge>}
                     </div>
-                    <div style={{ fontSize: 12, color: G.gray, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.email || "Sin email registrado"}</div>
+                    <div style={{ fontSize: 12, color: G.gray, overflow: "hidden", textOverflow: "ellipsis" }}>{u.email || "Sin email"}</div>
+                    <div style={{ fontSize: 11.5, color: G.gray, marginTop: 3 }}>{esAdmin ? "Acceso total" : resumenPermisos(u.permisos) || "Sin secciones"}</div>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                    <Badge variant={isAdminUser ? "success" : u.rol === "teens" ? "primary" : "default"}>{rolLabel(u.rol)}</Badge>
-                    {/* Hay un solo Super Administrador: su rol no se edita y no se puede asignar a otros */}
-                    {!isCurrentUser && !isAdminUser && (
-                      <select
-                        value={u.rol}
-                        disabled={updatingRole === u.id}
-                        onChange={e => handleRoleChange(u.id, e.target.value)}
-                        style={{ fontSize: 12, padding: "4px 8px", borderRadius: 7, border: `1.5px solid ${G.grayMid}`, background: "#fff", color: G.dark, cursor: "pointer", fontFamily: "inherit" }}
-                      >
-                        <option value="usuario">{ROLES.usuario}</option>
-                        <option value="teens">{ROLES.teens}</option>
-                      </select>
-                    )}
-                  </div>
-                </div>
+                  {esAdmin ? <Badge variant="success">{ROLES.admin}</Badge> : (
+                    <>
+                      <Badge variant={est.variant}>{est.label}</Badge>
+                      <Button variant={u.estado === "pendiente" ? "primary" : "outline"} size="sm" icon={u.estado === "pendiente" ? Check : Edit}
+                        onClick={() => setEditando({ id: u.id, nombre: u.nombre, email: u.email, estado: u.estado === "pendiente" ? "activo" : u.estado, permisos: { ...(u.permisos || {}) } })}>
+                        {u.estado === "pendiente" ? "Aprobar" : "Editar accesos"}
+                      </Button>
+                    </>
+                  )}
+                </Card>
               );
             })}
           </div>
-        )}
-        {tab !== "usuarios" && (
-          <div style={{ marginTop: 28, paddingTop: 20, borderTop: `1px solid ${G.grayMid}40`, display: "flex", justifyContent: "flex-end" }}>
-            <Button variant="primary" size="md" onClick={guardar} icon={Save} disabled={guardando}>{guardando ? "Guardando…" : "Guardar Cambios"}</Button>
+
+          <h3 style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 800, color: G.dark, fontFamily: fontTitle, display: "flex", alignItems: "center", gap: 8 }}><Mail size={17} color={G.primary} />Correos autorizados que aún no entran</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {invitaciones.length === 0 && <div style={{ fontSize: 13, color: G.gray, padding: "6px 2px" }}>No hay invitaciones pendientes.</div>}
+            {invitaciones.map(inv => (
+              <Card key={inv.email} hover={false} style={{ padding: "12px 14px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <div style={{ flex: 1, minWidth: 180 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: G.dark }}>{inv.nombre || inv.email}</div>
+                  <div style={{ fontSize: 12, color: G.gray }}>{inv.email}</div>
+                  <div style={{ fontSize: 11.5, color: G.gray, marginTop: 3 }}>{resumenPermisos(inv.permisos)}</div>
+                </div>
+                <Button variant="outline" size="sm" icon={MessageCircle} onClick={() => setCompartir(inv)}>Enviar enlace</Button>
+                <Button variant="outline" size="sm" icon={Edit} onClick={() => setInvitando({ email: inv.email, nombre: inv.nombre || "", permisos: { ...inv.permisos } })}>Editar</Button>
+                <button onClick={() => setQuitar(inv)} title="Quitar" style={{ background: G.dangerLight, border: "none", borderRadius: 8, padding: 8, cursor: "pointer", display: "flex" }}><Trash2 size={15} color={G.danger} /></button>
+              </Card>
+            ))}
           </div>
-        )}
+        </>
+      )}
+
+      {editando && (
+        <Modal title={`Accesos · ${editando.nombre}`} onClose={() => setEditando(null)} width={720}>
+          <div style={{ fontSize: 12.5, color: G.gray, marginBottom: 12 }}>{editando.email}</div>
+          <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
+            {["activo", "bloqueado"].map(e => (
+              <button key={e} onClick={() => setEditando({ ...editando, estado: e })} style={{ padding: "7px 14px", borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: font, border: editando.estado === e ? `2px solid ${e === "activo" ? G.success : G.danger}` : `1.5px solid ${G.grayMid}`, background: editando.estado === e ? (e === "activo" ? G.successLight : G.dangerLight) : "#fff", color: editando.estado === e ? (e === "activo" ? G.success : G.danger) : G.gray }}>
+                {e === "activo" ? "✓ Puede ingresar" : "⛔ Bloquear ingreso"}
+              </button>
+            ))}
+          </div>
+          {editando.estado === "activo" && <PermisosEditor permisos={editando.permisos} onChange={permisos => setEditando({ ...editando, permisos })} />}
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 18 }}>
+            <Button variant="outline" size="md" onClick={() => setEditando(null)}>Cancelar</Button>
+            <Button variant="primary" size="md" icon={Save} onClick={guardarUsuario} disabled={guardando || (editando.estado === "activo" && !Object.keys(editando.permisos).length)}>{guardando ? "Guardando…" : "Guardar accesos"}</Button>
+          </div>
+        </Modal>
+      )}
+
+      {invitando && (
+        <Modal title="Autorizar correo" onClose={() => setInvitando(null)} width={720}>
+          <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+            <Input label="Correo (Gmail)" value={invitando.email} onChange={e => setInvitando({ ...invitando, email: e.target.value })} placeholder="nombre@gmail.com" icon={Mail} required />
+            <Input label="Nombre" value={invitando.nombre} onChange={e => setInvitando({ ...invitando, nombre: e.target.value })} placeholder="Nombre y apellido" />
+          </div>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: G.dark, marginBottom: 8 }}>Secciones que podrá ver</div>
+          <PermisosEditor permisos={invitando.permisos} onChange={permisos => setInvitando({ ...invitando, permisos })} />
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 18 }}>
+            <Button variant="outline" size="md" onClick={() => setInvitando(null)}>Cancelar</Button>
+            <Button variant="primary" size="md" icon={Check} onClick={autorizar} disabled={guardando}>{guardando ? "Guardando…" : "Autorizar"}</Button>
+          </div>
+        </Modal>
+      )}
+
+      {compartir && (
+        <Modal title="Envía el enlace de ingreso" onClose={() => setCompartir(null)} width={520}>
+          <p style={{ fontSize: 13, color: G.dark, lineHeight: 1.6, marginTop: 0 }}>
+            <strong>{compartir.email}</strong> ya está autorizado. Si la cuenta ya había entrado antes, sus accesos se aplicaron de inmediato.
+          </p>
+          <div style={{ background: G.grayLight, borderRadius: 10, padding: 12, fontSize: 13, color: G.dark, lineHeight: 1.55, marginBottom: 14 }}>{mensaje(compartir)}</div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <a href={`https://wa.me/?text=${encodeURIComponent(mensaje(compartir))}`} target="_blank" rel="noopener noreferrer" style={{ flex: 1, textDecoration: "none" }}>
+              <Button variant="primary" size="md" icon={MessageCircle} fullWidth style={{ background: "#25D366" }}>Enviar por WhatsApp</Button>
+            </a>
+            <Button variant="outline" size="md" icon={Copy} onClick={() => copiar(mensaje(compartir))}>Copiar mensaje</Button>
+          </div>
+        </Modal>
+      )}
+
+      {quitar && <ConfirmDialog message={`¿Quitar la autorización de ${quitar.email}? Si luego entra, quedará pendiente.`} onConfirm={confirmarQuitar} onCancel={() => setQuitar(null)} />}
+    </div>
+  );
+};
+
+// Pantalla para cuentas sin aprobar o bloqueadas
+const SinAcceso = ({ userProfile, onLogout }) => {
+  const bloqueado = userProfile?.estado === "bloqueado";
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, fontFamily: font, background: G.bg }}>
+      <GlobalStyles />
+      <Card hover={false} style={{ maxWidth: 440, width: "100%", padding: 28, textAlign: "center" }}>
+        <div style={{ width: 56, height: 56, borderRadius: 14, background: bloqueado ? G.dangerLight : G.warningLight, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
+          {bloqueado ? <Lock size={26} color={G.danger} /> : <Clock size={26} color={G.warning} />}
+        </div>
+        <h2 style={{ margin: "0 0 8px", fontSize: 20, fontFamily: fontTitle, color: G.dark }}>{bloqueado ? "Acceso desactivado" : "Tu acceso está pendiente"}</h2>
+        <p style={{ margin: "0 0 6px", fontSize: 13.5, color: G.gray, lineHeight: 1.6 }}>
+          {bloqueado ? "Tu cuenta no tiene permiso para ingresar a la plataforma." : "Ya registramos tu cuenta. El administrador debe habilitar tus secciones; vuelve a intentar en un rato."}
+        </p>
+        <p style={{ margin: "0 0 18px", fontSize: 12.5, color: G.dark, fontWeight: 600 }}>{userProfile?.email}</p>
+        <div style={{ display: "flex", gap: 10 }}>
+          <Button variant="outline" size="md" icon={LogOut} onClick={onLogout} fullWidth>Salir</Button>
+          {!bloqueado && <Button variant="primary" size="md" icon={RefreshCw} onClick={() => window.location.reload()} fullWidth>Volver a intentar</Button>}
+        </div>
       </Card>
     </div>
   );
@@ -3597,7 +3813,6 @@ const BandejaView = ({ data, setData, toast }) => {
 // ═══════════════════════════════════════════════════════════════════
 const Dashboard = ({ onLogout, userProfile, seccion }) => {
   const isAdmin = userProfile?.rol === "admin";
-  const isTeens = userProfile?.rol === "teens"; // Miembro con acceso de edición al ministerio de Adolescentes
   // Recordar la sección abierta para volver a ella al recargar
   const [collapsed, setCollapsed] = useState(false);
   const [toastMsg, setToastMsg] = useState(null);
@@ -3645,30 +3860,13 @@ const Dashboard = ({ onLogout, userProfile, seccion }) => {
 
   const showToast = useCallback((msg, type = "success") => { setToastMsg({ msg, type }); }, []);
 
+  const permisos = permisosDe(userProfile);
+  const puedeEditar = (id) => isAdmin || permisos[id] === "editar";
   const menuItems = isAdmin ? [
-    { id: "dashboard", label: "Dashboard", icon: BarChart2 },
-    { id: "miembros", label: "Miembros", icon: Users },
-    { id: "finanzas", label: "Finanzas", icon: DollarSign },
-    { id: "proyectos", label: "Proyectos", icon: Target },
-    { id: "eventos", label: "Eventos", icon: Calendar },
-    { id: "asistencia", label: "Asistencia", icon: Activity },
-    { id: "celulas", label: "Células", icon: Home },
-    { id: "ministerios", label: "Ministerios", icon: Layers },
-    { id: "adolescentes", label: "Adolescentes", icon: Star },
-    { id: "evangelismo", label: "Evangelismo y Misiones", icon: Globe },
-    { id: "tienda", label: "Tienda", icon: ShoppingCart },
-    { id: "blog", label: "Blog", icon: FileText },
-    { id: "bandeja", label: "Bandeja", icon: Mail },
+    ...SECCIONES.filter(s => s.id !== "mi-perfil"),
+    { id: "accesos", label: "Accesos", icon: Lock },
     { id: "configuracion", label: "Configuración", icon: Settings },
-  ] : isTeens ? [
-    { id: "adolescentes", label: "Adolescentes", icon: Star },
-  ] : [
-    { id: "mi-perfil", label: "Mi Perfil", icon: UserCheck },
-    { id: "eventos", label: "Eventos", icon: Calendar },
-    { id: "adolescentes", label: "Adolescentes", icon: Star },
-    { id: "evangelismo", label: "Evangelismo y Misiones", icon: Globe },
-    { id: "blog", label: "Blog", icon: FileText },
-  ];
+  ] : SECCIONES.filter(s => permisos[s.id]);
 
   const views = {
     "mi-perfil": <PortalUsuario userProfile={userProfile} data={data} />,
@@ -3676,22 +3874,25 @@ const Dashboard = ({ onLogout, userProfile, seccion }) => {
     miembros: <MiembrosView data={data} setData={setData} toast={showToast} />,
     finanzas: <FinanzasView data={data} setData={setData} toast={showToast} />,
     proyectos: <ProyectosView data={data} setData={setData} toast={showToast} />,
-    eventos: <EventosView data={data} setData={setData} toast={showToast} readOnly={!isAdmin} />,
+    eventos: <EventosView data={data} setData={setData} toast={showToast} readOnly={!puedeEditar("eventos")} />,
     asistencia: <AsistenciaView data={data} setData={setData} toast={showToast} />,
     celulas: <CelulasView data={data} setData={setData} toast={showToast} />,
     ministerios: <MinisteriosView data={data} setData={setData} toast={showToast} />,
-    adolescentes: <AdolescentesView data={data} setData={setData} toast={showToast} readOnly={!isAdmin && !isTeens} />,
+    adolescentes: <AdolescentesView data={data} setData={setData} toast={showToast} readOnly={!puedeEditar("adolescentes")} />,
     evangelismo: <EvangelismoView />,
     tienda: <TiendaView data={data} setData={setData} toast={showToast} />,
-    blog: <BlogView data={data} setData={setData} toast={showToast} readOnly={!isAdmin} />,
+    blog: <BlogView data={data} setData={setData} toast={showToast} readOnly={!puedeEditar("blog")} />,
     bandeja: <BandejaView data={data} setData={setData} toast={showToast} />,
-    configuracion: <ConfiguracionView config={config} setConfig={setConfig} toast={showToast} currentUserId={userProfile?.id} />,
+    accesos: <AccesosView toast={showToast} currentUserId={userProfile?.id} />,
+    configuracion: <ConfiguracionView config={config} setConfig={setConfig} toast={showToast} />,
   };
   // Nunca mostrar una sección que el rol no tiene en su menú (p. ej. una guardada de otra sesión)
-  const seccionVisible = menuItems.some(m => m.id === seccion) ? seccion : menuItems[0].id;
+  const seccionVisible = menuItems.some(m => m.id === seccion) ? seccion : menuItems[0]?.id;
   // /panel o una sección sin permiso → se corrige la URL a la sección real
-  useEffect(() => { if (seccion !== seccionVisible) navegar(`/panel/${seccionVisible}`, { reemplazar: true }); }, [seccion, seccionVisible]);
-  useEffect(() => { document.title = `${menuItems.find(m => m.id === seccionVisible)?.label} · LADP Admin`; }, [seccionVisible]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (seccionVisible && seccion !== seccionVisible) navegar(`/panel/${seccionVisible}`, { reemplazar: true }); }, [seccion, seccionVisible]);
+  useEffect(() => { document.title = `${menuItems.find(m => m.id === seccionVisible)?.label || "Acceso"} · LADP Admin`; }, [seccionVisible]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!seccionVisible) return <SinAcceso userProfile={userProfile} onLogout={onLogout} />;
 
   return (
     <div className="dashboard-layout" style={{ display: "flex", height: "100vh", fontFamily: font, background: G.bg }}>
@@ -3739,7 +3940,7 @@ const Dashboard = ({ onLogout, userProfile, seccion }) => {
               <Avatar initials={(userProfile?.nombre || "U").slice(0, 2).toUpperCase()} size={28} color={G.primary} />
               <div>
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: G.dark, lineHeight: 1.2 }}>{userProfile?.nombre || "Usuario"}</div>
-                <div style={{ fontSize: 10.5, color: G.gray }}>{rolLabel(userProfile?.rol)}</div>
+                <div style={{ fontSize: 10.5, color: G.gray }}>{isAdmin ? ROLES.admin : puedeEditar("adolescentes") ? ROLES.teens : ROLES.usuario}</div>
               </div>
             </div>
           </div>
