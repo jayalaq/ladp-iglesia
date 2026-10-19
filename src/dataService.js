@@ -185,12 +185,12 @@ export async function getSession() {
   return session;
 }
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(volverA = "/panel") {
   if (!isSupabaseConfigured()) return null;
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     // Volver directo al panel (debe estar permitido en Supabase → Auth → Redirect URLs: <origen>/**)
-    options: { redirectTo: `${window.location.origin}/panel` },
+    options: { redirectTo: `${window.location.origin}${volverA}` },
   });
   if (error) { console.error("Google login error:", error.message); return null; }
   return data;
@@ -211,8 +211,10 @@ export async function getUserProfile() {
   try {
     const { data: { user } } = await withTimeout(supabase.auth.getUser(), 10000, { data: { user: null } });
     if (!user) return null;
+    const foto = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
     const fallback = {
       id: user.id,
+      foto,
       nombre: user.user_metadata?.full_name || user.email?.split("@")[0] || "Usuario",
       rol: "usuario",
       estado: "pendiente",
@@ -233,7 +235,7 @@ export async function getUserProfile() {
     if (data.email !== user.email) {
       Promise.resolve(supabase.from("user_profiles").update({ email: user.email }).eq("id", user.id)).catch(() => {});
     }
-    return { ...data, email: user.email };
+    return { ...data, email: user.email, foto };
   } catch (e) {
     console.error("Profile error:", e);
     return null;
@@ -280,6 +282,43 @@ export async function borrarInvitacion(email) {
   if (!isSupabaseConfigured()) return false;
   const { error } = await supabase.from("invitaciones").delete().eq("email", email);
   if (error) { console.error("Error borrando invitación:", error.message); return false; }
+  return true;
+}
+
+// ─── REGISTRO POR ENLACE (/unirse/<código>) ────────────────────────
+export async function infoEnlace(codigo) {
+  if (!isSupabaseConfigured()) return null;
+  const { data, error } = await supabase.rpc("info_enlace", { p_codigo: codigo });
+  if (error) { console.error("Error leyendo enlace:", error.message); return null; }
+  return data;
+}
+
+// Devuelve { tipo } o { error } con el mensaje que explica qué corregir
+export async function registrarse(codigo, datos) {
+  if (!isSupabaseConfigured()) return { error: "Supabase no configurado" };
+  const { data, error } = await supabase.rpc("registrarse", { p_codigo: codigo, p_datos: datos });
+  if (error) return { error: error.message };
+  return { tipo: data };
+}
+
+export async function cumpleanosMes() {
+  if (!isSupabaseConfigured()) return [];
+  const { data, error } = await supabase.rpc("cumpleanos_mes");
+  if (error) { console.error("Error leyendo cumpleaños:", error.message); return []; }
+  return data || [];
+}
+
+export async function getEnlaces() {
+  if (!isSupabaseConfigured()) return [];
+  const { data, error } = await supabase.from("enlaces_registro").select("*");
+  if (error) { console.error("Error leyendo enlaces:", error.message); return []; }
+  return data || [];
+}
+
+export async function guardarEnlace(enlace) {
+  if (!isSupabaseConfigured()) return false;
+  const { error } = await supabase.from("enlaces_registro").upsert({ ...enlace, updated_at: new Date().toISOString() });
+  if (error) { console.error("Error guardando enlace:", error.message); return false; }
   return true;
 }
 

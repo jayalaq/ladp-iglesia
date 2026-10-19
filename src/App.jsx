@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Heart, Users, Target, Calendar, BarChart2, Plus, Search, DollarSign, Award, Clock, Trash2, Menu, ArrowRight, Mail, Lock, Eye, EyeOff, Check, LogOut, Bell, Phone, MapPin, Play, Facebook, Youtube, Instagram, Download, Send, UserPlus, UserCheck, FileText, Activity, MessageCircle, AlertCircle, Edit, Settings, Globe, Palette, Save, ShoppingCart, BookOpen, CreditCard, Package, Grid, List, Share2, Bookmark, ChevronDown, ChevronRight, X, Filter, TrendingUp, PieChart, Home, Layers, Printer, MoreVertical, RefreshCw, ChevronLeft, Star, Upload, Copy, ExternalLink, Mic } from "lucide-react";
+import QRCode from "qrcode";
 import { isSupabaseConfigured } from "./supabase";
-import { loadAllData, insertRow, updateRow, deleteRow, upsertRecord, removeRecord, enviarPublico, getConfig, saveConfig, signIn, signOut, signInWithGoogle, signUp, getUserProfile, getSession, onAuthStateChange, getUsers, updateUserAccess, getInvitaciones, guardarInvitacion, borrarInvitacion } from "./dataService";
+import { loadAllData, insertRow, updateRow, deleteRow, upsertRecord, removeRecord, enviarPublico, getConfig, saveConfig, signIn, signOut, signInWithGoogle, signUp, getUserProfile, getSession, onAuthStateChange, getUsers, updateUserAccess, getInvitaciones, guardarInvitacion, borrarInvitacion, infoEnlace, registrarse, cumpleanosMes, getEnlaces, guardarEnlace } from "./dataService";
 
 // ─── PALETA DE COLORES ──────────────────────────────────────────────
 const G = {
@@ -209,7 +210,7 @@ const ESTADOS_ACCESO = { pendiente: { label: "Pendiente", variant: "warning" }, 
 const resumenPermisos = (permisos = {}) => SECCIONES.filter(s => permisos[s.id]).map(s => s.label + (s.niveles.length > 1 ? (permisos[s.id] === "editar" ? " (gestiona)" : " (ver)") : "")).join(" · ");
 
 // ─── RUTAS ──────────────────────────────────────────────────────────
-// /  ·  /login  ·  /registro  ·  /tienda  ·  /panel/<sección>   (vercel.json reescribe todo a index.html)
+// /  ·  /login  ·  /registro  ·  /tienda  ·  /unirse/<código>  ·  /panel/<sección>   (vercel.json reescribe todo a index.html)
 const navegar = (ruta, { reemplazar = false } = {}) => {
   if (ruta === window.location.pathname + window.location.hash) return;
   window.history[reemplazar ? "replaceState" : "pushState"]({}, "", ruta);
@@ -2273,7 +2274,8 @@ const TeensIntegrantes = ({ data, setData, toast }) => {
                 <Avatar initials={(i.nombre || "?").split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase()} size={32} color={G.primary} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13.5, fontWeight: 700, color: G.dark }}>{i.nombre}{i.activo === false && " (inactivo)"}</div>
-                  <div style={{ fontSize: 11.5, color: G.gray }}>{[i.fecha_nacimiento && `${edadDe(i.fecha_nacimiento)} años`, i.apoderado && `Apoderado: ${i.apoderado}`, i.telefono].filter(Boolean).join(" · ")}</div>
+                  <div style={{ fontSize: 11.5, color: G.gray }}>{[i.fecha_nacimiento && `${edadDe(i.fecha_nacimiento)} años`, i.colegio, i.apoderado && `Apoderado: ${i.apoderado}`, i.telefono].filter(Boolean).join(" · ")}</div>
+                  {(i.user_id || i.salud) && <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 3 }}>{i.user_id && <Badge variant="primary">Registrado con Google</Badge>}{i.salud && <Badge variant="warning">⚕️ {i.salud}</Badge>}</div>}
                 </div>
                 <button onClick={() => setEditando({ ...i, fecha_nacimiento: i.fecha_nacimiento || "" })} style={{ background: "none", border: `1.5px solid ${G.grayMid}`, cursor: "pointer", padding: 6, borderRadius: 7, display: "flex" }}><Edit size={13} color={G.primary} /></button>
                 <button onClick={() => setEliminar(i)} style={{ background: "none", border: `1.5px solid ${G.grayMid}`, cursor: "pointer", padding: 6, borderRadius: 7, display: "flex" }}><Trash2 size={13} color={G.danger} /></button>
@@ -2291,6 +2293,10 @@ const TeensIntegrantes = ({ data, setData, toast }) => {
             <Select label="Estado" value={editando.activo === false ? "inactivo" : "activo"} onChange={e => setEditando({ ...editando, activo: e.target.value === "activo" })} options={["activo", "inactivo"]} />
             <Input label="Apoderado" value={editando.apoderado} onChange={e => setEditando({ ...editando, apoderado: e.target.value })} />
             <Input label="Teléfono del apoderado" value={editando.telefono} onChange={e => setEditando({ ...editando, telefono: e.target.value })} />
+            <Input label="Celular del adolescente" value={editando.celular || ""} onChange={e => setEditando({ ...editando, celular: e.target.value })} />
+            <Input label="Colegio y grado" value={editando.colegio || ""} onChange={e => setEditando({ ...editando, colegio: e.target.value })} />
+            <Input label="Distrito" value={editando.distrito || ""} onChange={e => setEditando({ ...editando, distrito: e.target.value })} />
+            <Input label="Alergias o cuidados de salud" value={editando.salud || ""} onChange={e => setEditando({ ...editando, salud: e.target.value })} />
             <div style={{ gridColumn: "1/-1" }}><TextArea label="Notas" value={editando.notas} onChange={e => setEditando({ ...editando, notas: e.target.value })} rows={2} /></div>
           </div>
           <div style={{ fontSize: 11.5, color: G.gray, marginTop: 10 }}>Datos de menores: solo los ve el equipo de Adolescentes y el Super Administrador.</div>
@@ -2463,7 +2469,85 @@ const ActasAdolescentes = ({ data, setData, toast }) => {
   );
 };
 
-const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
+// Bienvenida para quien entra a ver el ministerio (adolescentes): su foto, lo próximo y el mes
+const TeensBienvenida = ({ userProfile, actividades }) => {
+  const [cumples, setCumples] = useState([]);
+  useEffect(() => { cumpleanosMes().then(setCumples); }, []);
+  const hoy = today();
+  const mesIdx = new Date().getMonth();
+  const eje = TEENS_PLAN_2027[mesIdx];
+  const proximas = actividades.filter(a => a.fecha >= hoy).sort((a, b) => a.fecha.localeCompare(b.fecha));
+  const proxima = proximas.find(a => !a.iglesia) || proximas[0];
+  const enDias = proxima ? Math.round((new Date(proxima.fecha + "T12:00") - new Date(hoy + "T12:00")) / 86400000) : null;
+  const cuando = enDias === 0 ? "¡Hoy!" : enDias === 1 ? "Mañana" : `En ${enDias} días`;
+  const nombre = (userProfile?.nombre || "").split(" ")[0];
+  const diaHoy = new Date().getDate();
+  const saludo = new Date().getHours() < 12 ? "Buenos días" : new Date().getHours() < 19 ? "Buenas tardes" : "Buenas noches";
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ borderRadius: 18, padding: "22px 22px 20px", marginBottom: 12, color: "#fff", position: "relative", overflow: "hidden", background: `radial-gradient(circle at 90% 0%, ${G.accent}55, transparent 45%), linear-gradient(135deg, ${G.primaryDark}, ${G.primary} 60%, ${G.primaryLight})` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+          {userProfile?.foto
+            ? <img src={userProfile.foto} alt="" referrerPolicy="no-referrer" style={{ width: 58, height: 58, borderRadius: "50%", objectFit: "cover", border: "3px solid rgba(255,255,255,0.5)" }} />
+            : <Avatar initials={(userProfile?.nombre || "T").slice(0, 2).toUpperCase()} size={58} color={G.accent} />}
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontSize: 12.5, opacity: 0.85 }}>{saludo}{nombre ? "," : ""}</div>
+            <h1 style={{ margin: "0 0 2px", fontSize: 25, fontWeight: 800, fontFamily: fontTitle, letterSpacing: -0.5 }}>{nombre ? `¡Hola, ${nombre}! 👋` : "¡Hola! 👋"}</h1>
+            <div style={{ fontSize: 13, opacity: 0.9 }}>Teens ICV · Llamados a Servir · Sábados 4:00–6:00 pm</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="split-grid" style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 12 }}>
+        {proxima ? (
+          <Card hover={false} style={{ borderLeft: `4px solid ${teensTipoColor(proxima.tipo)}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: G.primary, textTransform: "uppercase", letterSpacing: 0.8 }}>Lo que viene</span>
+              <span style={{ fontSize: 12, fontWeight: 800, color: "#fff", background: enDias <= 1 ? G.accent : G.primary, padding: "3px 10px", borderRadius: 20 }}>{cuando}</span>
+            </div>
+            <div style={{ fontSize: 19, fontWeight: 800, color: G.dark, fontFamily: fontTitle, lineHeight: 1.25 }}>{proxima.titulo}</div>
+            <div style={{ fontSize: 12.5, color: G.gray, margin: "4px 0 6px", textTransform: "capitalize" }}>
+              {new Date(proxima.fecha + "T12:00").toLocaleDateString("es-PE", { weekday: "long", day: "numeric", month: "long" })}{proxima.hora ? ` · ${proxima.hora}` : !proxima.iglesia ? " · 4:00 pm" : ""}
+            </div>
+            {proxima.nota && <div style={{ fontSize: 13, color: G.dark, lineHeight: 1.5 }}>{proxima.nota}</div>}
+            {proximas.length > 1 && (
+              <div style={{ marginTop: 10, paddingTop: 8, borderTop: `1px solid ${G.grayMid}30` }}>
+                {proximas.filter(a => a !== proxima).slice(0, 3).map(a => (
+                  <div key={a.fecha + a.titulo} style={{ display: "flex", gap: 8, fontSize: 12.5, color: G.dark, padding: "3px 0" }}>
+                    <span style={{ color: G.gray, minWidth: 52 }}>{fmtDateShort(a.fecha)}</span><span>{a.iglesia ? "⛪ " : ""}{a.titulo}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        ) : <Card hover={false}><div style={{ fontSize: 13, color: G.gray }}>Pronto publicaremos las próximas actividades.</div></Card>}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {eje && (
+            <Card hover={false} style={{ background: `${G.accent}10`, border: `1px solid ${G.accent}30` }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: G.accentDark, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 4 }}>Eje de {MESES_FULL[mesIdx].toLowerCase()}</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: G.dark, fontFamily: fontTitle }}>“{eje.eje}”</div>
+              <div style={{ fontSize: 12.5, color: G.gray, marginTop: 2 }}>📖 {eje.versiculo}</div>
+            </Card>
+          )}
+          <Card hover={false}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: G.primary, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 6 }}>🎂 Cumpleaños de {MESES_FULL[mesIdx].toLowerCase()}</div>
+            {cumples.length === 0
+              ? <div style={{ fontSize: 12.5, color: G.gray }}>Nadie cumple este mes… ¡todavía!</div>
+              : cumples.map(c => (
+                <div key={c.nombre + c.dia} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: G.dark, padding: "3px 0", fontWeight: c.dia === diaHoy ? 800 : 400 }}>
+                  <span style={{ minWidth: 26, textAlign: "center", fontWeight: 800, color: c.dia === diaHoy ? G.accent : G.primary }}>{c.dia}</span>{c.nombre}{c.dia === diaHoy && " 🎉"}
+                </div>
+              ))}
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const AdolescentesView = ({ data, setData, toast, readOnly = false, userProfile }) => {
   const [modal, setModal] = useState(false);
   const [editando, setEditando] = useState(null);
   const [eliminar, setEliminar] = useState(null);
@@ -2772,7 +2856,9 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
 
   return (
     <div className="fadein">
+      {readOnly && <TeensBienvenida userProfile={userProfile} actividades={todas} />}
       {/* Hero */}
+      {!readOnly && <>
       <Card hover={false} style={{ marginBottom: 14, padding: "16px 20px", background: `linear-gradient(135deg, ${G.primaryDark}, ${G.primary} 55%, ${G.primaryLight})`, color: "#fff" }}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 16, justifyContent: "space-between", alignItems: "center" }}>
           <div>
@@ -2790,6 +2876,7 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
         <StatCard label="Enseñanzas" value={enseñanzas.length} icon={BookOpen} color={G.primaryLight} />
         <StatCard label="Propuestas (Oct–Dic)" value={propuestas.length} icon={Star} color={G.accent} />
       </div>
+      </>}
 
       {/* Tabs */}
       <div className="tabs-bar" style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
@@ -3343,6 +3430,80 @@ const PermisosEditor = ({ permisos, onChange }) => {
   );
 };
 
+const nuevoCodigo = () => Array.from(crypto.getRandomValues(new Uint8Array(10)), b => "abcdefghjkmnpqrstuvwxyz23456789"[b % 31]).join("");
+const ENLACE_INFO = {
+  teens: { titulo: "Adolescentes", desc: "Entran al momento con Adolescentes · solo ver", emoji: "🎒" },
+  equipo: { titulo: "Equipo que gestiona", desc: "Quedan pendientes hasta que apruebes sus secciones", emoji: "🛠️" },
+};
+
+const EnlacesRegistro = ({ toast }) => {
+  const [enlaces, setEnlaces] = useState([]);
+  const [qr, setQr] = useState(null); // { tipo, url, img }
+  const [renovar, setRenovar] = useState(null);
+  const cargar = useCallback(() => getEnlaces().then(setEnlaces), []);
+  useEffect(() => { cargar(); }, [cargar]);
+  const urlDe = (e) => `${window.location.origin}/unirse/${e.codigo}`;
+  const mensaje = (e) => e.tipo === "teens"
+    ? `¡Hola! 👋 Únete a Teens ICV en nuestra plataforma: calendario, temas de cada sábado y más. Regístrate una sola vez con tu cuenta de Google aquí: ${urlDe(e)}`
+    : `Hola, este es el enlace para registrarte en la plataforma de la Iglesia Cristo Viene con tu cuenta de Google: ${urlDe(e)}`;
+  const guardar = async (e, cambios, aviso) => {
+    if (!(await guardarEnlace({ tipo: e.tipo, codigo: e.codigo, activo: e.activo, ...cambios }))) { toast("No se pudo guardar. ¿Ya ejecutaste supabase-registro.sql?", "error"); return; }
+    toast(aviso); cargar();
+  };
+  const verQr = async (e) => setQr({ tipo: e.tipo, url: urlDe(e), img: await QRCode.toDataURL(urlDe(e), { width: 560, margin: 2, color: { dark: G.primaryDark } }) });
+  const copiar = async (t) => { try { await navigator.clipboard.writeText(t); toast("Enlace copiado"); } catch { toast("No se pudo copiar", "error"); } };
+
+  if (!enlaces.length) return (
+    <Card hover={false} style={{ marginBottom: 16, fontSize: 13, color: G.gray }}>Enlaces de registro: ejecuta <code>supabase-registro.sql</code> en Supabase para activarlos.</Card>
+  );
+  return (
+    <>
+      <h3 style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 800, color: G.dark, fontFamily: fontTitle, display: "flex", alignItems: "center", gap: 8 }}><Share2 size={17} color={G.primary} />Enlaces de registro con Google</h3>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12, marginBottom: 22 }}>
+        {["teens", "equipo"].map(t => enlaces.find(e => e.tipo === t)).filter(Boolean).map(e => (
+          <Card key={e.tipo} hover={false} style={{ opacity: e.activo ? 1 : 0.65, borderTop: `3px solid ${e.tipo === "teens" ? G.accent : G.primary}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
+              <div>
+                <div style={{ fontSize: 14.5, fontWeight: 800, color: G.dark }}>{ENLACE_INFO[e.tipo].emoji} {ENLACE_INFO[e.tipo].titulo}</div>
+                <div style={{ fontSize: 12, color: G.gray }}>{ENLACE_INFO[e.tipo].desc}</div>
+              </div>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: e.activo ? G.success : G.gray, cursor: "pointer", whiteSpace: "nowrap" }}>
+                <input type="checkbox" checked={e.activo} onChange={() => guardar(e, { activo: !e.activo }, e.activo ? "Enlace desactivado" : "Enlace activado")} style={{ accentColor: G.success }} />
+                {e.activo ? "Activo" : "Apagado"}
+              </label>
+            </div>
+            <code style={{ display: "block", fontSize: 12, background: G.grayLight, padding: "7px 10px", borderRadius: 7, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 10 }}>{urlDe(e)}</code>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <Button variant="outline" size="sm" icon={Copy} onClick={() => copiar(urlDe(e))}>Copiar</Button>
+              <a href={`https://wa.me/?text=${encodeURIComponent(mensaje(e))}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}><Button variant="outline" size="sm" icon={MessageCircle}>WhatsApp</Button></a>
+              <Button variant="outline" size="sm" icon={Grid} onClick={() => verQr(e)}>Código QR</Button>
+              <Button variant="ghost" size="sm" icon={RefreshCw} onClick={() => setRenovar(e)}>Renovar</Button>
+            </div>
+          </Card>
+        ))}
+      </div>
+      {qr && (
+        <Modal title={`QR · ${ENLACE_INFO[qr.tipo].titulo}`} onClose={() => setQr(null)} width={420}>
+          <div style={{ textAlign: "center" }}>
+            <img src={qr.img} alt="Código QR del enlace de registro" style={{ width: "100%", maxWidth: 300, borderRadius: 12 }} />
+            <p style={{ fontSize: 12.5, color: G.gray, margin: "6px 0 14px" }}>Proyéctalo en la reunión o imprímelo: se escanea con la cámara del celular.</p>
+            <a href={qr.img} download={`registro-${qr.tipo}.png`} style={{ textDecoration: "none" }}><Button variant="primary" size="md" icon={Download} fullWidth>Descargar imagen</Button></a>
+          </div>
+        </Modal>
+      )}
+      {renovar && (
+        <Modal title="Renovar enlace" onClose={() => setRenovar(null)} width={420}>
+          <p style={{ fontSize: 13.5, color: G.dark, lineHeight: 1.6, marginTop: 0 }}>Se creará un enlace nuevo para <strong>{ENLACE_INFO[renovar.tipo].titulo}</strong> y el anterior dejará de funcionar. Quienes ya se registraron no se ven afectados.</p>
+          <div style={{ display: "flex", gap: 10 }}>
+            <Button variant="outline" size="md" onClick={() => setRenovar(null)} fullWidth>Cancelar</Button>
+            <Button variant="primary" size="md" icon={RefreshCw} onClick={() => { guardar(renovar, { codigo: nuevoCodigo() }, "Enlace renovado"); setRenovar(null); }} fullWidth>Renovar</Button>
+          </div>
+        </Modal>
+      )}
+    </>
+  );
+};
+
 const AccesosView = ({ toast, currentUserId }) => {
   const [usuarios, setUsuarios] = useState([]);
   const [invitaciones, setInvitaciones] = useState([]);
@@ -3409,7 +3570,7 @@ const AccesosView = ({ toast, currentUserId }) => {
 
       <Card hover={false} style={{ marginBottom: 16, background: `${G.primary}06`, border: `1px solid ${G.primary}20` }}>
         <div style={{ fontSize: 13, color: G.dark, lineHeight: 1.65 }}>
-          <strong>Cómo funciona:</strong> 1) Autoriza el correo (Gmail) y marca las secciones. 2) Envíale el enlace por WhatsApp. 3) La persona entra con <em>Continuar con Google</em> y ve solo lo que marcaste.
+          <strong>Dos formas de dar acceso:</strong> comparte un <em>enlace de registro</em> (abajo) para que se registren solos con Google, o usa <em>Autorizar correo</em> para una persona puntual con secciones a medida.
           Quien entra sin estar autorizado queda <Badge variant="warning">Pendiente</Badge> hasta que lo apruebes aquí.
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 10, flexWrap: "wrap" }}>
@@ -3417,6 +3578,8 @@ const AccesosView = ({ toast, currentUserId }) => {
           <Button variant="outline" size="sm" icon={Copy} onClick={() => copiar(enlace)}>Copiar enlace</Button>
         </div>
       </Card>
+
+      <EnlacesRegistro toast={toast} />
 
       {cargando ? (
         <div style={{ textAlign: "center", padding: 32, color: G.gray }}>Cargando usuarios…</div>
@@ -3436,6 +3599,7 @@ const AccesosView = ({ toast, currentUserId }) => {
                       {u.nombre}{u.id === currentUserId && <Badge size="sm">Tú</Badge>}
                     </div>
                     <div style={{ fontSize: 12, color: G.gray, overflow: "hidden", textOverflow: "ellipsis" }}>{u.email || "Sin email"}</div>
+                    {(u.cargo || u.telefono || u.tipo_registro) && <div style={{ fontSize: 12, color: G.dark, marginTop: 2 }}>{[u.tipo_registro === "teens" ? "🎒 Registro Teens" : u.tipo_registro === "equipo" ? "🛠️ Solicitud de equipo" : null, u.cargo, u.telefono].filter(Boolean).join(" · ")}</div>}
                     <div style={{ fontSize: 11.5, color: G.gray, marginTop: 3 }}>{esAdmin ? "Acceso total" : resumenPermisos(u.permisos) || "Sin secciones"}</div>
                   </div>
                   {esAdmin ? <Badge variant="success">{ROLES.admin}</Badge> : (
@@ -3544,6 +3708,175 @@ const SinAcceso = ({ userProfile, onLogout }) => {
           {!bloqueado && <Button variant="primary" size="md" icon={RefreshCw} onClick={() => window.location.reload()} fullWidth>Volver a intentar</Button>}
         </div>
       </Card>
+    </div>
+  );
+};
+
+// ─── REGISTRO POR ENLACE: /unirse/<código> ──────────────────────────
+// Adolescentes: entran al momento con "Adolescentes · ver". Equipo: queda pendiente de aprobación.
+const CODIGO_PENDIENTE = "ladp_unirse"; // recuerda el enlace mientras Google redirige
+const GoogleIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3C33.6 33.1 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34.1 6.5 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c11 0 19.6-7.9 19.6-20 0-1.3-.1-2.7-.4-4z" /><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.1 19 12 24 12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34.1 6.5 29.3 4 24 4 16.3 4 9.6 8.3 6.3 14.7z" /><path fill="#4CAF50" d="M24 44c5.2 0 9.9-1.9 13.5-5l-6.2-5.2C29.4 35.5 26.8 36 24 36c-5.2 0-9.6-2.9-11.3-7.2L6 33.7C9.3 39.5 16.2 44 24 44z" /><path fill="#1976D2" d="M43.6 20H24v8h11.3c-.8 2.2-2.3 4-4.3 5.2l6.2 5.2C40.8 35.5 44 30.2 44 24c0-1.3-.1-2.7-.4-4z" /></svg>
+);
+
+const Unirse = ({ codigo, userProfile, onListo, onSalir }) => {
+  const [tipo, setTipo] = useState(undefined); // undefined = cargando, null = enlace inválido
+  const [datos, setDatos] = useState({});
+  const [error, setError] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [hecho, setHecho] = useState(false);
+  const [redirigiendo, setRedirigiendo] = useState(false);
+  const esTeens = tipo === "teens";
+  const yaRegistrado = !!userProfile?.registrado_en;
+
+  useEffect(() => { infoEnlace(codigo).then(t => setTipo(t || null)); }, [codigo]);
+  useEffect(() => {
+    if (userProfile) setDatos(d => ({ nombre: userProfile.nombre && userProfile.nombre !== "Usuario" ? userProfile.nombre : "", ...d }));
+  }, [userProfile]);
+  useEffect(() => { if (yaRegistrado) localStorage.removeItem(CODIGO_PENDIENTE); }, [yaRegistrado]);
+  useEffect(() => { document.title = `${esTeens ? "Únete a Teens ICV" : "Registro del equipo"} · LADP`; }, [esTeens]);
+
+  const set = (k) => (e) => setDatos({ ...datos, [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value });
+  const entrarConGoogle = async () => {
+    setRedirigiendo(true);
+    localStorage.setItem(CODIGO_PENDIENTE, codigo);
+    await signInWithGoogle(`/unirse/${codigo}`);
+    setRedirigiendo(false);
+  };
+  const enviar = async () => {
+    setError("");
+    const falta = esTeens
+      ? (!datos.nombre?.trim() && "tu nombre") || (!datos.fecha_nacimiento && "tu fecha de nacimiento") || (!datos.apoderado?.trim() && "el nombre de tu apoderado") || (!datos.apoderado_telefono?.trim() && "el celular de tu apoderado") || (!datos.autorizacion_padres && "marcar el permiso de tus padres")
+      : (!datos.nombre?.trim() && "tu nombre") || (!datos.celular?.trim() && "tu celular") || (!datos.cargo?.trim() && "tu ministerio o cargo");
+    if (falta) { setError(`Falta ${falta}.`); return; }
+    setEnviando(true);
+    const r = await registrarse(codigo, datos);
+    setEnviando(false);
+    if (r.error) { setError(r.error); return; }
+    localStorage.removeItem(CODIGO_PENDIENTE);
+    setHecho(true);
+  };
+
+  const pasoActual = !userProfile ? 1 : hecho || yaRegistrado ? 3 : 2;
+  const pasos = (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 22 }}>
+      {["Entra con Google", "Tus datos", "¡Listo!"].map((p, i) => {
+        const n = i + 1, ok = pasoActual > n, act = pasoActual === n;
+        return (
+          <div key={p} style={{ display: "flex", alignItems: "center", gap: 8, flex: i < 2 ? 1 : "none" }}>
+            <div style={{ width: 26, height: 26, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, background: ok ? G.success : act ? G.primary : G.grayLight, color: ok || act ? "#fff" : G.gray }}>{ok ? <Check size={14} /> : n}</div>
+            <span style={{ fontSize: 12, fontWeight: act ? 700 : 500, color: act ? G.dark : G.gray, whiteSpace: "nowrap" }}>{p}</span>
+            {i < 2 && <div style={{ flex: 1, height: 2, background: ok ? G.success : G.grayMid + "60", borderRadius: 2, minWidth: 12 }} />}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  let contenido;
+  if (tipo === undefined) contenido = <div style={{ textAlign: "center", color: G.gray, padding: 30 }}>Cargando…</div>;
+  else if (tipo === null) contenido = (
+    <div style={{ textAlign: "center", padding: "10px 0" }}>
+      <div style={{ fontSize: 40, marginBottom: 8 }}>🔗</div>
+      <h2 style={{ margin: "0 0 8px", fontFamily: fontTitle, color: G.dark, fontSize: 20 }}>Este enlace ya no está disponible</h2>
+      <p style={{ margin: "0 0 18px", color: G.gray, fontSize: 13.5, lineHeight: 1.6 }}>Puede que el código haya cambiado. Pide el enlace nuevo a tu líder.</p>
+      <Button variant="outline" size="md" onClick={() => navegar("/")}>Ir al inicio</Button>
+    </div>
+  );
+  else if (hecho || yaRegistrado) contenido = (
+    <div style={{ textAlign: "center", padding: "6px 0" }}>
+      {pasos}
+      <div style={{ fontSize: 46, marginBottom: 6 }}>{esTeens ? "🎉" : "✅"}</div>
+      <h2 style={{ margin: "0 0 8px", fontFamily: fontTitle, color: G.dark, fontSize: 22 }}>
+        {yaRegistrado && !hecho ? "Ya estás registrado" : esTeens ? `¡Bienvenido a Teens ICV, ${(datos.nombre || "").split(" ")[0]}!` : "Solicitud enviada"}
+      </h2>
+      <p style={{ margin: "0 0 20px", color: G.gray, fontSize: 13.5, lineHeight: 1.6 }}>
+        {esTeens ? "Ya puedes ver el calendario, los temas de cada sábado y las actividades del mes." : "El administrador revisará tus datos y habilitará las secciones que gestionarás. Te avisaremos."}
+      </p>
+      <Button variant="primary" size="lg" icon={ArrowRight} onClick={onListo} fullWidth>Entrar a la plataforma</Button>
+    </div>
+  );
+  else if (!userProfile) contenido = (
+    <>
+      {pasos}
+      <h2 style={{ margin: "0 0 6px", fontFamily: fontTitle, color: G.dark, fontSize: 22 }}>{esTeens ? "Únete a Teens ICV" : "Registro del equipo"}</h2>
+      <p style={{ margin: "0 0 16px", color: G.gray, fontSize: 13.5, lineHeight: 1.6 }}>
+        {esTeens ? "Regístrate una sola vez con tu cuenta de Google y tendrás todo el ministerio en tu celular." : "Regístrate con tu cuenta de Google. El administrador habilitará las secciones que vas a gestionar."}
+      </p>
+      {esTeens && (
+        <div style={{ display: "grid", gap: 8, marginBottom: 20 }}>
+          {[["📅", "Calendario de actividades y fundays"], ["📖", "Los temas de cada sábado"], ["🙏", "Matutino de oración"], ["🎂", "Cumpleaños del mes"]].map(([e, t]) => (
+            <div key={t} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13.5, color: G.dark, background: G.grayLight, padding: "9px 12px", borderRadius: 10 }}><span style={{ fontSize: 18 }}>{e}</span>{t}</div>
+          ))}
+        </div>
+      )}
+      <button onClick={entrarConGoogle} disabled={redirigiendo} style={{ width: "100%", padding: "13px 16px", borderRadius: 11, border: `1.5px solid ${G.grayMid}`, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, fontSize: 14.5, fontWeight: 700, color: G.dark, fontFamily: font, boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+        <GoogleIcon /> {redirigiendo ? "Abriendo Google…" : "Continuar con Google"}
+      </button>
+      <p style={{ margin: "14px 0 0", fontSize: 11.5, color: G.gray, lineHeight: 1.55, textAlign: "center" }}>
+        <Lock size={11} style={{ verticalAlign: -1 }} /> De Google solo usamos tu nombre, correo y foto. Tus datos los ve únicamente el equipo de líderes.
+      </p>
+    </>
+  );
+  else contenido = (
+    <>
+      {pasos}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", background: G.grayLight, borderRadius: 12, marginBottom: 18 }}>
+        {userProfile.foto ? <img src={userProfile.foto} alt="" referrerPolicy="no-referrer" style={{ width: 42, height: 42, borderRadius: "50%", objectFit: "cover" }} /> : <Avatar initials={(userProfile.nombre || "U").slice(0, 2).toUpperCase()} size={42} />}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: G.dark }}>{userProfile.nombre}</div>
+          <div style={{ fontSize: 12, color: G.gray, overflow: "hidden", textOverflow: "ellipsis" }}>{userProfile.email}</div>
+        </div>
+        <button onClick={onSalir} style={{ background: "none", border: "none", color: G.primary, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: font }}>Cambiar cuenta</button>
+      </div>
+      <h2 style={{ margin: "0 0 4px", fontFamily: fontTitle, color: G.dark, fontSize: 19 }}>{esTeens ? "Cuéntanos de ti" : "Tus datos"}</h2>
+      <p style={{ margin: "0 0 14px", color: G.gray, fontSize: 12.5 }}>Solo te lo pedimos esta vez. Los campos con * son obligatorios.</p>
+      <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={{ gridColumn: "1/-1" }}><Input label="Nombre y apellidos" value={datos.nombre || ""} onChange={set("nombre")} required /></div>
+        {esTeens ? (
+          <>
+            <Input label="Fecha de nacimiento" type="date" value={datos.fecha_nacimiento || ""} onChange={set("fecha_nacimiento")} required />
+            <Input label="Mi celular" value={datos.celular || ""} onChange={set("celular")} placeholder="Opcional" icon={Phone} />
+            <Input label="Colegio y grado" value={datos.colegio || ""} onChange={set("colegio")} placeholder="Opcional · ej. 3.° de secundaria" />
+            <Input label="Distrito" value={datos.distrito || ""} onChange={set("distrito")} placeholder="Opcional" icon={MapPin} />
+            <div style={{ gridColumn: "1/-1" }}><div style={{ fontSize: 12, fontWeight: 800, color: G.primary, textTransform: "uppercase", letterSpacing: 0.6, marginTop: 6 }}>Papá, mamá o apoderado</div></div>
+            <Input label="Nombre" value={datos.apoderado || ""} onChange={set("apoderado")} required />
+            <Input label="Celular" value={datos.apoderado_telefono || ""} onChange={set("apoderado_telefono")} icon={Phone} required />
+            <div style={{ gridColumn: "1/-1" }}><TextArea label="Alergias o cuidados de salud" value={datos.salud || ""} onChange={set("salud")} placeholder="Opcional · nos ayuda a cuidarte en paseos y campamentos" rows={2} /></div>
+            <div style={{ gridColumn: "1/-1" }}>
+              <label style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13, color: G.dark, lineHeight: 1.5, cursor: "pointer", background: datos.autorizacion_padres ? G.successLight : G.grayLight, padding: "10px 12px", borderRadius: 10 }}>
+                <input type="checkbox" checked={!!datos.autorizacion_padres} onChange={set("autorizacion_padres")} style={{ width: 17, height: 17, marginTop: 1, accentColor: G.success, flexShrink: 0 }} />
+                <span>Mi papá, mamá o apoderado sabe que me registro y autoriza que el ministerio guarde estos datos para comunicarse con él o ella. *</span>
+              </label>
+            </div>
+          </>
+        ) : (
+          <>
+            <Input label="Celular" value={datos.celular || ""} onChange={set("celular")} icon={Phone} required />
+            <Input label="Ministerio o cargo" value={datos.cargo || ""} onChange={set("cargo")} placeholder="ej. Líder de Adolescentes" required />
+          </>
+        )}
+      </div>
+      {error && <div style={{ background: G.dangerLight, borderRadius: 10, padding: "10px 14px", fontSize: 13, color: G.danger, fontWeight: 600, marginTop: 14 }}>{error}</div>}
+      <div style={{ marginTop: 18 }}>
+        <Button variant="primary" size="lg" icon={Check} onClick={enviar} disabled={enviando} fullWidth>{enviando ? "Guardando…" : esTeens ? "Completar registro" : "Enviar solicitud"}</Button>
+      </div>
+    </>
+  );
+
+  return (
+    <div style={{ minHeight: "100vh", fontFamily: font, background: `radial-gradient(circle at 15% 10%, ${G.accent}30, transparent 40%), linear-gradient(160deg, ${G.primaryDark}, ${G.primary} 55%, ${G.primaryLight})`, padding: "28px 16px 40px", display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <GlobalStyles />
+      <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#fff", marginBottom: 18 }} className="fadeup">
+        <div style={{ width: 40, height: 40, borderRadius: 11, background: "rgba(255,255,255,0.14)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: fontTitle, fontWeight: 900, fontSize: 21 }}>L</div>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 800, fontFamily: fontTitle }}>Iglesia Cristo Viene</div>
+          <div style={{ fontSize: 11.5, opacity: 0.8 }}>{esTeens ? "Ministerio de Adolescentes · Llamados a Servir" : "Las Asambleas de Dios del Perú"}</div>
+        </div>
+      </div>
+      <div className="fadeup" style={{ width: "100%", maxWidth: 560, background: "#fff", borderRadius: 20, padding: "26px 24px", boxShadow: "0 24px 60px rgba(0,0,0,0.25)" }}>
+        {contenido}
+      </div>
     </div>
   );
 };
@@ -3878,7 +4211,7 @@ const Dashboard = ({ onLogout, userProfile, seccion }) => {
     asistencia: <AsistenciaView data={data} setData={setData} toast={showToast} />,
     celulas: <CelulasView data={data} setData={setData} toast={showToast} />,
     ministerios: <MinisteriosView data={data} setData={setData} toast={showToast} />,
-    adolescentes: <AdolescentesView data={data} setData={setData} toast={showToast} readOnly={!puedeEditar("adolescentes")} />,
+    adolescentes: <AdolescentesView data={data} setData={setData} toast={showToast} readOnly={!puedeEditar("adolescentes")} userProfile={userProfile} />,
     evangelismo: <EvangelismoView />,
     tienda: <TiendaView data={data} setData={setData} toast={showToast} />,
     blog: <BlogView data={data} setData={setData} toast={showToast} readOnly={!puedeEditar("blog")} />,
@@ -3937,7 +4270,9 @@ const Dashboard = ({ onLogout, userProfile, seccion }) => {
               <div style={{ position: "absolute", top: 7, right: 7, width: 6, height: 6, borderRadius: "50%", background: G.danger }} />
             </button>
             <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 12px", background: G.grayLight, borderRadius: 10 }}>
-              <Avatar initials={(userProfile?.nombre || "U").slice(0, 2).toUpperCase()} size={28} color={G.primary} />
+              {userProfile?.foto
+                ? <img src={userProfile.foto} alt="" referrerPolicy="no-referrer" style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover" }} />
+                : <Avatar initials={(userProfile?.nombre || "U").slice(0, 2).toUpperCase()} size={28} color={G.primary} />}
               <div>
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: G.dark, lineHeight: 1.2 }}>{userProfile?.nombre || "Usuario"}</div>
                 <div style={{ fontSize: 10.5, color: G.gray }}>{isAdmin ? ROLES.admin : puedeEditar("adolescentes") ? ROLES.teens : ROLES.usuario}</div>
@@ -4309,6 +4644,7 @@ export default function App() {
     : ruta === "/login" ? "login"
     : ruta === "/registro" ? "register"
     : ruta === "/tienda" ? "tienda"
+    : ruta.startsWith("/unirse/") ? "unirse"
     : "landing";
   const seccion = ruta.split("/")[2] || "";
 
@@ -4320,7 +4656,10 @@ export default function App() {
       setUserProfile(profile || { id: session.user.id, nombre: session.user.email?.split("@")[0] || "Usuario", rol: "usuario", email: session.user.email });
       // Con sesión iniciada, login/registro llevan al panel; al volver de Google también desde el inicio
       const enEntrada = ["/login", "/registro"].includes(window.location.pathname) || (recienIngresa && window.location.pathname === "/");
-      if (enEntrada) navegar("/panel", { reemplazar: true });
+      // Si Google devolvió a otra página, se retoma el registro por enlace pendiente
+      const pendiente = localStorage.getItem(CODIGO_PENDIENTE);
+      if (pendiente && !profile?.registrado_en && !window.location.pathname.startsWith("/unirse/")) navegar(`/unirse/${pendiente}`, { reemplazar: true });
+      else if (enEntrada) navegar("/panel", { reemplazar: true });
       setVerificando(false);
     };
 
@@ -4348,7 +4687,7 @@ export default function App() {
   }, [verificando, page, userProfile]);
 
   useEffect(() => {
-    if (page === "dashboard") return; // el panel pone su propio título
+    if (page === "dashboard" || page === "unirse") return; // ponen su propio título
     document.title = { landing: "LADP - Iglesia Cristo Viene", login: "Iniciar sesión · LADP", register: "Crear cuenta · LADP", tienda: "Tienda · LADP" }[page];
     if (page !== "landing") window.scrollTo(0, 0);
   }, [page]);
@@ -4370,6 +4709,9 @@ export default function App() {
       {page === "register" && <Register onSuccess={() => navegar("/login")} onBack={() => navegar("/login")} />}
       {page === "dashboard" && <Dashboard onLogout={handleLogout} userProfile={userProfile} seccion={seccion} />}
       {page === "tienda" && <TiendaPage onBack={() => navegar("/")} />}
+      {page === "unirse" && <Unirse codigo={ruta.split("/")[2] || ""} userProfile={userProfile}
+        onListo={async () => { setUserProfile(await getUserProfile() || userProfile); navegar("/panel"); }}
+        onSalir={async () => { await signOut(); setUserProfile(null); }} />}
     </div>
   );
 }
