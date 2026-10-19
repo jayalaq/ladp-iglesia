@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Heart, Users, Target, Calendar, BarChart2, Plus, Search, DollarSign, Award, Clock, Trash2, Menu, ArrowRight, Mail, Lock, Eye, EyeOff, Check, LogOut, Bell, Phone, MapPin, Play, Facebook, Youtube, Instagram, Download, Send, UserPlus, UserCheck, FileText, Activity, MessageCircle, AlertCircle, Edit, Settings, Globe, Palette, Save, ShoppingCart, BookOpen, CreditCard, Package, Grid, List, Share2, Bookmark, ChevronDown, ChevronRight, X, Filter, TrendingUp, PieChart, Home, Layers, Printer, MoreVertical, RefreshCw, ChevronLeft, Star, Upload, Copy, ExternalLink, Mic } from "lucide-react";
 import QRCode from "qrcode";
 import { isSupabaseConfigured } from "./supabase";
-import { loadAllData, insertRow, updateRow, deleteRow, upsertRecord, removeRecord, enviarPublico, getConfig, saveConfig, signIn, signOut, signInWithGoogle, signUp, getUserProfile, getSession, onAuthStateChange, getUsers, updateUserAccess, getInvitaciones, guardarInvitacion, borrarInvitacion, infoEnlace, registrarse, cumpleanosMes, getEnlaces, guardarEnlace } from "./dataService";
+import { loadAllData, insertRow, updateRow, deleteRow, upsertRecord, removeRecord, enviarPublico, getConfig, saveConfig, signIn, signOut, signInWithGoogle, signUp, getUserProfile, getSession, onAuthStateChange, getUsers, updateUserAccess, getInvitaciones, guardarInvitacion, borrarInvitacion, infoEnlace, registrarse, cumpleanosMes, getEnlaces, guardarEnlace, getProductosPublicos, guardarProductos } from "./dataService";
 
 // ─── PALETA DE COLORES ──────────────────────────────────────────────
 const G = {
@@ -995,7 +995,7 @@ const LandingPage = ({ onLogin, onTienda }) => {
             <p style={{ margin: 0, fontSize: 16, color: "rgba(255,255,255,0.7)", lineHeight: 1.6 }}>Biblias, libros, devocionales, música y más. Haz tu pedido en línea y la iglesia te contacta para coordinar el pago y la entrega.</p>
           </div>
           <div className="tienda-cta-stats" style={{ display: "flex", gap: 36, flexShrink: 0 }}>
-            {[{ n: `${SHOP_PRODUCTS.length}`, l: "Productos" },{ n: "Lima", l: "Recojo en ICV" }].map((s,i) => (<div key={i} style={{ textAlign: "center" }}><div style={{ fontSize: 28, fontWeight: 800, color: G.accent, fontFamily: fontTitle }}>{s.n}</div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600 }}>{s.l}</div></div>))}
+            {[{ n: "Yape", l: "o Plin" },{ n: "Lima", l: "Recojo en ICV" }].map((s,i) => (<div key={i} style={{ textAlign: "center" }}><div style={{ fontSize: 28, fontWeight: 800, color: G.accent, fontFamily: fontTitle }}>{s.n}</div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600 }}>{s.l}</div></div>))}
           </div>
           <button onClick={onTienda} style={{ padding: "16px 36px", fontSize: 15, fontWeight: 800, background: G.accent, color: "#fff", border: "none", borderRadius: 14, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 10, transition: "all 0.3s", boxShadow: `0 6px 24px ${G.accent}40`, flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.transform = "translateY(-3px)"} onMouseLeave={e => e.currentTarget.style.transform = "none"}>
             <ShoppingCart size={18} /> Ir a la Tienda <ArrowRight size={16} />
@@ -1873,38 +1873,180 @@ const MinisteriosView = ({ data, setData, toast }) => {
 };
 
 // ─── TIENDA ─────────────────────────────────────────────────────────
+// ─── TIENDA: helpers compartidos (panel y tienda pública) ───────────
+const CATEGORIAS_TIENDA = ["Biblia", "Doctrina", "Devocional", "Teología", "Ministerio", "Liderazgo", "Historia", "Música", "Educación", "Infantil", "Regalos", "Otro"];
+// La imagen puede ser un emoji o un enlace a una foto (https://…)
+const ProductoImagen = ({ imagen, size = 48 }) => /^https?:\/\//.test(imagen || "")
+  ? <img src={imagen} alt="" loading="lazy" style={{ width: size * 1.6, height: size * 1.6, objectFit: "contain", borderRadius: 8 }} />
+  : <span style={{ fontSize: size, lineHeight: 1 }}>{imagen || "📦"}</span>;
+// Fila de la base → producto de la tienda
+const aProductoTienda = (p) => ({ ...p, precio: Number(p.precio) || 0, precioAntes: Number(p.precio_antes) || 0, featured: !!p.destacado, stock: Number(p.stock) || 0 });
+
+// Columnas del Excel de productos (encabezado → campo)
+const COLUMNAS_EXCEL = [
+  ["Título", "titulo"], ["Autor", "autor"], ["Categoría", "categoria"], ["Precio", "precio"], ["Precio anterior", "precio_antes"],
+  ["Stock", "stock"], ["Editorial", "editorial"], ["Descripción", "descripcion"], ["Imagen (emoji o enlace)", "imagen"],
+  ["Destacado (SI/NO)", "destacado"], ["Publicado (SI/NO)", "visible"], ["Páginas", "paginas"], ["ISBN", "isbn"], ["ID (no tocar)", "id"],
+];
+const siNo = (v) => /^(s[ií]|si|yes|true|1|x)$/i.test(String(v ?? "").trim());
+// Acepta 25, "25.50", "25,50", "S/ 1,200.50"; sin dígitos (p. ej. "gratis") no es un número
+const numero = (v) => {
+  let t = String(v ?? "").replace(/[^\d.,-]/g, "");
+  if (!/\d/.test(t)) return NaN;
+  t = t.includes(".") && t.includes(",") ? t.replace(/,/g, "") : t.replace(",", ".");
+  const n = Number(t);
+  return Number.isFinite(n) ? n : NaN;
+};
+const esUUID = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v || ""));
+
+const filaExcel = (p) => Object.fromEntries(COLUMNAS_EXCEL.map(([h, k]) => [h,
+  k === "destacado" || k === "visible" ? (p[k] ? "SI" : "NO") : p[k] ?? ""]));
+
+const descargarExcel = async (filas, nombre) => {
+  const XLSX = await import("xlsx");
+  const hoja = XLSX.utils.json_to_sheet(filas, { header: COLUMNAS_EXCEL.map(c => c[0]) });
+  hoja["!cols"] = COLUMNAS_EXCEL.map(([h]) => ({ wch: h === "Descripción" ? 60 : h === "Título" ? 32 : h.startsWith("ID") ? 38 : Math.max(12, h.length + 2) }));
+  const libro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(libro, hoja, "Productos");
+  const ayuda = XLSX.utils.aoa_to_sheet([
+    ["Cómo llenar la plantilla"],
+    ["Una fila por producto. Solo Título y Precio son obligatorios."],
+    ["Categoría: " + CATEGORIAS_TIENDA.join(", ")],
+    ["Precio anterior: déjalo vacío o en 0 si no hay descuento."],
+    ["Imagen: un emoji (📖) o el enlace de una foto (https://…)."],
+    ["Destacado / Publicado: escribe SI o NO. Lo que no esté publicado no se ve en la tienda."],
+    ["ID: no lo cambies. Sirve para actualizar productos que ya existen; déjalo vacío en productos nuevos."],
+  ]);
+  ayuda["!cols"] = [{ wch: 100 }];
+  XLSX.utils.book_append_sheet(libro, ayuda, "Instrucciones");
+  XLSX.writeFile(libro, nombre);
+};
+
+// Lee el Excel/CSV y devuelve { filas, errores } listos para guardar
+const leerExcel = async (archivo) => {
+  const XLSX = await import("xlsx");
+  const libro = XLSX.read(await archivo.arrayBuffer());
+  const crudas = XLSX.utils.sheet_to_json(libro.Sheets[libro.SheetNames[0]], { defval: "" });
+  const norm = (t) => String(t).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\(.*\)/, "").trim();
+  const mapa = Object.fromEntries(COLUMNAS_EXCEL.map(([h, k]) => [norm(h), k]));
+  const filas = [], errores = [];
+  crudas.forEach((r, i) => {
+    const f = {};
+    Object.entries(r).forEach(([h, v]) => { const k = mapa[norm(h)]; if (k) f[k] = typeof v === "string" ? v.trim() : v; });
+    if (!Object.values(f).some(v => String(v).trim())) return; // fila vacía
+    const n = i + 2; // fila del Excel (1 = encabezado)
+    const precio = numero(f.precio), antes = f.precio_antes === "" || f.precio_antes == null ? 0 : numero(f.precio_antes);
+    const stock = f.stock === "" || f.stock == null ? 0 : numero(f.stock);
+    if (!String(f.titulo || "").trim()) { errores.push(`Fila ${n}: falta el título`); return; }
+    if (!Number.isFinite(precio) || precio < 0) { errores.push(`Fila ${n} (${f.titulo}): el precio no es un número`); return; }
+    if (!Number.isFinite(antes) || !Number.isFinite(stock)) { errores.push(`Fila ${n} (${f.titulo}): revisa precio anterior o stock`); return; }
+    filas.push({
+      id: esUUID(f.id) ? f.id : newUUID(), nuevo: !esUUID(f.id),
+      titulo: String(f.titulo).slice(0, 200), autor: String(f.autor || ""), categoria: String(f.categoria || "Otro"),
+      precio, precio_antes: antes > precio ? antes : 0, stock: Math.max(0, Math.round(stock)),
+      editorial: String(f.editorial || ""), descripcion: String(f.descripcion || ""), imagen: String(f.imagen || "📖"),
+      destacado: siNo(f.destacado), visible: f.visible === "" || f.visible == null ? true : siNo(f.visible),
+      paginas: Number.isFinite(numero(f.paginas)) && String(f.paginas).trim() ? Math.round(numero(f.paginas)) : null,
+      isbn: String(f.isbn || "") || null,
+    });
+  });
+  return { filas, errores };
+};
+
 const TiendaView = ({ data, setData, toast }) => {
   const [modal, setModal] = useState(false);
   const [editando, setEditando] = useState(null);
+  const [eliminar, setEliminar] = useState(null);
+  const [importar, setImportar] = useState(null); // { filas, errores, archivo }
+  const [guardando, setGuardando] = useState(false);
   const [buscar, setBuscar] = useState("");
   const [filtro, setFiltro] = useState("Todos");
-  const categorias = ["Todos", ...new Set(data.productos.map(p => p.categoria))];
-  const filtrados = data.productos.filter(p => {
-    const mc = filtro === "Todos" || p.categoria === filtro;
-    const mb = p.titulo.toLowerCase().includes(buscar.toLowerCase()) || p.autor.toLowerCase().includes(buscar.toLowerCase());
-    return mc && mb;
-  });
-  const blank = { titulo: "", autor: "", precio: 0, imagen: "📖", categoria: "Doctrina", descripcion: "", stock: 0, editorial: "" };
+  const archivoRef = useRef(null);
+  const productos = data.productos || [];
+  const categorias = ["Todos", "Borradores", ...new Set(productos.map(p => p.categoria).filter(Boolean))];
+  const filtrados = productos.filter(p => {
+    const mc = filtro === "Todos" || (filtro === "Borradores" ? !p.visible : p.categoria === filtro);
+    const q = buscar.toLowerCase();
+    return mc && ((p.titulo || "").toLowerCase().includes(q) || (p.autor || "").toLowerCase().includes(q));
+  }).sort((a, b) => (a.visible === b.visible ? (a.titulo || "").localeCompare(b.titulo || "") : a.visible ? 1 : -1));
+  const blank = { titulo: "", autor: "", precio: 0, precio_antes: 0, imagen: "📖", categoria: "Biblia", descripcion: "", stock: 0, editorial: "", destacado: false, visible: true, paginas: null, isbn: "" };
+  const borradores = productos.filter(p => !p.visible).length;
 
   const guardar = async () => {
-    if (!editando.titulo) return;
-    const exists = data.productos.find(p => p.id === editando.id);
-    const saved = await upsertRecord("productos", editando, !exists) || editando;
-    if (exists) setData({ ...data, productos: data.productos.map(p => p.id === editando.id ? saved : p) });
-    else setData({ ...data, productos: [saved, ...data.productos] });
+    if (!editando.titulo?.trim()) { toast("El título es obligatorio", "error"); return; }
+    const exists = productos.find(p => p.id === editando.id);
+    const fila = { ...editando, precio: Number(editando.precio) || 0, precio_antes: Number(editando.precio_antes) || 0, stock: Number(editando.stock) || 0, paginas: editando.paginas ? Number(editando.paginas) : null, updated_at: new Date().toISOString() };
+    const saved = await upsertRecord("productos", fila, !exists);
+    if (!saved && isSupabaseConfigured()) { toast("No se pudo guardar el producto. Revisa tu conexión o permisos.", "error"); return; }
+    setData(d => ({ ...d, productos: exists ? d.productos.map(p => p.id === fila.id ? (saved || fila) : p) : [saved || fila, ...d.productos] }));
     toast(exists ? "Producto actualizado" : "Producto agregado");
     setModal(false); setEditando(null);
+  };
+  const publicar = async (p, visible) => {
+    const saved = await upsertRecord("productos", { ...p, visible }, false);
+    if (!saved && isSupabaseConfigured()) { toast("No se pudo cambiar. Revisa tu conexión o permisos.", "error"); return; }
+    setData(d => ({ ...d, productos: d.productos.map(x => x.id === p.id ? { ...x, visible } : x) }));
+    toast(visible ? `“${p.titulo}” ya se ve en la tienda` : `“${p.titulo}” pasó a borrador`);
+  };
+  const confirmarEliminar = async () => {
+    if (await removeRecord("productos", eliminar.id) === false) { toast("No se pudo eliminar", "error"); return; }
+    setData(d => ({ ...d, productos: d.productos.filter(p => p.id !== eliminar.id) }));
+    toast("Producto eliminado"); setEliminar(null);
+  };
+
+  const elegirArchivo = async (e) => {
+    const archivo = e.target.files?.[0]; e.target.value = "";
+    if (!archivo) return;
+    try { setImportar({ ...(await leerExcel(archivo)), archivo: archivo.name }); }
+    catch (err) { console.error(err); toast("No se pudo leer el archivo. Usa la plantilla en Excel (.xlsx) o CSV.", "error"); }
+  };
+  const confirmarImportar = async () => {
+    setGuardando(true);
+    const ahora = new Date().toISOString();
+    const saved = await guardarProductos(importar.filas.map(({ nuevo, ...f }) => ({ ...f, updated_at: ahora })));
+    setGuardando(false);
+    if (!saved) { toast("No se pudo importar. ¿Ya ejecutaste supabase-tienda.sql?", "error"); return; }
+    setData(d => {
+      const porId = new Map(d.productos.map(p => [p.id, p]));
+      saved.forEach(p => porId.set(p.id, p));
+      return { ...d, productos: [...porId.values()] };
+    });
+    toast(`${saved.length} producto${saved.length !== 1 ? "s" : ""} guardado${saved.length !== 1 ? "s" : ""}`);
+    setImportar(null);
   };
 
   return (
     <div className="fadein">
-      <PageHeader title="Tienda" subtitle="Gestión de productos e inventario" actions={<Button variant="primary" size="md" icon={Plus} onClick={() => { setEditando({ ...blank, id: uid() }); setModal(true); }}>Nuevo Producto</Button>} />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: 24 }}>
-        <StatCard label="Catálogo" value={data.productos.length} icon={Package} color={G.primary} />
-        <StatCard label="Stock Total" value={data.productos.reduce((a, p) => a + p.stock, 0)} icon={Layers} color={G.success} />
-        <StatCard label="Stock Bajo" value={data.productos.filter(p => p.stock < 20).length} icon={AlertCircle} color={G.danger} />
+      <PageHeader title="Tienda" subtitle="Productos de la tienda en línea" actions={<>
+        <Button variant="outline" size="md" icon={Upload} onClick={() => archivoRef.current?.click()}>Cargar Excel</Button>
+        <Button variant="primary" size="md" icon={Plus} onClick={() => { setEditando({ ...blank, id: newUUID() }); setModal(true); }}>Nuevo Producto</Button>
+      </>} />
+      <input ref={archivoRef} type="file" accept=".xlsx,.xls,.csv" onChange={elegirArchivo} style={{ display: "none" }} />
+
+      <Card hover={false} style={{ marginBottom: 16, background: `${G.success}08`, border: `1px solid ${G.success}25` }}>
+        <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ fontSize: 28 }}>📊</div>
+          <div style={{ flex: 1, minWidth: 240, fontSize: 13, color: G.dark, lineHeight: 1.6 }}>
+            <strong>Carga tus productos desde Excel:</strong> descarga la plantilla, llénala (una fila por producto) y súbela con <em>Cargar Excel</em>.
+            Para cambiar precios o stock de muchos productos, descarga tu catálogo, edítalo y vuelve a subirlo.
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Button variant="outline" size="sm" icon={Download} onClick={() => descargarExcel([
+              { "Título": "Biblia Reina-Valera 1960 letra grande", "Autor": "Sociedades Bíblicas", "Categoría": "Biblia", "Precio": 65, "Precio anterior": 80, "Stock": 10, "Editorial": "SBU", "Descripción": "Tapa dura, letra grande, con concordancia.", "Imagen (emoji o enlace)": "📕", "Destacado (SI/NO)": "SI", "Publicado (SI/NO)": "SI", "Páginas": 1500, "ISBN": "", "ID (no tocar)": "" },
+              { "Título": "Devocional para jóvenes", "Autor": "", "Categoría": "Devocional", "Precio": 25, "Precio anterior": "", "Stock": 20, "Editorial": "", "Descripción": "", "Imagen (emoji o enlace)": "🙏", "Destacado (SI/NO)": "NO", "Publicado (SI/NO)": "NO", "Páginas": "", "ISBN": "", "ID (no tocar)": "" },
+            ], "plantilla-productos-ICV.xlsx")}>Plantilla</Button>
+            <Button variant="outline" size="sm" icon={Download} disabled={!productos.length} onClick={() => descargarExcel(productos.map(filaExcel), `catalogo-ICV-${today()}.xlsx`)}>Mi catálogo</Button>
+          </div>
+        </div>
+      </Card>
+
+      <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 16 }}>
+        <StatCard label="Publicados" value={productos.length - borradores} icon={Package} color={G.success} />
+        <StatCard label="Borradores" value={borradores} icon={Edit} color={G.warning} onClick={() => setFiltro("Borradores")} />
+        <StatCard label="Stock total" value={productos.reduce((a, p) => a + (Number(p.stock) || 0), 0)} icon={Layers} color={G.primary} />
+        <StatCard label="Stock bajo (<5)" value={productos.filter(p => p.visible && Number(p.stock) < 5).length} icon={AlertCircle} color={G.danger} />
       </div>
-      <Card hover={false} style={{ marginBottom: 20, padding: "14px 20px" }}>
+      <Card hover={false} style={{ marginBottom: 16, padding: "12px 16px" }}>
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <div style={{ flex: 1, minWidth: 200 }}><Input placeholder="Buscar productos..." value={buscar} onChange={e => setBuscar(e.target.value)} icon={Search} /></div>
           <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
@@ -1914,39 +2056,97 @@ const TiendaView = ({ data, setData, toast }) => {
           </div>
         </div>
       </Card>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 18 }}>
+      {productos.length === 0 && <EmptyState icon={Package} message="Aún no hay productos. Carga tu Excel o crea el primero." />}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 14 }}>
         {filtrados.map(p => (
-          <Card key={p.id} hover>
-            <div style={{ fontSize: 48, textAlign: "center", marginBottom: 12, background: G.grayLight, borderRadius: 10, padding: "20px 0" }}>{p.imagen}</div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-              <Badge variant="default">{p.categoria}</Badge>
-              <Badge variant={p.stock > 20 ? "success" : p.stock > 0 ? "warning" : "danger"}>Stock: {p.stock}</Badge>
+          <Card key={p.id} hover style={{ opacity: p.visible ? 1 : 0.85, border: p.visible ? undefined : `1.5px dashed ${G.warning}80` }}>
+            <div style={{ height: 96, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10, background: G.grayLight, borderRadius: 10, position: "relative" }}>
+              <ProductoImagen imagen={p.imagen} size={44} />
+              <div style={{ position: "absolute", top: 8, left: 8, display: "flex", gap: 4 }}>
+                {!p.visible && <Badge variant="warning">Borrador</Badge>}
+                {p.destacado && <Badge variant="primary">★ Top</Badge>}
+              </div>
             </div>
-            <h4 style={{ margin: "0 0 3px", fontSize: 14.5, fontWeight: 700, color: G.dark, fontFamily: fontTitle }}>{p.titulo}</h4>
-            <p style={{ margin: "0 0 12px", fontSize: 12, color: G.gray }}>{p.autor}</p>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 12, borderTop: `1px solid ${G.grayMid}20` }}>
-              <span style={{ fontSize: 18, fontWeight: 800, color: G.primary, fontFamily: fontTitle }}>S/. {p.precio}</span>
-              <button onClick={() => { setEditando({ ...p }); setModal(true); }} style={{ background: G.grayLight, border: "none", cursor: "pointer", padding: 7, borderRadius: 7 }}><Edit size={15} color={G.gray} /></button>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, gap: 6 }}>
+              <Badge variant="default">{p.categoria || "—"}</Badge>
+              <Badge variant={p.stock > 10 ? "success" : p.stock > 0 ? "warning" : "danger"}>Stock: {p.stock}</Badge>
+            </div>
+            <h4 style={{ margin: "0 0 2px", fontSize: 14.5, fontWeight: 700, color: G.dark, fontFamily: fontTitle }}>{p.titulo}</h4>
+            <p style={{ margin: "0 0 10px", fontSize: 12, color: G.gray }}>{p.autor || " "}</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, paddingTop: 10, borderTop: `1px solid ${G.grayMid}20` }}>
+              <span style={{ flex: 1, fontSize: 18, fontWeight: 800, color: G.primary, fontFamily: fontTitle }}>S/. {fmt(Number(p.precio))}{Number(p.precio_antes) > 0 && <span style={{ fontSize: 12, color: G.gray, textDecoration: "line-through", fontWeight: 500, marginLeft: 6 }}>S/. {fmt(Number(p.precio_antes))}</span>}</span>
+              <Button variant={p.visible ? "outline" : "primary"} size="sm" onClick={() => publicar(p, !p.visible)}>{p.visible ? "Ocultar" : "Publicar"}</Button>
+              <button onClick={() => { setEditando({ ...p, isbn: p.isbn || "" }); setModal(true); }} title="Editar" style={{ background: G.grayLight, border: "none", cursor: "pointer", padding: 7, borderRadius: 7, display: "flex" }}><Edit size={15} color={G.primary} /></button>
+              <button onClick={() => setEliminar(p)} title="Eliminar" style={{ background: G.dangerLight, border: "none", cursor: "pointer", padding: 7, borderRadius: 7, display: "flex" }}><Trash2 size={15} color={G.danger} /></button>
             </div>
           </Card>
         ))}
       </div>
+
       {modal && editando && (
-        <Modal title={data.productos.find(p => p.id === editando.id) ? "Editar Producto" : "Nuevo Producto"} onClose={() => { setModal(false); setEditando(null); }}>
-          <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <Modal title={productos.find(p => p.id === editando.id) ? "Editar Producto" : "Nuevo Producto"} onClose={() => { setModal(false); setEditando(null); }} width={640}>
+          <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div style={{ gridColumn: "1/-1" }}><Input label="Título" value={editando.titulo} onChange={e => setEditando({ ...editando, titulo: e.target.value })} required /></div>
-            <Input label="Autor" value={editando.autor} onChange={e => setEditando({ ...editando, autor: e.target.value })} />
-            <Input label="Editorial" value={editando.editorial} onChange={e => setEditando({ ...editando, editorial: e.target.value })} />
-            <Input label="Precio (S/.)" value={editando.precio} onChange={e => setEditando({ ...editando, precio: Number(e.target.value) })} type="number" />
-            <Input label="Stock" value={editando.stock} onChange={e => setEditando({ ...editando, stock: Number(e.target.value) })} type="number" />
-            <Select label="Categoría" value={editando.categoria} onChange={e => setEditando({ ...editando, categoria: e.target.value })} options={["Doctrina", "Historia", "Liderazgo", "Devocional", "Teología", "Ministerio", "Biblia", "Otro"]} />
+            <Input label="Autor" value={editando.autor || ""} onChange={e => setEditando({ ...editando, autor: e.target.value })} />
+            <Input label="Editorial" value={editando.editorial || ""} onChange={e => setEditando({ ...editando, editorial: e.target.value })} />
+            <Input label="Precio (S/.)" value={editando.precio} onChange={e => setEditando({ ...editando, precio: e.target.value })} type="number" required />
+            <Input label="Precio anterior (opcional)" value={editando.precio_antes || ""} onChange={e => setEditando({ ...editando, precio_antes: e.target.value })} type="number" placeholder="Para mostrar descuento" />
+            <Input label="Stock" value={editando.stock} onChange={e => setEditando({ ...editando, stock: e.target.value })} type="number" />
+            <Select label="Categoría" value={editando.categoria} onChange={e => setEditando({ ...editando, categoria: e.target.value })} options={[...new Set([...CATEGORIAS_TIENDA, editando.categoria].filter(Boolean))]} />
+            <Input label="Imagen: emoji o enlace de foto" value={editando.imagen || ""} onChange={e => setEditando({ ...editando, imagen: e.target.value })} placeholder="📖 o https://…" />
+            <Input label="Páginas (opcional)" value={editando.paginas || ""} onChange={e => setEditando({ ...editando, paginas: e.target.value })} type="number" />
+            <div style={{ gridColumn: "1/-1" }}><TextArea label="Descripción" value={editando.descripcion || ""} onChange={e => setEditando({ ...editando, descripcion: e.target.value })} rows={3} /></div>
+            <div style={{ gridColumn: "1/-1", display: "flex", gap: 18, flexWrap: "wrap" }}>
+              {[["visible", "Publicado en la tienda"], ["destacado", "Destacado (★ Top)"]].map(([k, l]) => (
+                <label key={k} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, color: G.dark, cursor: "pointer" }}>
+                  <input type="checkbox" checked={!!editando[k]} onChange={e => setEditando({ ...editando, [k]: e.target.checked })} style={{ width: 16, height: 16, accentColor: G.primary }} />{l}
+                </label>
+              ))}
+            </div>
           </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
+          <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
             <Button variant="outline" size="md" onClick={() => { setModal(false); setEditando(null); }} fullWidth>Cancelar</Button>
             <Button variant="primary" size="md" onClick={guardar} fullWidth icon={Save}>Guardar</Button>
           </div>
         </Modal>
       )}
+
+      {importar && (
+        <Modal title={`Cargar Excel · ${importar.archivo}`} onClose={() => setImportar(null)} width={760}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+            <Badge variant="success" size="lg">{importar.filas.filter(f => f.nuevo).length} nuevos</Badge>
+            <Badge variant="primary" size="lg">{importar.filas.filter(f => !f.nuevo).length} a actualizar</Badge>
+            {importar.errores.length > 0 && <Badge variant="danger" size="lg">{importar.errores.length} con errores (se omiten)</Badge>}
+          </div>
+          {importar.errores.length > 0 && (
+            <div style={{ background: G.dangerLight, borderRadius: 10, padding: "10px 14px", fontSize: 12.5, color: G.danger, marginBottom: 12, maxHeight: 110, overflowY: "auto" }}>
+              {importar.errores.map(e => <div key={e}>• {e}</div>)}
+            </div>
+          )}
+          <div style={{ maxHeight: 340, overflow: "auto", border: `1px solid ${G.grayMid}50`, borderRadius: 10 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+              <thead><tr style={{ background: G.grayLight, textAlign: "left", position: "sticky", top: 0 }}>
+                {["", "Título", "Categoría", "Precio", "Stock", "Estado"].map(h => <th key={h} style={{ padding: "8px 10px", fontWeight: 700, color: G.dark }}>{h}</th>)}
+              </tr></thead>
+              <tbody>{importar.filas.map(f => (
+                <tr key={f.id} style={{ borderTop: `1px solid ${G.grayMid}30` }}>
+                  <td style={{ padding: "6px 10px" }}><ProductoImagen imagen={f.imagen} size={18} /></td>
+                  <td style={{ padding: "6px 10px", fontWeight: 600 }}>{f.titulo}{!f.nuevo && <span style={{ color: G.gray, fontWeight: 400 }}> · actualiza</span>}</td>
+                  <td style={{ padding: "6px 10px" }}>{f.categoria}</td>
+                  <td style={{ padding: "6px 10px" }}>S/. {f.precio}{f.precio_antes > 0 && <span style={{ color: G.gray, textDecoration: "line-through", marginLeft: 4 }}>{f.precio_antes}</span>}</td>
+                  <td style={{ padding: "6px 10px" }}>{f.stock}</td>
+                  <td style={{ padding: "6px 10px" }}>{f.visible ? <Badge variant="success">Publicado</Badge> : <Badge variant="warning">Borrador</Badge>}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+            <Button variant="outline" size="md" onClick={() => setImportar(null)} fullWidth>Cancelar</Button>
+            <Button variant="primary" size="md" icon={Upload} onClick={confirmarImportar} disabled={guardando || !importar.filas.length} fullWidth>{guardando ? "Guardando…" : `Guardar ${importar.filas.length} producto${importar.filas.length !== 1 ? "s" : ""}`}</Button>
+          </div>
+        </Modal>
+      )}
+      {eliminar && <ConfirmDialog message={`¿Eliminar “${eliminar.titulo}” de la tienda? Si solo quieres esconderlo, usa “Ocultar”.`} onConfirm={confirmarEliminar} onCancel={() => setEliminar(null)} />}
     </div>
   );
 };
@@ -4291,6 +4491,7 @@ const Dashboard = ({ onLogout, userProfile, seccion }) => {
 // ═══════════════════════════════════════════════════════════════════
 // ─── TIENDA PAGE — Full E-Commerce ─────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════
+// Catálogo de ejemplo solo para desarrollo sin Supabase; en producción se lee la tabla productos
 const SHOP_PRODUCTS = [
   { id: "sp1", titulo: "Fundamentos de la Fe", autor: "Dr. Jorge Ramírez", precio: 45, precioAntes: 55, imagen: "📖", categoria: "Doctrina", descripcion: "Estudio profundo de las doctrinas fundamentales pentecostales. Cubre los 16 puntos cardinales de la fe pentecostal con aplicaciones prácticas para la vida diaria.", rating: 4.8, reviews: 124, stock: 50, editorial: "LADP Publishing", paginas: 320, isbn: "978-612-001-001" },
   { id: "sp2", titulo: "Avivamiento en el Perú", autor: "Pastor Juan Ríos", precio: 38, precioAntes: 0, imagen: "🔥", categoria: "Historia", descripcion: "Recorrido histórico de 106 años del movimiento pentecostal en Perú, desde los misioneros Barker hasta la iglesia contemporánea.", rating: 4.9, reviews: 89, stock: 30, editorial: "Editorial Cristiana", paginas: 280, isbn: "978-612-001-002" },
@@ -4320,16 +4521,21 @@ const TiendaPage = ({ onBack }) => {
   const [orderData, setOrderData] = useState({ nombre: "", email: "", telefono: "", direccion: "", ciudad: "Lima", distrito: "", metodo: "yape", notas: "" });
   const [orderNumber, setOrderNumber] = useState("");
   const [pedidos, setPedidos] = useState([]);
+  const [productos, setProductos] = useState(isSupabaseConfigured() ? null : SHOP_PRODUCTS);
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+    getProductosPublicos().then(d => setProductos((d || []).map(aProductoTienda)));
+  }, []);
+  const catalogo = productos || [];
 
-  const categorias = ["Todos", ...new Set(SHOP_PRODUCTS.map(p => p.categoria))];
-  const filtered = SHOP_PRODUCTS.filter(p => {
+  const categorias = ["Todos", ...new Set(catalogo.map(p => p.categoria).filter(Boolean))];
+  const filtered = catalogo.filter(p => {
     const mc = filtro === "Todos" || p.categoria === filtro;
     const mb = p.titulo.toLowerCase().includes(buscar.toLowerCase()) || p.autor.toLowerCase().includes(buscar.toLowerCase());
     return mc && mb;
   }).sort((a, b) => {
     if (orden === "precio-asc") return a.precio - b.precio;
     if (orden === "precio-desc") return b.precio - a.precio;
-    if (orden === "rating") return b.rating - a.rating;
     if (orden === "nombre") return a.titulo.localeCompare(b.titulo);
     return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
   });
@@ -4377,7 +4583,7 @@ const TiendaPage = ({ onBack }) => {
             <div style={{ textAlign: "center", padding: "48px 16px" }}><div style={{ fontSize: 56, marginBottom: 12 }}>🛒</div><p style={{ fontSize: 15, fontWeight: 600, color: G.dark }}>Tu carrito está vacío</p><p style={{ fontSize: 13, color: G.gray }}>Agrega productos para comenzar</p></div>
           ) : cart.map(item => (
             <div key={item.id} style={{ display: "flex", gap: 14, padding: "14px", background: G.grayLight, borderRadius: 12, marginBottom: 12, alignItems: "center" }}>
-              <div style={{ fontSize: 36, flexShrink: 0, width: 50, height: 50, borderRadius: 10, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>{item.imagen}</div>
+              <div style={{ fontSize: 36, flexShrink: 0, width: 50, height: 50, borderRadius: 10, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}><ProductoImagen imagen={item.imagen} size={30} /></div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <h5 style={{ margin: "0 0 2px", fontSize: 13.5, fontWeight: 700, color: G.dark, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.titulo}</h5>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
@@ -4415,18 +4621,13 @@ const TiendaPage = ({ onBack }) => {
         <button onClick={() => { setView("catalogo"); setSelectedProduct(null); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13.5, fontWeight: 600, color: G.gray, fontFamily: font, display: "flex", alignItems: "center", gap: 6, marginBottom: 28 }}><ChevronLeft size={16} /> Volver al catálogo</button>
         <div className="split-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 48, alignItems: "start" }}>
           <div style={{ background: `linear-gradient(135deg, ${G.primary}08, ${G.accent}06)`, borderRadius: 24, padding: "60px 40px", textAlign: "center", position: "sticky", top: 100 }}>
-            <div style={{ fontSize: 120, marginBottom: 20 }}>{p.imagen}</div>
+            <div style={{ marginBottom: 20, display: "flex", justifyContent: "center" }}><ProductoImagen imagen={p.imagen} size={120} /></div>
             {p.featured && <Badge variant="warning" size="lg">⭐ Destacado</Badge>}
           </div>
           <div>
             <Badge variant="default">{p.categoria}</Badge>
             <h1 style={{ margin: "12px 0 8px", fontSize: 32, fontWeight: 800, color: G.dark, fontFamily: fontTitle, lineHeight: 1.15, letterSpacing: -1 }}>{p.titulo}</h1>
-            <p style={{ margin: "0 0 16px", fontSize: 15, color: G.gray }}>por <strong style={{ color: G.dark }}>{p.autor}</strong> · {p.editorial}</p>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
-              <div style={{ display: "flex", gap: 2 }}>{[1,2,3,4,5].map(s => <Star key={s} size={16} color={G.accent} fill={p.rating >= s ? G.accent : "none"} />)}</div>
-              <span style={{ fontSize: 14, fontWeight: 700, color: G.accent }}>{p.rating}</span>
-              <span style={{ fontSize: 13, color: G.gray }}>({p.reviews} reseñas)</span>
-            </div>
+            {(p.autor || p.editorial) && <p style={{ margin: "0 0 20px", fontSize: 15, color: G.gray }}>{p.autor && <>por <strong style={{ color: G.dark }}>{p.autor}</strong></>}{p.autor && p.editorial && " · "}{p.editorial}</p>}
             <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 24 }}>
               <span style={{ fontSize: 36, fontWeight: 800, color: G.primary, fontFamily: fontTitle }}>S/. {p.precio}</span>
               {p.precioAntes > 0 && <span style={{ fontSize: 18, color: G.gray, textDecoration: "line-through" }}>S/. {p.precioAntes}</span>}
@@ -4434,7 +4635,7 @@ const TiendaPage = ({ onBack }) => {
             </div>
             <p style={{ margin: "0 0 28px", fontSize: 15, color: G.gray, lineHeight: 1.8 }}>{p.descripcion}</p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 28, padding: 20, background: G.grayLight, borderRadius: 14 }}>
-              {[{ l: "Páginas", v: p.paginas },{ l: "ISBN", v: p.isbn },{ l: "Editorial", v: p.editorial },{ l: "Stock", v: p.stock > 10 ? "Disponible" : `Solo ${p.stock} unidades` }].map((d,i) => (
+              {[{ l: "Páginas", v: p.paginas },{ l: "ISBN", v: p.isbn },{ l: "Editorial", v: p.editorial },{ l: "Disponibilidad", v: p.stock > 10 ? "Disponible" : p.stock > 0 ? `Solo ${p.stock} unidades` : "Por encargo" }].filter(d => d.v).map((d,i) => (
                 <div key={i}><div style={{ fontSize: 11, fontWeight: 700, color: G.gray, textTransform: "uppercase", letterSpacing: 1 }}>{d.l}</div><div style={{ fontSize: 14, fontWeight: 600, color: G.dark, marginTop: 2 }}>{d.v}</div></div>
               ))}
             </div>
@@ -4485,7 +4686,7 @@ const TiendaPage = ({ onBack }) => {
             <h4 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 800, color: G.dark }}>Resumen del Pedido</h4>
             {cart.map(item => (
               <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, fontSize: 13 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={{ fontSize: 20 }}>{item.imagen}</span><div><div style={{ fontWeight: 600, color: G.dark }}>{item.titulo}</div><div style={{ color: G.gray }}>x{item.qty}</div></div></div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}><ProductoImagen imagen={item.imagen} size={20} /><div><div style={{ fontWeight: 600, color: G.dark }}>{item.titulo}</div><div style={{ color: G.gray }}>x{item.qty}</div></div></div>
                 <span style={{ fontWeight: 700, color: G.dark }}>S/. {(item.precio * item.qty).toFixed(2)}</span>
               </div>
             ))}
@@ -4591,7 +4792,7 @@ const TiendaPage = ({ onBack }) => {
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 {categorias.map(cat => (<button key={cat} onClick={() => setFiltro(cat)} style={{ padding: "7px 16px", borderRadius: 8, border: filtro === cat ? `2px solid ${G.primary}` : `1.5px solid ${G.grayMid}`, background: filtro === cat ? G.primary + "10" : "#fff", color: filtro === cat ? G.primary : G.gray, fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: font }}>{cat}</button>))}
               </div>
-              <Select value={orden} onChange={e => setOrden(e.target.value)} options={[{ value: "relevancia", label: "Relevancia" },{ value: "precio-asc", label: "Menor precio" },{ value: "precio-desc", label: "Mayor precio" },{ value: "rating", label: "Mejor valorado" },{ value: "nombre", label: "Nombre A-Z" }]} />
+              <Select value={orden} onChange={e => setOrden(e.target.value)} options={[{ value: "relevancia", label: "Relevancia" },{ value: "precio-asc", label: "Menor precio" },{ value: "precio-desc", label: "Mayor precio" },{ value: "nombre", label: "Nombre A-Z" }]} />
             </div>
             <p style={{ margin: "0 0 20px", fontSize: 13, color: G.gray }}>{filtered.length} producto{filtered.length !== 1 ? "s" : ""} encontrado{filtered.length !== 1 ? "s" : ""}</p>
             {/* Product grid */}
@@ -4601,13 +4802,13 @@ const TiendaPage = ({ onBack }) => {
                   {p.featured && <div style={{ position: "absolute", top: 14, left: 14, zIndex: 2, background: G.accent, color: "#fff", fontSize: 10, fontWeight: 800, padding: "3px 9px", borderRadius: 6, textTransform: "uppercase", letterSpacing: 1 }}>★ Top</div>}
                   {p.precioAntes > 0 && <div style={{ position: "absolute", top: 14, right: 14, zIndex: 2, background: G.danger, color: "#fff", fontSize: 10, fontWeight: 800, padding: "3px 9px", borderRadius: 6 }}>-{Math.round((1 - p.precio / p.precioAntes) * 100)}%</div>}
                   <div onClick={() => { setSelectedProduct(p); setView("producto"); }} style={{ background: `linear-gradient(135deg, ${G.primary}06, ${G.accent}04)`, padding: "36px 0", textAlign: "center", fontSize: 68, cursor: "pointer", borderBottom: `1px solid ${G.grayMid}15`, position: "relative" }}>
-                    {p.imagen}
+                    <ProductoImagen imagen={p.imagen} size={68} />
                     <button onClick={e => { e.stopPropagation(); toggleWish(p.id); }} style={{ position: "absolute", top: 12, right: 12, background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", padding: 6, borderRadius: 8, display: "flex" }}><Heart size={16} color={wishlist.includes(p.id) ? G.danger : G.gray} fill={wishlist.includes(p.id) ? G.danger : "none"} /></button>
                   </div>
                   <div style={{ padding: "20px 22px 24px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                       <Badge variant="default">{p.categoria}</Badge>
-                      <div style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 12 }}><Star size={12} fill={G.accent} color={G.accent} /><span style={{ fontWeight: 700, color: G.accent }}>{p.rating}</span><span style={{ color: G.gray }}>({p.reviews})</span></div>
+                      {p.stock > 0 && p.stock <= 5 && <span style={{ fontSize: 11.5, fontWeight: 700, color: G.warning }}>¡Últimas {p.stock}!</span>}
                     </div>
                     <h4 onClick={() => { setSelectedProduct(p); setView("producto"); }} style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800, color: G.dark, fontFamily: fontTitle, lineHeight: 1.3, cursor: "pointer" }}>{p.titulo}</h4>
                     <p style={{ margin: "0 0 14px", fontSize: 13, color: G.gray }}>{p.autor}</p>
@@ -4622,7 +4823,9 @@ const TiendaPage = ({ onBack }) => {
                 </div>
               ))}
             </div>
-            {filtered.length === 0 && <EmptyState icon={Search} message="No se encontraron productos con ese criterio" />}
+            {productos === null && <div style={{ textAlign: "center", padding: 48, color: G.gray }}>Cargando productos…</div>}
+            {productos && catalogo.length === 0 && <EmptyState icon={Package} message="Muy pronto tendremos productos disponibles. ¡Vuelve en unos días!" />}
+            {catalogo.length > 0 && filtered.length === 0 && <EmptyState icon={Search} message="No se encontraron productos con ese criterio" />}
           </div>
         )}
         {view === "producto" && <ProductDetail />}

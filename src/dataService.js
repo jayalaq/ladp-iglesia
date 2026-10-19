@@ -322,6 +322,23 @@ export async function guardarEnlace(enlace) {
   return true;
 }
 
+// ─── TIENDA ────────────────────────────────────────────────────────
+// Catálogo público: la base solo devuelve los productos visibles a los visitantes
+export async function getProductosPublicos() {
+  if (!isSupabaseConfigured()) return null;
+  const { data, error } = await supabase.from("productos").select("*").eq("visible", true).order("titulo");
+  if (error) { console.error("Error leyendo productos:", error.message); return null; }
+  return data || [];
+}
+
+// Carga masiva (Excel): filas con id se actualizan, las demás se crean. Devuelve las filas guardadas o null.
+export async function guardarProductos(filas) {
+  if (!isSupabaseConfigured()) return null;
+  const { data, error } = await supabase.from("productos").upsert(filas).select();
+  if (error) { console.error("Error guardando productos:", error.message); return null; }
+  return data || [];
+}
+
 export function onAuthStateChange(callback) {
   if (!isSupabaseConfigured()) return { data: { subscription: { unsubscribe: () => {} } } };
   return supabase.auth.onAuthStateChange(callback);
