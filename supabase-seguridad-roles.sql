@@ -257,7 +257,7 @@ CREATE TABLE IF NOT EXISTS campana_colaboraciones (
   nombre_colaborador TEXT NOT NULL CHECK (char_length(nombre_colaborador) BETWEEN 2 AND 120),
   telefono TEXT CHECK (telefono IS NULL OR char_length(telefono) <= 30),
   correo TEXT CHECK (correo IS NULL OR char_length(correo) <= 254),
-  cantidad NUMERIC(12,2) NOT NULL CHECK (cantidad > 0),
+  cantidad NUMERIC(12,2) NOT NULL CHECK (cantidad > 0 AND cantidad <= 100000),
   nota TEXT CHECK (nota IS NULL OR char_length(nota) <= 500),
   estado TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'confirmada', 'rechazada')),
   confirmada_por UUID REFERENCES auth.users(id),
@@ -300,6 +300,8 @@ DROP POLICY IF EXISTS "Admin update campaign contributions" ON campana_colaborac
 DROP POLICY IF EXISTS "Public submit campaign contribution" ON campana_colaboraciones;
 CREATE POLICY "Admin read campaign contributions" ON campana_colaboraciones FOR SELECT USING (is_admin());
 CREATE POLICY "Admin update campaign contributions" ON campana_colaboraciones FOR UPDATE USING (is_admin()) WITH CHECK (is_admin());
+DROP POLICY IF EXISTS "Admin delete campaign contributions" ON campana_colaboraciones;
+CREATE POLICY "Admin delete campaign contributions" ON campana_colaboraciones FOR DELETE USING (is_admin());
 CREATE POLICY "Public submit campaign contribution" ON campana_colaboraciones FOR INSERT
   WITH CHECK (
     estado = 'pendiente'
@@ -324,7 +326,10 @@ CREATE POLICY "Admin add campaign deliveries" ON campana_entregas FOR INSERT WIT
 GRANT SELECT ON campanas, campana_requerimientos TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON campanas, campana_requerimientos TO authenticated;
 GRANT INSERT ON campana_colaboraciones TO anon, authenticated;
-GRANT SELECT, UPDATE ON campana_colaboraciones TO authenticated;
+GRANT SELECT, UPDATE, DELETE ON campana_colaboraciones TO authenticated;
+-- Para tablas ya creadas: CREATE TABLE IF NOT EXISTS no añade el tope.
+ALTER TABLE campana_colaboraciones DROP CONSTRAINT IF EXISTS campana_colaboraciones_cantidad_tope;
+ALTER TABLE campana_colaboraciones ADD CONSTRAINT campana_colaboraciones_cantidad_tope CHECK (cantidad <= 100000) NOT VALID;
 GRANT SELECT, INSERT ON campana_entregas TO authenticated;
 
 CREATE OR REPLACE FUNCTION validar_entrega_campana()

@@ -4055,17 +4055,17 @@ const Dashboard = ({ onLogout, userProfile, seccion, config, setConfig, configSt
     if (["eventos", "campanas"].includes(seccion)) setEventosMenuOpen(true);
   }, [seccion]);
   const seccionesDisponibles = new Set(menuItems.flatMap(item => (item.children || [item]).map(child => child.id)));
-  const indiceBusqueda = [
-    ...(seccionesDisponibles.has("miembros") ? data.miembros.map(item => ({ titulo: item.nombre, detalle: `${item.rol} · ${item.email}`, seccion: "miembros" })) : []),
-    ...(seccionesDisponibles.has("proyectos") ? data.proyectos.map(item => ({ titulo: item.nombre, detalle: item.responsable, seccion: "proyectos" })) : []),
-    ...data.eventos.map(item => ({ titulo: item.nombre, detalle: `${fmtDate(item.fecha)} · ${item.lugar}`, seccion: "eventos" })),
-    ...(seccionesDisponibles.has("celulas") ? data.celulas.map(item => ({ titulo: item.nombre, detalle: `Célula · ${item.lider}`, seccion: "celulas" })) : []),
-    ...(seccionesDisponibles.has("ministerios") ? data.ministerios.map(item => ({ titulo: item.nombre, detalle: `Ministerio · ${item.lider}`, seccion: "ministerios" })) : []),
-    ...(seccionesDisponibles.has("tienda") ? data.productos.map(item => ({ titulo: item.titulo, detalle: `Producto · ${item.categoria}`, seccion: "tienda" })) : []),
-    ...data.publicaciones.map(item => ({ titulo: item.titulo, detalle: `Publicación · ${item.categoria}`, seccion: "blog" })),
+  const construirIndiceBusqueda = () => [
+    ...(seccionesDisponibles.has("miembros") ? data.miembros.map(item => ({ titulo: item.nombre, detalle: `${item.rol ?? ""} · ${item.email ?? ""}`, seccion: "miembros" })) : []),
+    ...(seccionesDisponibles.has("proyectos") ? data.proyectos.map(item => ({ titulo: item.nombre, detalle: item.responsable ?? "", seccion: "proyectos" })) : []),
+    ...data.eventos.map(item => ({ titulo: item.nombre, detalle: `${item.fecha ? fmtDate(item.fecha) : ""} · ${item.lugar ?? ""}`, seccion: "eventos" })),
+    ...(seccionesDisponibles.has("celulas") ? data.celulas.map(item => ({ titulo: item.nombre, detalle: `Célula · ${item.lider ?? ""}`, seccion: "celulas" })) : []),
+    ...(seccionesDisponibles.has("ministerios") ? data.ministerios.map(item => ({ titulo: item.nombre, detalle: `Ministerio · ${item.lider ?? ""}`, seccion: "ministerios" })) : []),
+    ...(seccionesDisponibles.has("tienda") ? data.productos.map(item => ({ titulo: item.titulo, detalle: `Producto · ${item.categoria ?? ""}`, seccion: "tienda" })) : []),
+    ...data.publicaciones.map(item => ({ titulo: item.titulo, detalle: `Publicación · ${item.categoria ?? ""}`, seccion: "blog" })),
   ];
   const consulta = buscarGlobal.trim().toLocaleLowerCase();
-  const resultadosBusqueda = consulta.length < 2 ? [] : indiceBusqueda
+  const resultadosBusqueda = consulta.length < 2 ? [] : construirIndiceBusqueda()
     .filter(item => seccionesDisponibles.has(item.seccion) && `${item.titulo} ${item.detalle}`.toLocaleLowerCase().includes(consulta))
     .slice(0, 7);
 
