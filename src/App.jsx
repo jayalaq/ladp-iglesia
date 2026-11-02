@@ -1944,7 +1944,7 @@ const CampanasView = ({ data, setData, toast, userProfile }) => {
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", margin: "10px 0 5px", fontSize: 12.5 }}><span style={{ color: G.gray }}>Recibido</span><strong style={{ color: G.dark }}>{formatoCantidadCampana(resumen.entregado, req)} / {formatoCantidadCampana(req.objetivo, req)}</strong></div>
               <div style={{ height: 8, background: G.grayMid + "50", borderRadius: 8, overflow: "hidden" }}><div style={{ width: `${resumen.porcentaje}%`, height: "100%", background: `linear-gradient(90deg, ${G.primary}, ${G.success})`, transition: "width .3s" }} /></div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}><Badge variant="success">Confirmado: {formatoCantidadCampana(resumen.confirmado, req)}</Badge><Badge variant="warning">Por revisar: {formatoCantidadCampana(resumen.pendiente, req)}</Badge></div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>{resumen.entregado > Number(req.objetivo) && <Badge variant="danger">Excede el objetivo</Badge>}<Badge variant="success">Confirmado: {formatoCantidadCampana(resumen.confirmado, req)}</Badge><Badge variant="warning">Por revisar: {formatoCantidadCampana(resumen.pendiente, req)}</Badge></div>
             </Card>;
           })}
         </div>
