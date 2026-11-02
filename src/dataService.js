@@ -79,7 +79,8 @@ export async function deleteRow(key, id) {
   if (!isSupabaseConfigured()) return null;
   const table = TABLE_MAP[key];
   if (!table) return null;
-  const { error } = await supabase.from(table).delete().eq("id", id);
+  const { data, error } = await supabase.from(table).delete().eq("id", id).select("id");
+  if (!error && !data?.length) throw new Error(`No se eliminó ${key}: sin permiso o el registro no existe`);
   if (error) {
     console.error(`Error deleting from ${key}:`, { message: error.message, code: error.code, details: error.details, hint: error.hint });
     throw new Error(`No se pudo eliminar ${key}`);
@@ -89,7 +90,9 @@ export async function deleteRow(key, id) {
 
 // ─── UPSERT / REMOVE ───────────────────────────────────────────────
 export async function upsertRecord(key, item, isNew) {
-  const { created_at, ...rest } = item;
+  const { created_at, ...raw } = item;
+  // Las columnas DATE no aceptan "": se guardan como null.
+  const rest = Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, v === "" && /^(fecha|inicio$|fin$|desde$)/.test(k) ? null : v]));
   if (isNew) return insertRow(key, rest);
   const { id, ...updates } = rest;
   return updateRow(key, id, updates);

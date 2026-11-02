@@ -382,7 +382,7 @@ CREATE POLICY "Admin update campaign contributions" ON campana_colaboraciones FO
 CREATE POLICY "Public submit campaign contribution" ON campana_colaboraciones FOR INSERT
   WITH CHECK (
     estado = 'pendiente'
-    AND creada_por IS NULL
+    AND creada_por IS NOT DISTINCT FROM auth.uid()
     AND confirmada_por IS NULL
     AND confirmada_en IS NULL
     AND EXISTS (

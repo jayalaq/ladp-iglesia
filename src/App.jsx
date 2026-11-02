@@ -1301,7 +1301,7 @@ const MiembrosView = ({ data, setData, toast }) => {
     ];
     const celdaCsv = value => {
       const text = String(value ?? "");
-      const safe = /^[\s]*[=+\-@]/.test(text) ? `'${text}` : text;
+      const safe = /^[\s]*[=+\-@]/.test(text) && !/^\+[\d\s()-]+$/.test(text) ? `'${text}` : text;
       return `"${safe.replaceAll('"', '""')}"`;
     };
     const csv = [
@@ -1314,7 +1314,7 @@ const MiembrosView = ({ data, setData, toast }) => {
       link.href = url;
       link.download = `miembros-ladp-${today()}.csv`;
       link.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
       toast(`${filtrados.length} miembros exportados`);
     } catch (error) {
       console.error("Error exporting members:", error);
