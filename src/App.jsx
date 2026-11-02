@@ -1035,7 +1035,7 @@ const LandingPage = ({ onLogin, onTienda, config }) => {
 };
 
 // ─── LOGIN ──────────────────────────────────────────────────────────
-const Login = ({ onSuccess, onBack, onRegister, passwordRecovery, onPasswordRecoveryComplete }) => {
+const Login = ({ onSuccess, onBack, onRegister, passwordRecovery }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -1093,7 +1093,6 @@ const Login = ({ onSuccess, onBack, onRegister, passwordRecovery, onPasswordReco
     try {
       await updatePassword(password);
       setPasswordUpdated(true);
-      onPasswordRecoveryComplete();
     } catch (e) {
       setError(e.message || "No se pudo actualizar la contraseña");
     } finally {
@@ -1145,7 +1144,7 @@ const Login = ({ onSuccess, onBack, onRegister, passwordRecovery, onPasswordReco
               {error && <div style={{ background: G.dangerLight, border: `1px solid ${G.danger}20`, borderRadius: 10, padding: "10px 14px", fontSize: 13, color: G.danger, fontWeight: 500 }}>{error}</div>}
               {passwordRecovery ? (
                 passwordUpdated
-                  ? <Button variant="primary" size="lg" onClick={() => { setPasswordUpdated(false); setPassword(""); setConfirmPassword(""); }} fullWidth>Volver a iniciar sesión</Button>
+                  ? <Button variant="primary" size="lg" onClick={() => window.location.replace("/login")} fullWidth>Entrar al panel</Button>
                   : <Button variant="primary" size="lg" onClick={handlePasswordUpdate} disabled={loading} fullWidth>{loading ? "Actualizando…" : "Guardar nueva contraseña"}</Button>
               ) : (
                 <>
@@ -4572,7 +4571,7 @@ export default function App() {
     // INITIAL_SESSION restaura la sesión guardada al recargar; SIGNED_IN cubre el login con Google.
     // No se llama a Supabase dentro del callback (bloquea el cliente): se difiere con setTimeout.
     const { data: { subscription } } = onAuthStateChange((event, session) => {
-      if (event === "PASSWORD_RECOVERY" || (event === "INITIAL_SESSION" && session && new URLSearchParams(window.location.search).get("recovery") === "1")) {
+      if (event === "PASSWORD_RECOVERY" || ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session && new URLSearchParams(window.location.search).get("recovery") === "1")) {
         setPasswordRecovery(true);
         setVerificando(false);
         return;
@@ -4616,7 +4615,7 @@ export default function App() {
   return (
     <div>
       {page === "landing" && <LandingPage onLogin={() => navegar("/login")} onTienda={() => navegar("/tienda")} config={config} />}
-      {page === "login" && <Login onSuccess={(profile) => { setUserProfile(profile); navegar("/panel"); }} onBack={() => navegar("/")} onRegister={() => navegar("/registro")} passwordRecovery={passwordRecovery} onPasswordRecoveryComplete={() => setPasswordRecovery(false)} />}
+      {page === "login" && <Login onSuccess={(profile) => { setUserProfile(profile); navegar("/panel"); }} onBack={() => navegar("/")} onRegister={() => navegar("/registro")} passwordRecovery={passwordRecovery} />}
       {page === "register" && <Register onSuccess={() => navegar("/login")} onBack={() => navegar("/login")} />}
       {page === "dashboard" && <Dashboard onLogout={handleLogout} userProfile={userProfile} seccion={seccion} config={config} setConfig={setConfig} configStatus={configStatus} reloadConfig={reloadConfig} onConfigSaved={handleConfigSaved} />}
       {page === "tienda" && <TiendaPage onBack={() => navegar("/")} />}
