@@ -1,261 +1,95 @@
-# 🚀 Guía de Despliegue — LADP Iglesia Admin
+# Guía de despliegue — LADP Iglesia Admin
 
-## Estructura del Proyecto
+Aplicación React + Vite que usa Supabase (autenticación, datos y RLS). Es un sitio estático: no hay backend propio (la carpeta `api/` está vacía).
+
+## Estructura relevante
 
 ```
-ladp-deploy/
-├── index.html              ← Página entrada
-├── package.json            ← Dependencias
-├── vite.config.js          ← Config de Vite
-├── netlify.toml            ← Config para Netlify
-├── vercel.json             ← Config para Vercel
-├── .gitignore
-└── src/
-    ├── main.jsx            ← Punto de entrada React
-    └── App.jsx             ← Tu aplicación completa
+├── index.html, vite.config.js, package.json, .node-version (22)
+├── src/            App.jsx, dataService.js, supabase.js, main.jsx
+├── supabase-schema.sql           ← esquema base (proyecto nuevo)
+├── supabase-migracion.sql        ← migración (proyecto existente)
+├── supabase-seguridad-roles.sql  ← roles y políticas RLS
+├── vercel.json · netlify.toml · wrangler.toml
+└── .github/workflows/deploy-cloudflare.yml
 ```
 
----
+`supabase-usuarios-prueba.sql` es local, contiene credenciales de prueba y está en `.gitignore`: no lo subas al repositorio.
 
-## Requisitos Previos
+## Requisitos
 
-1. **Node.js** v18+ → [nodejs.org](https://nodejs.org)
-2. **Git** → [git-scm.com](https://git-scm.com)
-3. Cuenta gratuita en **GitHub** → [github.com](https://github.com)
+- Node.js 22 (ver `.node-version`; el workflow de CI usa 22) y npm.
+- Un proyecto de Supabase.
+- Una cuenta en el proveedor de despliegue elegido.
 
-Verifica instalación:
-```bash
-node --version    # debe mostrar v18+
-npm --version     # debe mostrar v9+
-git --version
-```
-
----
-
-## Paso 1 — Preparar el Proyecto Local
+## 1. Probar en local
 
 ```bash
-# 1. Descomprime o coloca la carpeta ladp-deploy en tu computadora
-
-# 2. Abre terminal en la carpeta del proyecto
-cd ladp-deploy
-
-# 3. Instala dependencias
-npm install
-
-# 4. Prueba en local
-npm run dev
-# → Abre http://localhost:5173 en tu navegador
-
-# 5. Genera la versión de producción
-npm run build
-# → Crea la carpeta /dist con los archivos optimizados
+npm ci
+cp .env.example .env.local   # completa VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY
+npm run dev                  # http://localhost:5173
+npm run build                # genera dist/
 ```
 
----
+Sin variables de Supabase la app funciona con datos de muestra. No hay scripts de pruebas ni de lint.
 
-## Paso 2 — Subir a GitHub
+## 2. Configurar Supabase
 
-```bash
-# Inicializar repositorio
-git init
-git add .
-git commit -m "LADP Iglesia - versión inicial"
+Variables (públicas; la protección real son las políticas RLS):
 
-# Crear repositorio en GitHub (desde github.com → New Repository)
-# Nombre sugerido: ladp-iglesia-admin
-
-# Conectar y subir
-git remote add origin https://github.com/TU_USUARIO/ladp-iglesia-admin.git
-git branch -M main
-git push -u origin main
+```env
+VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
+VITE_SUPABASE_ANON_KEY=tu-clave-anon-o-publishable
 ```
 
----
+`src/supabase.js` también acepta `SUPABASE_URL`/`SUPABASE_ANON_KEY` (o `*_PUBLISHABLE_KEY`) y las variantes `NEXT_PUBLIC_*` de la integración Supabase↔Vercel; usa la primera pareja URL+clave completa, empezando por `VITE_*`. **Nunca** pongas una clave `service_role` ni otro secreto en estas variables.
 
-## Opción A — Desplegar en Vercel (Recomendado) ⭐
+En Supabase → SQL Editor, ejecuta en este orden:
 
-**Vercel** es la opción más rápida y fácil. Gratis para proyectos personales.
+1. **Proyecto nuevo:** `supabase-schema.sql` y luego `supabase-seguridad-roles.sql`.
+2. **Proyecto existente:** `supabase-migracion.sql` y luego `supabase-seguridad-roles.sql`.
 
-### Pasos:
+Las migraciones no se aplican solas al desplegar. `supabase-seguridad-roles.sql` asigna el rol de administrador a la cuenta definida en `v_email` (por defecto `jayala@tailoringconsult.pe`); esa cuenta debe haber iniciado sesión antes. Confirma que sigue siendo la cuenta autorizada o cambia `v_email`.
 
-1. Ve a [vercel.com](https://vercel.com) → Regístrate con tu cuenta de GitHub
-2. Click en **"Add New Project"**
-3. Selecciona tu repositorio `ladp-iglesia-admin`
-4. Vercel detectará automáticamente que es un proyecto Vite
-5. Verifica la configuración:
-   - **Framework Preset:** Vite
-   - **Build Command:** `npm run build`
-   - **Output Directory:** `dist`
-6. Click en **"Deploy"**
-7. En ~60 segundos tendrás tu URL: `https://ladp-iglesia-admin.vercel.app`
+Recuperación de contraseña: en Supabase → Authentication → URL Configuration agrega `https://tu-dominio/login?recovery=1` (y la URL local, p. ej. `http://localhost:5173/login?recovery=1`) a las URLs de redirección permitidas. Si usas Google, configura también su proveedor en Authentication → Providers.
 
-### Dominio personalizado (opcional):
-- En Vercel → Settings → Domains → Agrega `tuiglesia.com`
-- Configura los DNS de tu dominio apuntando a Vercel
+## 3. Desplegar
 
-### Actualizaciones automáticas:
-Cada vez que hagas `git push` a GitHub, Vercel desplegará automáticamente.
+Todas las opciones requieren definir las dos variables `VITE_*` en el proveedor (o como secretos en GitHub para CI). Comando de build `npm run build`, salida `dist`.
 
----
+### Cloudflare Pages/Workers (CI incluida)
 
-## Opción B — Desplegar en Netlify
+`.github/workflows/deploy-cloudflare.yml` se ejecuta en cada push a `main`/`master`: `npm ci`, `npm run build` y `wrangler deploy` (`wrangler.toml`, assets en `./dist`).
 
-**Netlify** también es excelente y gratuito.
+Secretos de GitHub necesarios: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `CLOUDFLARE_API_TOKEN`.
 
-### Pasos:
+### Vercel
 
-1. Ve a [netlify.com](https://www.netlify.com) → Regístrate con GitHub
-2. Click en **"Add new site"** → **"Import an existing project"**
-3. Selecciona GitHub → Selecciona tu repositorio
-4. Configuración de build:
-   - **Build command:** `npm run build`
-   - **Publish directory:** `dist`
-5. Click en **"Deploy site"**
-6. Obtendrás una URL como: `https://random-name.netlify.app`
-7. Puedes cambiar el nombre en: Site settings → Change site name
-   - Ejemplo: `https://ladp-iglesia.netlify.app`
+Importa el repositorio; `vercel.json` ya fija framework Vite, build, salida y la reescritura a `index.html` (necesaria para rutas como `/login`). Define las variables en Settings → Environment Variables, o conecta la integración de Supabase.
 
-### El archivo `netlify.toml` ya está incluido con la configuración correcta.
+### Netlify
 
----
+`netlify.toml` define build, publicación y la redirección SPA. Define las variables en Site settings → Environment variables.
 
-## Opción C — Desplegar en GitHub Pages (100% gratis)
+### Otros proveedores
 
-### Pasos:
+Cualquier hosting estático sirve si reescribe todas las rutas a `index.html`. En GitHub Pages hay que fijar `base` en `vite.config.js` y gestionar la reescritura SPA; no está configurado en el repositorio.
 
-1. Modifica `vite.config.js`:
-```js
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+Verifica que solo haya un despliegue activo por rama para no confundir qué URL es la oficial.
 
-export default defineConfig({
-  plugins: [react()],
-  base: '/ladp-iglesia-admin/',  // ← nombre de tu repositorio
-  build: {
-    outDir: 'dist',
-  },
-});
-```
+## Estado de funcionalidades
 
-2. Instala el plugin de despliegue:
-```bash
-npm install -D gh-pages
-```
+- Implementado: landing pública, autenticación Supabase, panel de gestión con roles (`admin`, `teens`, usuario normal), configuración institucional, búsqueda y exportación de miembros.
+- Las pantallas administrativas requieren el esquema y las políticas RLS instalados.
+- La tienda permite explorar el catálogo, pero **pedidos y pagos están deshabilitados**: no hay backend de pedidos ni proveedor de pago. Antes de abrir compras, define proveedor de pago, inventario, envíos y confirmaciones, y valida pedidos en el servidor.
+- No hay pruebas automatizadas.
 
-3. Agrega el script en `package.json`:
-```json
-"scripts": {
-  "dev": "vite",
-  "build": "vite build",
-  "preview": "vite preview",
-  "deploy": "npm run build && gh-pages -d dist"
-}
-```
+## Solución de problemas
 
-4. Despliega:
-```bash
-npm run deploy
-```
-
-5. En GitHub → Settings → Pages:
-   - Source: **Deploy from a branch**
-   - Branch: **gh-pages** / **root**
-   
-6. Tu URL será: `https://TU_USUARIO.github.io/ladp-iglesia-admin/`
-
----
-
-## Opción D — Desplegar en Cloudflare Pages (muy rápido)
-
-1. Ve a [pages.cloudflare.com](https://pages.cloudflare.com) → Regístrate gratis
-2. **Create a project** → Connect to Git → Selecciona tu repo
-3. Configuración:
-   - **Framework preset:** None
-   - **Build command:** `npm run build`
-   - **Build output directory:** `dist`
-4. Click en **Deploy**
-5. URL: `https://ladp-iglesia.pages.dev`
-
-**Ventaja:** CDN global ultra-rápido + SSL gratis + dominio personalizado gratis.
-
----
-
-## Opción E — Desplegar en Railway
-
-1. Ve a [railway.app](https://railway.app) → Login con GitHub
-2. **New Project** → **Deploy from GitHub repo**
-3. Selecciona tu repositorio
-4. Railway detectará el proyecto automáticamente
-5. Agrega estas variables si es necesario:
-   - `PORT`: 3000
-6. Deploy automático
-
----
-
-## Comparativa de Opciones Gratuitas
-
-| Plataforma        | SSL  | Dominio Custom | Deploys Auto | Límite        | Velocidad |
-|-------------------|------|----------------|--------------|---------------|-----------|
-| **Vercel** ⭐      | ✅   | ✅ Gratis      | ✅           | 100GB/mes     | ⚡⚡⚡      |
-| **Netlify**       | ✅   | ✅ Gratis      | ✅           | 100GB/mes     | ⚡⚡⚡      |
-| **Cloudflare**    | ✅   | ✅ Gratis      | ✅           | Ilimitado     | ⚡⚡⚡⚡     |
-| **GitHub Pages**  | ✅   | ✅ Gratis      | ✅           | 1GB repo      | ⚡⚡       |
-| **Railway**       | ✅   | ✅             | ✅           | $5 crédito    | ⚡⚡⚡      |
-
-**Mi recomendación: Vercel o Cloudflare Pages** — Son los más rápidos, fáciles y con mejor rendimiento.
-
----
-
-## Después del Despliegue
-
-### Credenciales de acceso al Admin:
-- **Email:** admin@ladp.pe
-- **Password:** admin123
-
-### Lo que funciona:
-- ✅ Landing page pública (cualquier visitante)
-- ✅ Tienda online pública (página independiente)
-- ✅ Login de administración
-- ✅ Dashboard con 11 módulos de gestión
-- ✅ CRUD completo de miembros, finanzas, eventos, etc.
-
-### Para producción real necesitarás:
-- **Backend/API** (Firebase, Supabase, o Node.js) para persistir datos
-- **Base de datos** (Firestore, PostgreSQL, etc.)
-- **Autenticación real** (Firebase Auth, Supabase Auth)
-- **Pasarela de pagos** (Culqi, MercadoPago, Stripe) para la tienda
-- **Almacenamiento** (Cloudinary, S3) para imágenes
-
-### Servicios backend gratuitos recomendados:
-| Servicio    | Base de Datos | Auth  | Storage | Límite Gratis         |
-|-------------|---------------|-------|---------|-----------------------|
-| **Supabase**| PostgreSQL    | ✅    | ✅      | 500MB DB, 1GB storage |
-| **Firebase**| Firestore     | ✅    | ✅      | 1GB DB, 5GB storage   |
-| **Neon**    | PostgreSQL    | ❌    | ❌      | 512MB DB              |
-| **PlanetScale** | MySQL    | ❌    | ❌      | 5GB DB                |
-
----
-
-## Solución de Problemas
-
-**Error: "Module not found"**
-```bash
-rm -rf node_modules package-lock.json
-npm install
-```
-
-**Error en el build**
-```bash
-npm run build 2>&1 | tail -20
-# Lee el error específico y corrígelo
-```
-
-**Página en blanco después de deploy**
-- Verifica que `base` en `vite.config.js` sea correcto
-- En GitHub Pages debe ser `'/nombre-del-repo/'`
-- En Vercel/Netlify debe ser `'/'` (por defecto)
-
-**Fuentes no cargan**
-- Las fuentes se cargan desde Google Fonts vía CSS
-- Requiere conexión a internet del usuario
+- **"Module not found":** `npm ci`.
+- **Error de build:** `npm run build 2>&1 | tail -20`.
+- **El build se queda colgado en macOS con el proyecto en Escritorio/iCloud:** archivos de `node_modules` evictados por iCloud. Mueve `node_modules` fuera y ejecuta `npm ci`, o mantén el proyecto fuera de carpetas sincronizadas.
+- **Página en blanco o 404 en `/login`:** falta la reescritura a `index.html` o `base` es incorrecto.
+- **La app muestra datos de muestra en producción:** las variables `VITE_*` no estaban definidas al compilar; defínelas y vuelve a desplegar (se leen en build, no en ejecución).
+- **Fallan lecturas o escrituras:** revisa que se ejecutaron los SQL y las políticas RLS; la app muestra los errores de Supabase.
+- **Fuentes:** se cargan desde Google Fonts y requieren conexión.
