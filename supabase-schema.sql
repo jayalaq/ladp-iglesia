@@ -335,8 +335,15 @@ BEGIN
 END $$;
 
 CREATE POLICY "Admin read" ON miembros FOR SELECT USING (is_admin());
+CREATE OR REPLACE FUNCTION email_verificado()
+RETURNS BOOLEAN AS $$
+  SELECT EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND email_confirmed_at IS NOT NULL);
+$$ LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, auth;
+REVOKE ALL ON FUNCTION email_verificado() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION email_verificado() TO authenticated;
+
 CREATE POLICY "Miembro lee su ficha" ON miembros FOR SELECT
-  USING (lower(email) = lower(auth.jwt() ->> 'email'));
+  USING (lower(email) = lower(auth.jwt() ->> 'email') AND email_verificado());
 CREATE POLICY "Admin insert" ON miembros FOR INSERT WITH CHECK (is_admin());
 CREATE POLICY "Admin update" ON miembros FOR UPDATE USING (is_admin()) WITH CHECK (is_admin());
 CREATE POLICY "Admin delete" ON miembros FOR DELETE USING (is_admin());
