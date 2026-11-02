@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Heart, Users, Target, Calendar, BarChart2, Plus, Search, DollarSign, Award, Clock, Trash2, Menu, ArrowRight, Mail, Lock, Eye, EyeOff, Check, LogOut, Bell, Phone, MapPin, Play, Facebook, Youtube, Instagram, Download, Send, UserPlus, UserCheck, FileText, Activity, MessageCircle, AlertCircle, Edit, Settings, Globe, Palette, Save, ShoppingCart, BookOpen, CreditCard, Package, Grid, List, Share2, Bookmark, ChevronDown, ChevronRight, X, Filter, TrendingUp, PieChart, Home, Layers, Printer, MoreVertical, RefreshCw, ChevronLeft, Star, Upload, Copy, ExternalLink, Mic } from "lucide-react";
 import { isSupabaseConfigured } from "./supabase";
-import { loadAllData, insertRow, updateRow, deleteRow, upsertRecord, removeRecord, signIn, signOut, signInWithGoogle, signUp, getUserProfile, getSession, onAuthStateChange, getUsers, updateUserRole } from "./dataService";
+import { loadAllData, insertRow, updateRow, deleteRow, upsertRecord, removeRecord, signIn, signOut, signInWithGoogle, signUp, getUserProfile, getSession, onAuthStateChange, getUsers, updateUserRole, getChurchSettings, saveChurchSettings, requestPasswordReset, updatePassword, fetchPublicCampaign, submitPublicCampaignContribution } from "./dataService";
 
 // ─── PALETA DE COLORES ──────────────────────────────────────────────
 const G = {
@@ -112,20 +112,29 @@ const GlobalStyles = () => (
       .login-left { display: none !important; }
       .login-right { padding: 24px 16px !important; }
       .dashboard-layout { flex-direction: column !important; height: auto !important; min-height: 100vh !important; }
+      .dashboard-layout { overflow-x: hidden !important; }
+      .dashboard-content { min-width: 0 !important; min-height: 0 !important; overflow: visible !important; }
       .dashboard-sidebar { width: 100% !important; flex-direction: row !important; border-right: none !important; border-bottom: 1px solid ${G.grayMid}40 !important; overflow-x: auto !important; overflow-y: hidden !important; }
       .dashboard-sidebar nav { flex-direction: row !important; padding: 6px 8px !important; flex: 1 !important; }
       .dashboard-sidebar .sidebar-bottom { flex-direction: row !important; border-top: none !important; border-left: 1px solid ${G.grayMid}40 !important; padding: 6px 8px !important; }
       .sidebar-item { padding: 8px 10px !important; font-size: 0 !important; justify-content: center !important; min-width: 40px !important; }
       .sidebar-item svg { margin: 0 !important; }
-      .dashboard-header { padding: 10px 16px !important; }
-      .dashboard-header .search-box { display: none !important; }
+      .dashboard-header { padding: 10px 12px !important; flex-wrap: wrap !important; gap: 10px !important; }
+      .dashboard-header .search-box { display: block !important; order: 2; flex: 0 0 100% !important; max-width: none !important; }
+      .dashboard-header > div:last-child { order: 1; margin-left: auto; min-width: 0; }
       .dashboard-main { padding: 16px !important; }
       .stat-grid { grid-template-columns: 1fr 1fr !important; gap: 12px !important; }
       .teens-cal-grid { grid-template-columns: minmax(0, 1fr) !important; }
+      .teens-cal-grid > * { min-width: 0 !important; }
       .teens-agenda { height: auto !important; min-height: 0 !important; max-height: 70vh !important; }
       .admin-table { overflow-x: auto !important; }
       .shop-product-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)) !important; }
       .shop-header { flex-direction: column !important; gap: 16px !important; }
+      .dashboard-main { overflow: visible !important; flex: 0 0 auto !important; }
+      .dashboard-header button, .dashboard-sidebar button, .dashboard-sidebar a { min-height: 44px; }
+      .dashboard-sidebar nav, .tabs-bar { -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+      .dashboard-sidebar nav::-webkit-scrollbar, .tabs-bar::-webkit-scrollbar { display: none; }
+      .ui-card { min-width: 0; }
     }
     /* La agenda toma la altura del calendario y hace scroll por dentro */
     .teens-agenda { height: 0; min-height: 100%; }
@@ -194,13 +203,43 @@ const alClicLink = (ruta, extra) => (e) => {
   if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
   e.preventDefault(); extra?.(); navegar(ruta);
 };
-const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+const uid = () => {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, char => {
+    const random = Math.random() * 16 | 0;
+    return (char === "x" ? random : (random & 3 | 8)).toString(16);
+  });
+};
 const fmt = (n) => typeof n === "number" ? n.toLocaleString("es-PE") : n;
 const fmtMoney = (n) => `S/. ${fmt(n)}`;
 const fmtDate = (d) => d ? new Date(d + "T12:00").toLocaleDateString("es-PE", { day: "numeric", month: "short", year: "numeric" }) : "—";
 const fmtDateShort = (d) => d ? new Date(d + "T12:00").toLocaleDateString("es-PE", { day: "numeric", month: "short" }) : "—";
 const today = () => new Date().toISOString().slice(0,10);
 const monthName = (m) => ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"][m];
+const saveRecord = async (key, item, isNew, toast) => {
+  if (!isSupabaseConfigured()) return item;
+  try {
+    const saved = await upsertRecord(key, item, isNew);
+    if (!saved) throw new Error("La base de datos no confirmó el guardado.");
+    return saved;
+  } catch (error) {
+    console.error(`Error saving ${key}:`, error);
+    toast(error.message || "No se pudo guardar. Revisa tu conexión y permisos.", "error");
+    return null;
+  }
+};
+const deleteRecord = async (key, id, toast) => {
+  if (!isSupabaseConfigured()) return true;
+  try {
+    const deleted = await removeRecord(key, id);
+    if (!deleted) throw new Error("La base de datos no confirmó la eliminación.");
+    return true;
+  } catch (error) {
+    console.error(`Error deleting ${key}:`, error);
+    toast(error.message || "No se pudo eliminar. Revisa tu conexión y permisos.", "error");
+    return false;
+  }
+};
 
 // ─── DATOS DE IGLESIA ───────────────────────────────────────────────
 const CHURCH_DEFAULT = {
@@ -446,12 +485,12 @@ const Card = ({ children, hover, onClick, style: s, className = "" }) => (
   </div>
 );
 
-const Input = ({ label, value, onChange, placeholder, type = "text", icon: Icon, required, disabled, style: s }) => (
+const Input = ({ label, value, onChange, placeholder, type = "text", icon: Icon, required, disabled, min, max, step, maxLength, style: s }) => (
   <div style={{ display: "flex", flexDirection: "column", gap: 5, ...s }}>
     {label && <label style={{ fontSize: 12.5, color: G.dark, fontWeight: 600, fontFamily: font }}>{label}{required && <span style={{ color: G.danger }}> *</span>}</label>}
     <div style={{ position: "relative" }}>
       {Icon && <Icon size={14} color={G.gray} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />}
-      <input type={type} value={value} onChange={onChange} placeholder={placeholder} disabled={disabled} style={{ width: "100%", padding: Icon ? "10px 12px 10px 36px" : "10px 14px", borderRadius: 10, border: `1.5px solid ${G.grayMid}`, fontSize: 13.5, outline: "none", background: disabled ? G.grayLight : "#fff", transition: "all 0.2s", fontFamily: font, color: G.dark, boxSizing: "border-box" }} onFocus={e => { e.target.style.borderColor = G.primary; e.target.style.boxShadow = `0 0 0 3px ${G.primary}10`; }} onBlur={e => { e.target.style.borderColor = G.grayMid; e.target.style.boxShadow = "none"; }} />
+      <input type={type} value={value} onChange={onChange} placeholder={placeholder} disabled={disabled} min={min} max={max} step={step} maxLength={maxLength} style={{ width: "100%", padding: Icon ? "10px 12px 10px 36px" : "10px 14px", borderRadius: 10, border: `1.5px solid ${G.grayMid}`, fontSize: 13.5, outline: "none", background: disabled ? G.grayLight : "#fff", transition: "all 0.2s", fontFamily: font, color: G.dark, boxSizing: "border-box" }} onFocus={e => { e.target.style.borderColor = G.primary; e.target.style.boxShadow = `0 0 0 3px ${G.primary}10`; }} onBlur={e => { e.target.style.borderColor = G.grayMid; e.target.style.boxShadow = "none"; }} />
     </div>
   </div>
 );
@@ -576,7 +615,7 @@ const PageHeader = ({ title, subtitle, actions }) => (
 );
 
 // ─── LANDING PAGE ──────────────────────────────────────────────────
-const LandingPage = ({ onLogin, onTienda }) => {
+const LandingPage = ({ onLogin, onTienda, config }) => {
   const [scrolled, setScrolled] = useState(false);
   const [hoveredMin, setHoveredMin] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -647,7 +686,7 @@ const LandingPage = ({ onLogin, onTienda }) => {
         <div style={{ maxWidth: 1300, margin: "0 auto", padding: "0 32px", display: "flex", alignItems: "center", justifyContent: "space-between", height: scrolled ? 64 : 80, transition: "height 0.35s" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }} onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
             <div style={{ width: 44, height: 44, borderRadius: 12, background: `linear-gradient(135deg, ${G.accent}, ${G.accentLight})`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, color: "#fff", fontSize: 22, fontFamily: fontTitle, boxShadow: `0 4px 16px ${G.accent}40` }}>L</div>
-            <div><div style={{ fontSize: 18, fontWeight: 800, color: "#fff", fontFamily: fontTitle }}>LADP</div><div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 3, marginTop: -1 }}>Iglesia - ICV</div></div>
+            <div><div style={{ fontSize: 18, fontWeight: 800, color: "#fff", fontFamily: fontTitle }}>{config.abreviatura}</div><div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 3, marginTop: -1 }}>{config.nombre}</div></div>
           </div>
           <div className="nav-links" style={{ display: "flex", gap: 4 }}>
             {[{ l: "Visítanos", h: "visitanos" },{ l: "Sermones", h: "sermones" },{ l: "Ministerios", h: "ministerios" },{ l: "Cómo Funciona", h: "como-funciona" },{ l: "Eventos", h: "eventos" }].map(item => (
@@ -686,7 +725,7 @@ const LandingPage = ({ onLogin, onTienda }) => {
             <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.8)", letterSpacing: 2, textTransform: "uppercase" }}>En Vivo · Domingos 9:00 AM & 6:00 PM</span>
           </div>
           <h1 className="hero-title" style={{ margin: "0 0 28px", fontSize: "clamp(48px, 7vw, 96px)", fontWeight: 800, lineHeight: 1.02, letterSpacing: -4, color: "#fff", fontFamily: fontTitle }}>Un lugar donde<br /><span className="gradient-animate" style={{ background: `linear-gradient(135deg, ${G.accent}, ${G.accentLight}, #fff, ${G.accent})`, backgroundSize: "200% 200%", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>todo cambia</span></h1>
-          <p className="hero-subtitle" style={{ margin: "0 auto 48px", fontSize: "clamp(16px, 2vw, 20px)", lineHeight: 1.7, color: "rgba(255,255,255,0.6)", maxWidth: 580 }}>Somos una iglesia llena del Espíritu Santo donde cualquier persona puede encontrar esperanza, comunidad y propósito.</p>
+          <p className="hero-subtitle" style={{ margin: "0 auto 48px", fontSize: "clamp(16px, 2vw, 20px)", lineHeight: 1.7, color: "rgba(255,255,255,0.6)", maxWidth: 580 }}>{config.lema}</p>
           <div className="hero-buttons" style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap", marginBottom: 64 }}>
             <button onClick={() => scrollTo("visitanos")} style={{ padding: "16px 40px", fontSize: 16, fontWeight: 800, background: G.accent, color: "#fff", border: "none", borderRadius: 14, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 10, transition: "all 0.3s", boxShadow: `0 8px 32px ${G.accent}40` }} onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-3px) scale(1.03)"; }} onMouseLeave={e => { e.currentTarget.style.transform = "none"; }}>Planifica tu Visita <ArrowRight size={18} /></button>
             <button onClick={() => scrollTo("sermones")} style={{ padding: "16px 40px", fontSize: 16, fontWeight: 700, background: "rgba(255,255,255,0.08)", color: "#fff", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 14, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 10, backdropFilter: "blur(10px)", transition: "all 0.3s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.14)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.08)"}><Play size={18} /> Ver Último Sermón</button>
@@ -712,7 +751,7 @@ const LandingPage = ({ onLogin, onTienda }) => {
             <STag>Visítanos</STag>
             <h2 style={{ margin: "0 0 20px", fontSize: "clamp(36px, 4vw, 56px)", fontWeight: 800, color: G.dark, lineHeight: 1.08, letterSpacing: -2, fontFamily: fontTitle }}>Tu primera visita será <span style={{ color: G.accent }}>inolvidable</span></h2>
             <p style={{ margin: "0 0 36px", fontSize: 17, lineHeight: 1.8, color: G.gray }}>No importa de dónde vengas. Aquí encontrarás una comunidad genuina con los brazos abiertos.</p>
-            {[{ icon: Clock, label: "Horarios", value: "Domingos 9:00 AM y 6:00 PM · Miércoles 7:00 PM" },{ icon: MapPin, label: "Dirección", value: "Av. Colombia 325, Pueblo Libre, Lima" },{ icon: Users, label: "¿Qué esperar?", value: "Alabanza contemporánea · Mensaje relevante · Ministerio infantil" }].map((item, i) => (
+            {[{ icon: Clock, label: "Horarios", value: "Domingos 9:00 AM y 6:00 PM · Miércoles 7:00 PM" },{ icon: MapPin, label: "Dirección", value: config.direccion },{ icon: Users, label: "¿Qué esperar?", value: "Alabanza contemporánea · Mensaje relevante · Ministerio infantil" }].map((item, i) => (
               <div key={i} style={{ display: "flex", gap: 16, alignItems: "flex-start", marginBottom: 20 }}>
                 <div style={{ width: 48, height: 48, borderRadius: 14, background: G.accent + "10", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><item.icon size={22} color={G.accent} /></div>
                 <div><div style={{ fontSize: 13, fontWeight: 800, color: G.dark, textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>{item.label}</div><div style={{ fontSize: 15, color: G.gray, lineHeight: 1.6 }}>{item.value}</div></div>
@@ -970,11 +1009,11 @@ const LandingPage = ({ onLogin, onTienda }) => {
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
                 <div style={{ width: 42, height: 42, borderRadius: 12, background: `linear-gradient(135deg, ${G.accent}, ${G.accentLight})`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 20, fontFamily: fontTitle }}>L</div>
-                <div><span style={{ fontSize: 18, fontWeight: 800, fontFamily: fontTitle }}>LADP</span><div style={{ fontSize: 9, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 2 }}>Las Asambleas de Dios del Perú - ICV</div></div>
+                <div><span style={{ fontSize: 18, fontWeight: 800, fontFamily: fontTitle }}>{config.abreviatura}</span><div style={{ fontSize: 9, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 2 }}>{config.nombre}</div></div>
               </div>
               <p style={{ margin: "0 0 24px", fontSize: 14, color: "#64748b", lineHeight: 1.7, maxWidth: 300 }}>Más de 106 años proclamando el evangelio de Jesucristo en el Perú y el mundo.</p>
               <div style={{ display: "flex", gap: 10 }}>
-                {[[Facebook, CHURCH_DEFAULT.facebook], [Youtube, CHURCH_DEFAULT.youtube], [Instagram, CHURCH_DEFAULT.instagram]].map(([Icon, url], i) => (
+                {[[Facebook, config.facebook], [Youtube, config.youtube], [Instagram, config.instagram]].map(([Icon, url], i) => (
                   <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b", transition: "all 0.2s", textDecoration: "none" }} onMouseEnter={e => { e.currentTarget.style.background = G.accent; e.currentTarget.style.color = "#fff"; }} onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "#64748b"; }}><Icon size={18} /></a>
                 ))}
               </div>
@@ -996,13 +1035,16 @@ const LandingPage = ({ onLogin, onTienda }) => {
 };
 
 // ─── LOGIN ──────────────────────────────────────────────────────────
-const Login = ({ onSuccess, onBack, onRegister }) => {
+const Login = ({ onSuccess, onBack, onRegister, passwordRecovery, onPasswordRecoveryComplete }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [passwordUpdated, setPasswordUpdated] = useState(false);
 
   const handleLogin = async () => {
     setError("");
@@ -1029,6 +1071,36 @@ const Login = ({ onSuccess, onBack, onRegister }) => {
     setGoogleLoading(false);
   };
 
+  const handlePasswordResetRequest = async () => {
+    setError("");
+    if (!email.trim()) { setError("Ingresa tu correo electrónico para recuperar el acceso"); return; }
+    setLoading(true);
+    try {
+      await requestPasswordReset(email.trim());
+      setResetSent(true);
+    } catch (e) {
+      setError(e.message || "No se pudo enviar el enlace de recuperación");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordUpdate = async () => {
+    setError("");
+    if (password.length < 6) { setError("La contraseña debe tener al menos 6 caracteres"); return; }
+    if (password !== confirmPassword) { setError("Las contraseñas no coinciden"); return; }
+    setLoading(true);
+    try {
+      await updatePassword(password);
+      setPasswordUpdated(true);
+      onPasswordRecoveryComplete();
+    } catch (e) {
+      setError(e.message || "No se pudo actualizar la contraseña");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="login-split" style={{ minHeight: "100vh", display: "flex", fontFamily: font }}>
       <GlobalStyles />
@@ -1053,38 +1125,50 @@ const Login = ({ onSuccess, onBack, onRegister }) => {
             <ChevronLeft size={16} /> Volver al inicio
           </button>
           <div style={{ background: "#fff", padding: 36, borderRadius: 18, border: `1px solid ${G.grayMid}40`, boxShadow: `0 8px 32px ${G.primary}08` }}>
-            <h2 style={{ margin: "0 0 6px", fontSize: 26, fontWeight: 800, color: G.dark, fontFamily: fontTitle }}>Bienvenido</h2>
-            <p style={{ margin: "0 0 28px", color: G.gray, fontSize: 13.5 }}>Accede a la plataforma administrativa</p>
+            <h2 style={{ margin: "0 0 6px", fontSize: 26, fontWeight: 800, color: G.dark, fontFamily: fontTitle }}>{passwordRecovery ? "Restablecer contraseña" : "Bienvenido"}</h2>
+            <p style={{ margin: "0 0 28px", color: G.gray, fontSize: 13.5 }}>{passwordRecovery ? "Elige una contraseña nueva para tu cuenta." : "Accede a la plataforma administrativa"}</p>
+            {resetSent && <div role="status" style={{ background: G.successLight, border: `1px solid ${G.success}20`, borderRadius: 10, padding: "10px 14px", fontSize: 13, color: G.success, marginBottom: 16 }}>Si existe una cuenta con ese correo, recibirás un enlace para restablecer tu contraseña.</div>}
+            {passwordUpdated && <div role="status" style={{ background: G.successLight, border: `1px solid ${G.success}20`, borderRadius: 10, padding: "10px 14px", fontSize: 13, color: G.success, marginBottom: 16 }}>Contraseña actualizada. Ya puedes iniciar sesión con tu nueva clave.</div>}
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <Input label="Correo electrónico" value={email} onChange={e => setEmail(e.target.value)} placeholder="tu@email.com" type="email" icon={Mail} required />
-              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                <label style={{ fontSize: 12.5, color: G.dark, fontWeight: 600, fontFamily: font }}>Contraseña <span style={{ color: G.danger }}>*</span></label>
+              {!passwordRecovery && <Input label="Correo electrónico" value={email} onChange={e => setEmail(e.target.value)} placeholder="tu@email.com" type="email" icon={Mail} required />}
+              {(!passwordRecovery || !passwordUpdated) && <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                <label style={{ fontSize: 12.5, color: G.dark, fontWeight: 600, fontFamily: font }}>{passwordRecovery ? "Nueva contraseña" : "Contraseña"} <span style={{ color: G.danger }}>*</span></label>
                 <div style={{ position: "relative" }}>
                   <Lock size={14} color={G.gray} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
-                  <input type={showPass ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" onKeyDown={e => e.key === "Enter" && handleLogin()} style={{ width: "100%", padding: "10px 40px 10px 36px", borderRadius: 10, border: `1.5px solid ${G.grayMid}`, fontSize: 13.5, outline: "none", fontFamily: font, boxSizing: "border-box" }} />
+                  <input type={showPass ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" onKeyDown={e => e.key === "Enter" && (passwordRecovery ? handlePasswordUpdate() : handleLogin())} style={{ width: "100%", padding: "10px 40px 10px 36px", borderRadius: 10, border: `1.5px solid ${G.grayMid}`, fontSize: 13.5, outline: "none", fontFamily: font, boxSizing: "border-box" }} />
                   <button onClick={() => setShowPass(!showPass)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", padding: 4 }}>
                     {showPass ? <EyeOff size={16} color={G.gray} /> : <Eye size={16} color={G.gray} />}
                   </button>
                 </div>
-              </div>
+              </div>}
+              {passwordRecovery && !passwordUpdated && <Input label="Confirmar contraseña" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="••••••••" type="password" icon={Lock} required />}
               {error && <div style={{ background: G.dangerLight, border: `1px solid ${G.danger}20`, borderRadius: 10, padding: "10px 14px", fontSize: 13, color: G.danger, fontWeight: 500 }}>{error}</div>}
-              <Button variant="primary" size="lg" onClick={handleLogin} disabled={loading || googleLoading} fullWidth>
-                {loading ? "Iniciando sesión…" : "Iniciar Sesión"}
-              </Button>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "4px 0" }}>
+              {passwordRecovery ? (
+                passwordUpdated
+                  ? <Button variant="primary" size="lg" onClick={() => { setPasswordUpdated(false); setPassword(""); setConfirmPassword(""); }} fullWidth>Volver a iniciar sesión</Button>
+                  : <Button variant="primary" size="lg" onClick={handlePasswordUpdate} disabled={loading} fullWidth>{loading ? "Actualizando…" : "Guardar nueva contraseña"}</Button>
+              ) : (
+                <>
+                  <Button variant="primary" size="lg" onClick={handleLogin} disabled={loading || googleLoading} fullWidth>
+                    {loading ? "Iniciando sesión…" : "Iniciar Sesión"}
+                  </Button>
+                  <button onClick={handlePasswordResetRequest} disabled={loading || googleLoading} style={{ alignSelf: "flex-end", background: "none", border: "none", padding: 0, color: G.primary, fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: font }}>¿Olvidaste tu contraseña?</button>
+                </>
+              )}
+              {!passwordRecovery && <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "4px 0" }}>
                 <div style={{ flex: 1, height: 1, background: G.grayMid + "60" }} />
                 <span style={{ fontSize: 12, color: G.gray, fontWeight: 500 }}>o continúa con</span>
                 <div style={{ flex: 1, height: 1, background: G.grayMid + "60" }} />
-              </div>
-              <button onClick={handleGoogle} disabled={loading || googleLoading} style={{ width: "100%", padding: "11px 16px", borderRadius: 10, border: `1.5px solid ${G.grayMid}`, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, fontSize: 13.5, fontWeight: 600, color: G.dark, fontFamily: font, transition: "border-color 0.2s" }}>
+              </div>}
+              {!passwordRecovery && <button onClick={handleGoogle} disabled={loading || googleLoading} style={{ width: "100%", padding: "11px 16px", borderRadius: 10, border: `1.5px solid ${G.grayMid}`, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, fontSize: 13.5, fontWeight: 600, color: G.dark, fontFamily: font, transition: "border-color 0.2s" }}>
                 <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3C33.6 33.1 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34.1 6.5 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c11 0 19.6-7.9 19.6-20 0-1.3-.1-2.7-.4-4z" /><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.1 19 12 24 12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34.1 6.5 29.3 4 24 4 16.3 4 9.6 8.3 6.3 14.7z" /><path fill="#4CAF50" d="M24 44c5.2 0 9.9-1.9 13.5-5l-6.2-5.2C29.4 35.5 26.8 36 24 36c-5.2 0-9.6-2.9-11.3-7.2L6 33.7C9.3 39.5 16.2 44 24 44z" /><path fill="#1976D2" d="M43.6 20H24v8h11.3c-.8 2.2-2.3 4-4.3 5.2l6.2 5.2C40.8 35.5 44 30.2 44 24c0-1.3-.1-2.7-.4-4z" /></svg>
                 {googleLoading ? "Redirigiendo…" : "Continuar con Google"}
-              </button>
+              </button>}
             </div>
-            <div style={{ marginTop: 20, textAlign: "center" }}>
+            {!passwordRecovery && <div style={{ marginTop: 20, textAlign: "center" }}>
               <span style={{ fontSize: 13, color: G.gray }}>¿No tienes cuenta? </span>
               <button onClick={onRegister} style={{ background: "none", border: "none", color: G.primary, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: font }}>Crear cuenta</button>
-            </div>
+            </div>}
           </div>
         </div>
       </div>
@@ -1097,7 +1181,7 @@ const Login = ({ onSuccess, onBack, onRegister }) => {
 // ═══════════════════════════════════════════════════════════════════
 
 // ─── VISTA PRINCIPAL DASHBOARD ──────────────────────────────────────
-const DashboardView = ({ data }) => {
+const DashboardView = ({ data, config }) => {
   const { miembros, donaciones, proyectos, eventos, asistencia, gastos } = data;
   const totalIngresos = donaciones.filter(d => d.estado === "completado").reduce((a, d) => a + d.monto, 0);
   const totalGastos = gastos.filter(g => g.estado === "pagado").reduce((a, g) => a + g.monto, 0);
@@ -1107,19 +1191,28 @@ const DashboardView = ({ data }) => {
 
   const donByMonth = {};
   donaciones.filter(d => d.estado === "completado").forEach(d => {
-    const m = new Date(d.fecha + "T12:00").getMonth();
-    donByMonth[m] = (donByMonth[m] || 0) + d.monto;
+    const date = new Date(d.fecha + "T12:00");
+    const key = `${date.getFullYear()}-${date.getMonth()}`;
+    donByMonth[key] = (donByMonth[key] || 0) + d.monto;
   });
-  const chartData = [10, 11, 0, 1, 2].map(m => ({ label: monthName(m), value: donByMonth[m] || 0 }));
+  const chartData = Array.from({ length: 5 }, (_, index) => {
+    const date = new Date();
+    date.setDate(1);
+    date.setMonth(date.getMonth() - 4 + index);
+    return {
+      label: monthName(date.getMonth()),
+      value: donByMonth[`${date.getFullYear()}-${date.getMonth()}`] || 0,
+    };
+  });
 
   return (
     <div className="fadein">
-      <PageHeader title="Dashboard" subtitle={`Resumen general — ${CHURCH_DEFAULT.nombre}`} />
+      <PageHeader title="Dashboard" subtitle={`Resumen general — ${config.nombre}`} />
       <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 16 }}>
-        <StatCard label="Miembros Activos" value={activos} icon={Users} color={G.primary} trend={`+${miembros.filter(m => m.desde >= "2025-01").length}`} />
-        <StatCard label="Ingresos (S/.)" value={`${(totalIngresos / 1000).toFixed(1)}K`} icon={TrendingUp} color={G.success} trend="+8%" />
+        <StatCard label="Miembros Activos" value={activos} icon={Users} color={G.primary} />
+        <StatCard label="Ingresos (S/.)" value={`${(totalIngresos / 1000).toFixed(1)}K`} icon={TrendingUp} color={G.success} />
         <StatCard label="Balance (S/.)" value={fmtMoney(balance)} icon={DollarSign} color={balance >= 0 ? G.success : G.danger} />
-        <StatCard label="Asistencia Promedio" value={promAsist} icon={Activity} color={G.purple} trend="+5%" />
+        <StatCard label="Asistencia Promedio" value={promAsist} icon={Activity} color={G.purple} />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 20, marginBottom: 20 }}>
         <Card hover={false}>
@@ -1196,6 +1289,39 @@ const MiembrosView = ({ data, setData, toast }) => {
 
   const blank = { nombre: "", rol: "Miembro", email: "", telefono: "", estado: "activo", desde: today(), direccion: "", grupo: "Adultos", celula: "", notas: "", bautizado: false, foto: "" };
 
+  const exportarMiembros = () => {
+    if (filtrados.length === 0) {
+      toast("No hay miembros para exportar", "error");
+      return;
+    }
+    const columnas = [
+      ["Nombre", "nombre"], ["Rol", "rol"], ["Email", "email"], ["Teléfono", "telefono"],
+      ["Estado", "estado"], ["Fecha de ingreso", "desde"], ["Grupo", "grupo"],
+      ["Célula", "celula"], ["Dirección", "direccion"], ["Bautizado", "bautizado"],
+    ];
+    const celdaCsv = value => {
+      const text = String(value ?? "");
+      const safe = /^[\s]*[=+\-@]/.test(text) ? `'${text}` : text;
+      return `"${safe.replaceAll('"', '""')}"`;
+    };
+    const csv = [
+      columnas.map(([label]) => celdaCsv(label)).join(";"),
+      ...filtrados.map(miembro => columnas.map(([, key]) => celdaCsv(miembro[key])).join(";")),
+    ].join("\r\n");
+    try {
+      const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `miembros-ladp-${today()}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast(`${filtrados.length} miembros exportados`);
+    } catch (error) {
+      console.error("Error exporting members:", error);
+      toast("No se pudo exportar la lista de miembros", "error");
+    }
+  };
+
   const openNew = () => { setEditando({ ...blank, id: uid(), foto: "NN" }); setModal(true); };
   const openEdit = (m) => { setEditando({ ...m }); setModal(true); };
 
@@ -1203,7 +1329,8 @@ const MiembrosView = ({ data, setData, toast }) => {
     if (!editando.nombre) return;
     const item = { ...editando, foto: editando.nombre.split(" ").map(n => n[0]).join("").slice(0,2).toUpperCase() };
     const exists = data.miembros.find(m => m.id === item.id);
-    const saved = await upsertRecord("miembros", item, !exists) || item;
+    const saved = await saveRecord("miembros", item, !exists, toast);
+    if (!saved) return;
     if (exists) setData({ ...data, miembros: data.miembros.map(m => m.id === item.id ? saved : m) });
     else setData({ ...data, miembros: [saved, ...data.miembros] });
     toast(exists ? "Miembro actualizado correctamente" : "Nuevo miembro registrado");
@@ -1211,7 +1338,7 @@ const MiembrosView = ({ data, setData, toast }) => {
   };
 
   const confirmarEliminar = async () => {
-    await removeRecord("miembros", eliminar.id);
+    if (!await deleteRecord("miembros", eliminar.id, toast)) return;
     setData({ ...data, miembros: data.miembros.filter(m => m.id !== eliminar.id) });
     toast("Miembro eliminado");
     setEliminar(null);
@@ -1219,7 +1346,7 @@ const MiembrosView = ({ data, setData, toast }) => {
 
   return (
     <div className="fadein">
-      <PageHeader title="Miembros" subtitle={`${data.miembros.length} registrados · ${data.miembros.filter(m => m.estado === "activo").length} activos`} actions={<><Button variant="outline" size="md" icon={Download}>Exportar</Button><Button variant="primary" size="md" icon={Plus} onClick={openNew}>Nuevo Miembro</Button></>} />
+      <PageHeader title="Miembros" subtitle={`${data.miembros.length} registrados · ${data.miembros.filter(m => m.estado === "activo").length} activos`} actions={<><Button variant="outline" size="md" icon={Download} onClick={exportarMiembros}>Exportar</Button><Button variant="primary" size="md" icon={Plus} onClick={openNew}>Nuevo Miembro</Button></>} />
 
       <Card hover={false} style={{ marginBottom: 20, padding: "14px 20px" }}>
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
@@ -1292,7 +1419,8 @@ const FinanzasView = ({ data, setData, toast }) => {
   const guardarDon = async () => {
     if (!editando.miembro || !editando.monto) return;
     const exists = data.donaciones.find(d => d.id === editando.id);
-    const saved = await upsertRecord("donaciones", editando, !exists) || editando;
+    const saved = await saveRecord("donaciones", editando, !exists, toast);
+    if (!saved) return;
     if (exists) setData({ ...data, donaciones: data.donaciones.map(d => d.id === editando.id ? saved : d) });
     else setData({ ...data, donaciones: [saved, ...data.donaciones] });
     toast(exists ? "Donación actualizada" : "Donación registrada");
@@ -1302,7 +1430,8 @@ const FinanzasView = ({ data, setData, toast }) => {
   const guardarGasto = async () => {
     if (!editando.concepto || !editando.monto) return;
     const exists = data.gastos.find(g => g.id === editando.id);
-    const saved = await upsertRecord("gastos", editando, !exists) || editando;
+    const saved = await saveRecord("gastos", editando, !exists, toast);
+    if (!saved) return;
     if (exists) setData({ ...data, gastos: data.gastos.map(g => g.id === editando.id ? saved : g) });
     else setData({ ...data, gastos: [saved, ...data.gastos] });
     toast(exists ? "Gasto actualizado" : "Gasto registrado");
@@ -1311,7 +1440,7 @@ const FinanzasView = ({ data, setData, toast }) => {
 
   const eliminarItem = async () => {
     const key = eliminar.type === "donacion" ? "donaciones" : "gastos";
-    await removeRecord(key, eliminar.id);
+    if (!await deleteRecord(key, eliminar.id, toast)) return;
     if (eliminar.type === "donacion") {
       setData({ ...data, donaciones: data.donaciones.filter(d => d.id !== eliminar.id) });
     } else {
@@ -1430,7 +1559,8 @@ const ProyectosView = ({ data, setData, toast }) => {
   const guardar = async () => {
     if (!editando.nombre) return;
     const exists = data.proyectos.find(p => p.id === editando.id);
-    const saved = await upsertRecord("proyectos", editando, !exists) || editando;
+    const saved = await saveRecord("proyectos", editando, !exists, toast);
+    if (!saved) return;
     if (exists) setData({ ...data, proyectos: data.proyectos.map(p => p.id === editando.id ? saved : p) });
     else setData({ ...data, proyectos: [saved, ...data.proyectos] });
     toast(exists ? "Proyecto actualizado" : "Proyecto creado");
@@ -1500,7 +1630,8 @@ const EventosView = ({ data, setData, toast, readOnly = false }) => {
   const guardar = async () => {
     if (!editando.nombre) return;
     const exists = data.eventos.find(e => e.id === editando.id);
-    const saved = await upsertRecord("eventos", editando, !exists) || editando;
+    const saved = await saveRecord("eventos", editando, !exists, toast);
+    if (!saved) return;
     if (exists) setData({ ...data, eventos: data.eventos.map(e => e.id === editando.id ? saved : e) });
     else setData({ ...data, eventos: [saved, ...data.eventos] });
     toast(exists ? "Evento actualizado" : "Evento creado");
@@ -1508,7 +1639,7 @@ const EventosView = ({ data, setData, toast, readOnly = false }) => {
   };
 
   const eliminar = async (id) => {
-    await removeRecord("eventos", id);
+    if (!await deleteRecord("eventos", id, toast)) return;
     setData({ ...data, eventos: data.eventos.filter(e => e.id !== id) });
     toast("Evento eliminado");
   };
@@ -1577,6 +1708,450 @@ const EventosView = ({ data, setData, toast, readOnly = false }) => {
   );
 };
 
+const CAMPANA_ESTADOS = [
+  { value: "borrador", label: "Borrador" },
+  { value: "abierta", label: "Abierta al público" },
+  { value: "cerrada", label: "Cerrada" },
+  { value: "completada", label: "Completada" },
+];
+const estadoCampanaLabel = estado => CAMPANA_ESTADOS.find(item => item.value === estado)?.label || estado;
+const formatoCantidadCampana = (cantidad, requerimiento) => {
+  const numero = Number(cantidad || 0).toLocaleString("es-PE", { maximumFractionDigits: 2 });
+  return requerimiento?.tipo === "dinero" ? `S/ ${numero}` : `${numero} ${requerimiento?.unidad || ""}`.trim();
+};
+
+const CampanasView = ({ data, setData, toast, userProfile }) => {
+  const [campanaActivaId, setCampanaActivaId] = useState(null);
+  const [modalCampana, setModalCampana] = useState(null);
+  const [modalRequerimiento, setModalRequerimiento] = useState(null);
+  const [modalEntrega, setModalEntrega] = useState(null);
+  const [guardando, setGuardando] = useState(false);
+  const campanas = data.campanas || [];
+  const requerimientos = data.campana_requerimientos || [];
+  const colaboraciones = data.campana_colaboraciones || [];
+  const entregas = data.campana_entregas || [];
+  const campanaActiva = campanas.find(item => item.id === campanaActivaId);
+  const reqDeCampana = requerimientos.filter(item => item.campana_id === campanaActivaId);
+  const colabDeCampana = colaboraciones.filter(item => item.campana_id === campanaActivaId);
+  const entregasDeCampana = entregas.filter(item => colabDeCampana.some(colab => colab.id === item.colaboracion_id));
+
+  const guardarCampana = async () => {
+    if (!modalCampana?.titulo?.trim() || modalCampana.titulo.trim().length < 3) {
+      toast("El nombre de la campaña debe tener al menos 3 caracteres", "error");
+      return;
+    }
+    if (modalCampana.fecha_limite && modalCampana.fecha_evento && modalCampana.fecha_limite > modalCampana.fecha_evento) {
+      toast("La fecha límite no puede ser posterior al evento", "error");
+      return;
+    }
+    setGuardando(true);
+    const slug = modalCampana.slug || `${modalCampana.titulo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-${uid().slice(0, 6)}`;
+    const registro = { ...modalCampana, titulo: modalCampana.titulo.trim(), slug, updated_at: new Date().toISOString() };
+    const existe = campanas.some(item => item.id === registro.id);
+    const saved = await saveRecord("campanas", registro, !existe, toast);
+    setGuardando(false);
+    if (!saved) return;
+    setData(d => ({ ...d, campanas: existe ? d.campanas.map(item => item.id === saved.id ? saved : item) : [saved, ...d.campanas] }));
+    setCampanaActivaId(saved.id);
+    setModalCampana(null);
+    toast(existe ? "Campaña actualizada" : "Campaña creada. Ahora agrega sus requerimientos.");
+  };
+
+  const cambiarEstado = async estado => {
+    if (!campanaActiva) return;
+    if (estado === "abierta" && reqDeCampana.length === 0) {
+      toast("Agrega al menos un requerimiento antes de abrir la campaña", "error");
+      return;
+    }
+    const saved = await saveRecord("campanas", { ...campanaActiva, estado, updated_at: new Date().toISOString() }, false, toast);
+    if (!saved) return;
+    setData(d => ({ ...d, campanas: d.campanas.map(item => item.id === saved.id ? saved : item) }));
+    toast(`Campaña ${estadoCampanaLabel(estado).toLowerCase()}`);
+  };
+
+  const guardarRequerimiento = async () => {
+    if (!modalRequerimiento?.nombre?.trim() || Number(modalRequerimiento.objetivo) <= 0) {
+      toast("Completa el nombre y una meta mayor que cero", "error");
+      return;
+    }
+    const esDinero = modalRequerimiento.tipo === "dinero";
+    const registro = { ...modalRequerimiento, nombre: modalRequerimiento.nombre.trim(), unidad: esDinero ? "S/" : modalRequerimiento.unidad.trim() || "unidad", objetivo: Number(modalRequerimiento.objetivo) };
+    const existe = requerimientos.some(item => item.id === registro.id);
+    const saved = await saveRecord("campana_requerimientos", registro, !existe, toast);
+    if (!saved) return;
+    setData(d => ({ ...d, campana_requerimientos: existe ? d.campana_requerimientos.map(item => item.id === saved.id ? saved : item) : [...d.campana_requerimientos, saved] }));
+    setModalRequerimiento(null);
+    toast(existe ? "Requerimiento actualizado" : "Requerimiento agregado");
+  };
+
+  const eliminarRequerimiento = async requerimiento => {
+    if (colaboraciones.some(item => item.requerimiento_id === requerimiento.id)) {
+      toast("No se puede quitar: ya existen colaboraciones vinculadas a este requerimiento", "error");
+      return;
+    }
+    if (!await deleteRecord("campana_requerimientos", requerimiento.id, toast)) return;
+    setData(d => ({ ...d, campana_requerimientos: d.campana_requerimientos.filter(item => item.id !== requerimiento.id) }));
+    toast("Requerimiento eliminado");
+  };
+
+  const cambiarEstadoColaboracion = async (colaboracion, estado) => {
+    const cambios = estado === "confirmada"
+      ? { estado, confirmada_por: userProfile?.id || null, confirmada_en: new Date().toISOString() }
+      : { estado };
+    const saved = await saveRecord("campana_colaboraciones", { ...colaboracion, ...cambios }, false, toast);
+    if (!saved) return;
+    setData(d => ({ ...d, campana_colaboraciones: d.campana_colaboraciones.map(item => item.id === saved.id ? saved : item) }));
+    toast(estado === "confirmada" ? "Colaboración confirmada" : "Colaboración rechazada");
+  };
+
+  const guardarEntrega = async () => {
+    if (!modalEntrega?.recibida_por?.trim() || !modalEntrega.fecha_entrega || Number(modalEntrega.cantidad) <= 0) {
+      toast("Completa cantidad, fecha y quién recibió", "error");
+      return;
+    }
+    const recibido = entregas.filter(item => item.colaboracion_id === modalEntrega.colaboracion.id).reduce((total, item) => total + Number(item.cantidad), 0);
+    if (Number(modalEntrega.cantidad) > Number(modalEntrega.colaboracion.cantidad) - recibido + 0.00001) {
+      toast("La cantidad supera lo que falta recibir de esta colaboración", "error");
+      return;
+    }
+    const saved = await saveRecord("campana_entregas", {
+      id: uid(),
+      colaboracion_id: modalEntrega.colaboracion.id,
+      cantidad: Number(modalEntrega.cantidad),
+      fecha_entrega: modalEntrega.fecha_entrega,
+      recibida_por: modalEntrega.recibida_por.trim(),
+      nota: modalEntrega.nota.trim(),
+    }, true, toast);
+    if (!saved) return;
+    setData(d => ({ ...d, campana_entregas: [saved, ...d.campana_entregas] }));
+    setModalEntrega(null);
+    toast("Entrega registrada en el historial");
+  };
+
+  const copiarEnlace = async campana => {
+    const url = `${window.location.origin}/colaborar/${campana.slug}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast("Enlace público copiado");
+    } catch (error) {
+      console.error("Could not copy campaign link:", error);
+      toast("No se pudo copiar. Abre el enlace y cópialo desde la barra del navegador.", "error");
+    }
+  };
+
+  const resumenRequerimiento = requerimiento => {
+    const paraReq = colaboraciones.filter(item => item.requerimiento_id === requerimiento.id);
+    const entregado = entregas.filter(entrega => paraReq.some(item => item.id === entrega.colaboracion_id)).reduce((total, item) => total + Number(item.cantidad), 0);
+    const confirmado = paraReq.filter(item => item.estado === "confirmada").reduce((total, item) => total + Number(item.cantidad), 0);
+    const pendiente = paraReq.filter(item => item.estado === "pendiente").reduce((total, item) => total + Number(item.cantidad), 0);
+    return { confirmado, pendiente, entregado, porcentaje: Math.min(100, Math.round(entregado / Number(requerimiento.objetivo) * 100)) };
+  };
+
+  if (!campanaActiva) return (
+    <div className="fadein">
+      <PageHeader title="Eventos y campañas" subtitle="Organiza campañas, registra colaboraciones y sigue cada entrega." actions={<Button variant="primary" size="md" icon={Plus} onClick={() => setModalCampana({ id: uid(), titulo: "", descripcion: "", fecha_evento: "", fecha_limite: "", estado: "borrador" })}>Nueva campaña</Button>} />
+      {campanas.length === 0 ? (
+        <Card hover={false}><EmptyState icon={Target} message="Todavía no hay campañas. Crea una y agrega sus requerimientos para recibir colaboraciones." action="Crear primera campaña" onAction={() => setModalCampana({ id: uid(), titulo: "", descripcion: "", fecha_evento: "", fecha_limite: "", estado: "borrador" })} /></Card>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(270px, 1fr))", gap: 16 }}>
+          {campanas.map(campana => {
+            const reqs = requerimientos.filter(item => item.campana_id === campana.id);
+            const colabs = colaboraciones.filter(item => item.campana_id === campana.id);
+            const recibidos = entregas.filter(entrega => colabs.some(item => item.id === entrega.colaboracion_id)).length;
+            return (
+              <Card key={campana.id} hover>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start", marginBottom: 12 }}>
+                  <Badge variant={campana.estado === "abierta" ? "success" : campana.estado === "completada" ? "primary" : "default"}>{estadoCampanaLabel(campana.estado)}</Badge>
+                  {campana.fecha_evento && <span style={{ fontSize: 11.5, color: G.gray }}>{fmtDate(campana.fecha_evento)}</span>}
+                </div>
+                <h2 style={{ margin: "0 0 7px", fontSize: 17, color: G.dark, fontFamily: fontTitle }}>{campana.titulo}</h2>
+                <p style={{ margin: "0 0 14px", minHeight: 38, fontSize: 12.5, color: G.gray, lineHeight: 1.5 }}>{campana.descripcion || "Campaña de colaboración"}</p>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+                  <Badge variant="default">{reqs.length} requerimientos</Badge>
+                  <Badge variant="warning">{colabs.filter(item => item.estado === "pendiente").length} por revisar</Badge>
+                  <Badge variant="primary">{recibidos} entregas</Badge>
+                </div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <Button variant="primary" size="sm" onClick={() => setCampanaActivaId(campana.id)} fullWidth>Ver trazabilidad</Button>
+                  <Button variant="outline" size="sm" icon={Edit} onClick={() => setModalCampana({ ...campana })}>Editar</Button>
+                  {campana.estado === "abierta" && <Button variant="outline" size="sm" icon={Copy} onClick={() => copiarEnlace(campana)}>Copiar enlace</Button>}
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+      {modalCampana && (
+        <Modal title={campanas.some(item => item.id === modalCampana.id) ? "Editar campaña" : "Nueva campaña"} onClose={() => setModalCampana(null)}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
+            <Input label="Nombre de la campaña" value={modalCampana.titulo} onChange={e => setModalCampana(v => ({ ...v, titulo: e.target.value }))} maxLength={120} required />
+            <TextArea label="Descripción pública" value={modalCampana.descripcion} onChange={e => setModalCampana(v => ({ ...v, descripcion: e.target.value }))} rows={3} placeholder="Explica el propósito de la campaña y cómo se coordinarán las colaboraciones." />
+            <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <Input label="Fecha del evento" type="date" value={modalCampana.fecha_evento || ""} onChange={e => setModalCampana(v => ({ ...v, fecha_evento: e.target.value }))} />
+              <Input label="Fecha límite para colaborar" type="date" value={modalCampana.fecha_limite || ""} onChange={e => setModalCampana(v => ({ ...v, fecha_limite: e.target.value }))} />
+            </div>
+            {campanas.some(item => item.id === modalCampana.id) && <Select label="Estado" value={modalCampana.estado} onChange={e => setModalCampana(v => ({ ...v, estado: e.target.value }))} options={CAMPANA_ESTADOS} />}
+          </div>
+          <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+            <Button variant="outline" onClick={() => setModalCampana(null)} fullWidth>Cancelar</Button>
+            <Button variant="primary" icon={Save} onClick={guardarCampana} disabled={guardando} fullWidth>{guardando ? "Guardando…" : "Guardar campaña"}</Button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+
+  const contribucionesDe = requerimiento => colabDeCampana.filter(item => item.requerimiento_id === requerimiento.id);
+  return (
+    <div className="fadein">
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginBottom: 16 }}>
+        <Button variant="outline" size="sm" icon={ChevronLeft} onClick={() => setCampanaActivaId(null)}>Todas las campañas</Button>
+        <Badge variant={campanaActiva.estado === "abierta" ? "success" : "default"}>{estadoCampanaLabel(campanaActiva.estado)}</Badge>
+      </div>
+      <PageHeader title={campanaActiva.titulo} subtitle={campanaActiva.descripcion || "Control de requerimientos, compromisos y entregas."} actions={<div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <Button variant="outline" size="sm" icon={Edit} onClick={() => setModalCampana({ ...campanaActiva })}>Editar campaña</Button>
+        {campanaActiva.estado === "abierta" && <Button variant="outline" size="sm" icon={Copy} onClick={() => copiarEnlace(campanaActiva)}>Copiar enlace público</Button>}
+      </div>} />
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginBottom: 18 }}>
+        <div style={{ flex: "1 1 240px", fontSize: 12.5, color: G.gray }}>
+          {campanaActiva.fecha_evento && <span>Evento: {fmtDate(campanaActiva.fecha_evento)}</span>}
+          {campanaActiva.fecha_limite && <span> · Cierre: {fmtDate(campanaActiva.fecha_limite)}</span>}
+        </div>
+        <Select label="" value={campanaActiva.estado} onChange={e => cambiarEstado(e.target.value)} options={CAMPANA_ESTADOS} />
+      </div>
+      <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 18 }}>
+        <StatCard label="Requerimientos" value={reqDeCampana.length} icon={Package} color={G.primary} />
+        <StatCard label="Colaboraciones recibidas" value={colabDeCampana.length} icon={Users} color={G.primaryLight} />
+        <StatCard label="Por revisar" value={colabDeCampana.filter(item => item.estado === "pendiente").length} icon={Clock} color={G.warning} />
+        <StatCard label="Registros de entrega" value={entregasDeCampana.length} icon={Check} color={G.success} />
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap", margin: "20px 0 12px" }}>
+        <h2 style={{ margin: 0, fontSize: 17, color: G.dark, fontFamily: fontTitle }}>Requerimientos y avance</h2>
+        <Button variant="primary" size="sm" icon={Plus} onClick={() => setModalRequerimiento({ id: uid(), campana_id: campanaActiva.id, nombre: "", tipo: "insumo", unidad: "unidad", objetivo: "" })}>Agregar requerimiento</Button>
+      </div>
+      {reqDeCampana.length === 0 ? (
+        <Card hover={false}><EmptyState icon={Package} message="Define primero qué se necesita para que las personas puedan colaborar." action="Agregar requerimiento" onAction={() => setModalRequerimiento({ id: uid(), campana_id: campanaActiva.id, nombre: "", tipo: "insumo", unidad: "unidad", objetivo: "" })} /></Card>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(255px, 1fr))", gap: 12, marginBottom: 20 }}>
+          {reqDeCampana.map(req => {
+            const resumen = resumenRequerimiento(req);
+            return <Card key={req.id} hover={false}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
+                <div><Badge variant={req.tipo === "dinero" ? "primary" : "purple"}>{req.tipo === "dinero" ? "Aporte económico" : "Insumo"}</Badge><h3 style={{ margin: "9px 0 4px", fontSize: 15, color: G.dark }}>{req.nombre}</h3></div>
+                <div style={{ display: "flex", gap: 4 }}>
+                  <button aria-label={`Editar ${req.nombre}`} onClick={() => setModalRequerimiento({ ...req })} style={{ border: `1px solid ${G.grayMid}`, borderRadius: 7, background: "#fff", padding: 6, cursor: "pointer", display: "flex" }}><Edit size={14} color={G.primary} /></button>
+                  <button aria-label={`Eliminar ${req.nombre}`} onClick={() => eliminarRequerimiento(req)} style={{ border: `1px solid ${G.grayMid}`, borderRadius: 7, background: "#fff", padding: 6, cursor: "pointer", display: "flex" }}><Trash2 size={14} color={G.danger} /></button>
+                </div>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", margin: "10px 0 5px", fontSize: 12.5 }}><span style={{ color: G.gray }}>Recibido</span><strong style={{ color: G.dark }}>{formatoCantidadCampana(resumen.entregado, req)} / {formatoCantidadCampana(req.objetivo, req)}</strong></div>
+              <div style={{ height: 8, background: G.grayMid + "50", borderRadius: 8, overflow: "hidden" }}><div style={{ width: `${resumen.porcentaje}%`, height: "100%", background: `linear-gradient(90deg, ${G.primary}, ${G.success})`, transition: "width .3s" }} /></div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}><Badge variant="success">Confirmado: {formatoCantidadCampana(resumen.confirmado, req)}</Badge><Badge variant="warning">Por revisar: {formatoCantidadCampana(resumen.pendiente, req)}</Badge></div>
+            </Card>;
+          })}
+        </div>
+      )}
+
+      <h2 style={{ margin: "24px 0 12px", fontSize: 17, color: G.dark, fontFamily: fontTitle }}>Registro de colaboraciones</h2>
+      {colabDeCampana.length === 0 ? <Card hover={false}><EmptyState icon={Users} message="Las colaboraciones nuevas aparecerán aquí al registrarse desde el enlace público." /></Card> :
+        reqDeCampana.map(req => {
+          const collabs = contribucionesDe(req).sort((a, b) => b.created_at.localeCompare(a.created_at));
+          if (!collabs.length) return null;
+          return <div key={req.id} style={{ marginBottom: 18 }}>
+            <h3 style={{ margin: "0 0 8px", fontSize: 13, color: G.primary }}>{req.nombre}</h3>
+            {collabs.map(colab => {
+              const entregasColab = entregas.filter(item => item.colaboracion_id === colab.id).sort((a, b) => b.fecha_entrega.localeCompare(a.fecha_entrega));
+              const recibido = entregasColab.reduce((total, item) => total + Number(item.cantidad), 0);
+              const restante = Math.max(0, Number(colab.cantidad) - recibido);
+              return <Card key={colab.id} hover={false} style={{ marginBottom: 9 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
+                  <div style={{ minWidth: 180, flex: 1 }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}><strong style={{ color: G.dark }}>{colab.nombre_colaborador}</strong><Badge variant={colab.estado === "confirmada" ? "success" : colab.estado === "rechazada" ? "danger" : "warning"}>{colab.estado}</Badge><Badge variant="default">{colab.referencia}</Badge></div>
+                    <div style={{ marginTop: 5, fontSize: 12, color: G.gray }}>{colab.telefono || colab.correo || "Sin contacto"} · {fmtDate(colab.created_at?.slice(0, 10))}</div>
+                    {colab.nota && <div style={{ marginTop: 5, fontSize: 12, color: G.dark }}>{colab.nota}</div>}
+                    <div style={{ marginTop: 7, fontSize: 12.5, color: G.dark }}>Ofrecido: <strong>{formatoCantidadCampana(colab.cantidad, req)}</strong> · Recibido: <strong>{formatoCantidadCampana(recibido, req)}</strong>{colab.estado === "confirmada" && restante > 0 && <> · Falta: <strong>{formatoCantidadCampana(restante, req)}</strong></>}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {colab.estado === "pendiente" && <><Button variant="primary" size="sm" icon={Check} onClick={() => cambiarEstadoColaboracion(colab, "confirmada")}>Confirmar</Button><Button variant="outline" size="sm" onClick={() => cambiarEstadoColaboracion(colab, "rechazada")}>Rechazar</Button></>}
+                    {colab.estado === "confirmada" && restante > 0 && <Button variant="outline" size="sm" icon={Plus} onClick={() => setModalEntrega({ colaboracion: colab, cantidad: String(restante), fecha_entrega: today(), recibida_por: "", nota: "" })}>Registrar entrega</Button>}
+                  </div>
+                </div>
+                {entregasColab.length > 0 && <div style={{ marginTop: 11, paddingTop: 9, borderTop: `1px solid ${G.grayMid}40` }}>
+                  <div style={{ fontSize: 10.5, color: G.gray, fontWeight: 700, textTransform: "uppercase", letterSpacing: .5, marginBottom: 4 }}>Historial de entregas</div>
+                  {entregasColab.map(entrega => <div key={entrega.id} style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 5, padding: "4px 0", fontSize: 11.5, color: G.gray }}><span>{fmtDate(entrega.fecha_entrega)} · recibió {entrega.recibida_por}{entrega.nota ? ` · ${entrega.nota}` : ""}</span><strong style={{ color: G.success }}>{formatoCantidadCampana(entrega.cantidad, req)}</strong></div>)}
+                </div>}
+              </Card>;
+            })}
+          </div>;
+        })}
+      {modalCampana && <Modal title="Editar campaña" onClose={() => setModalCampana(null)}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
+          <Input label="Nombre de la campaña" value={modalCampana.titulo} onChange={e => setModalCampana(v => ({ ...v, titulo: e.target.value }))} required />
+          <TextArea label="Descripción pública" value={modalCampana.descripcion} onChange={e => setModalCampana(v => ({ ...v, descripcion: e.target.value }))} rows={3} />
+          <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <Input label="Fecha del evento" type="date" value={modalCampana.fecha_evento || ""} onChange={e => setModalCampana(v => ({ ...v, fecha_evento: e.target.value }))} />
+            <Input label="Fecha límite" type="date" value={modalCampana.fecha_limite || ""} onChange={e => setModalCampana(v => ({ ...v, fecha_limite: e.target.value }))} />
+          </div>
+          <Select label="Estado de publicación" value={modalCampana.estado} onChange={e => setModalCampana(v => ({ ...v, estado: e.target.value }))} options={CAMPANA_ESTADOS} />
+        </div>
+        <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+          <Button variant="outline" onClick={() => setModalCampana(null)} fullWidth>Cancelar</Button>
+          <Button variant="primary" icon={Save} onClick={guardarCampana} disabled={guardando} fullWidth>{guardando ? "Guardando…" : "Guardar campaña"}</Button>
+        </div>
+      </Modal>}
+      {modalRequerimiento && <Modal title={requerimientos.some(item => item.id === modalRequerimiento.id) ? "Editar requerimiento" : "Nuevo requerimiento"} onClose={() => setModalRequerimiento(null)}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
+          <Input label="¿Qué se necesita?" value={modalRequerimiento.nombre} onChange={e => setModalRequerimiento(v => ({ ...v, nombre: e.target.value }))} maxLength={120} required />
+          <Select label="Tipo de colaboración" value={modalRequerimiento.tipo} onChange={e => setModalRequerimiento(v => ({ ...v, tipo: e.target.value, unidad: e.target.value === "dinero" ? "S/" : "unidad" }))} options={[{ value: "insumo", label: "Insumo o material" }, { value: "dinero", label: "Aporte económico (no pago en línea)" }]} />
+          {modalRequerimiento.tipo === "insumo" && <Input label="Unidad de medida" value={modalRequerimiento.unidad} onChange={e => setModalRequerimiento(v => ({ ...v, unidad: e.target.value }))} placeholder="kg, paquetes, unidades…" required />}
+          <Input label={modalRequerimiento.tipo === "dinero" ? "Meta total (S/)" : `Cantidad necesaria (${modalRequerimiento.unidad || "unidad"})`} type="number" value={modalRequerimiento.objetivo} onChange={e => setModalRequerimiento(v => ({ ...v, objetivo: e.target.value }))} required />
+        </div>
+        <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+          <Button variant="outline" onClick={() => setModalRequerimiento(null)} fullWidth>Cancelar</Button>
+          <Button variant="primary" icon={Save} onClick={guardarRequerimiento} fullWidth>Guardar requerimiento</Button>
+        </div>
+      </Modal>}
+      {modalEntrega && <Modal title={`Registrar entrega · ${modalEntrega.colaboracion.referencia}`} onClose={() => setModalEntrega(null)}>
+        <p style={{ margin: "0 0 14px", fontSize: 12.5, color: G.gray }}>Colaborador: <strong>{modalEntrega.colaboracion.nombre_colaborador}</strong>. Registra cada entrega por separado para conservar el historial.</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
+          <Input label="Cantidad recibida en esta entrega" type="number" value={modalEntrega.cantidad} onChange={e => setModalEntrega(v => ({ ...v, cantidad: e.target.value }))} required />
+          <Input label="Fecha de entrega" type="date" value={modalEntrega.fecha_entrega} onChange={e => setModalEntrega(v => ({ ...v, fecha_entrega: e.target.value }))} required />
+          <Input label="Persona que recibió" value={modalEntrega.recibida_por} onChange={e => setModalEntrega(v => ({ ...v, recibida_por: e.target.value }))} maxLength={120} required />
+          <TextArea label="Nota (opcional)" value={modalEntrega.nota} onChange={e => setModalEntrega(v => ({ ...v, nota: e.target.value }))} rows={2} />
+        </div>
+        <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+          <Button variant="outline" onClick={() => setModalEntrega(null)} fullWidth>Cancelar</Button>
+          <Button variant="primary" icon={Save} onClick={guardarEntrega} fullWidth>Guardar entrega</Button>
+        </div>
+      </Modal>}
+    </div>
+  );
+};
+
+const CampanaPublicaView = ({ slug, onBack }) => {
+  const [campana, setCampana] = useState(null);
+  const [requerimientoId, setRequerimientoId] = useState("");
+  const [cantidad, setCantidad] = useState("");
+  const [nombre, setNombre] = useState("");
+  const [telefono, setTelefono] = useState("");
+  const [correo, setCorreo] = useState("");
+  const [nota, setNota] = useState("");
+  const [cargando, setCargando] = useState(true);
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState("");
+  const [referencia, setReferencia] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    fetchPublicCampaign(slug).then(result => {
+      if (!active) return;
+      setCampana(result);
+      setRequerimientoId(result?.requerimientos?.[0]?.id || "");
+    }).catch(err => {
+      if (active) setError(err.message || "No se pudo cargar la campaña.");
+    }).finally(() => { if (active) setCargando(false); });
+    return () => { active = false; };
+  }, [slug]);
+
+  const requerimiento = campana?.requerimientos.find(item => item.id === requerimientoId);
+  const enviar = async () => {
+    setError("");
+    const valor = Number(cantidad);
+    if (nombre.trim().length < 2 || !requerimiento || !Number.isFinite(valor) || valor <= 0) {
+      setError("Completa tu nombre, el requerimiento y una cantidad válida.");
+      return;
+    }
+    if (!telefono.trim() && !correo.trim()) {
+      setError("Indica un teléfono o correo para coordinar la colaboración.");
+      return;
+    }
+    const ref = `COL-${uid().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+    setEnviando(true);
+    try {
+      await submitPublicCampaignContribution({
+        id: uid(),
+        referencia: ref,
+        campana_id: campana.id,
+        requerimiento_id: requerimiento.id,
+        nombre_colaborador: nombre.trim(),
+        telefono: telefono.trim(),
+        correo: correo.trim(),
+        cantidad: valor,
+        nota: nota.trim(),
+      });
+      setReferencia(ref);
+    } catch (err) {
+      setError(err.message || "No se pudo registrar la colaboración.");
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: `radial-gradient(circle at 90% 0%, ${G.primary}12, transparent 32%), ${G.bg}`, color: G.dark, fontFamily: font, padding: "24px 16px 48px" }}>
+      <GlobalStyles />
+      <div style={{ maxWidth: 760, margin: "0 auto" }}>
+        <button onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 6, border: 0, background: "transparent", color: G.gray, cursor: "pointer", padding: "8px 0 18px", fontFamily: font }}><ChevronLeft size={16} /> Iglesia Cristo Viene</button>
+        {cargando ? <Card hover={false}><div style={{ textAlign: "center", padding: 30, color: G.gray }}>Cargando campaña…</div></Card>
+          : error && !campana ? <Card hover={false}><EmptyState icon={AlertCircle} message={error} /></Card>
+          : !campana ? <Card hover={false}><EmptyState icon={Calendar} message="Esta campaña no está disponible o ya cerró su registro." /></Card>
+          : referencia ? (
+            <Card hover={false} style={{ textAlign: "center", padding: "34px 22px" }}>
+              <div style={{ width: 62, height: 62, margin: "0 auto 16px", borderRadius: 18, background: G.successLight, display: "grid", placeItems: "center" }}><Check size={30} color={G.success} /></div>
+              <Badge variant="success">Registro recibido · pendiente de confirmación</Badge>
+              <h1 style={{ margin: "14px 0 8px", fontSize: 25, color: G.dark, fontFamily: fontTitle }}>¡Gracias por colaborar!</h1>
+              <p style={{ margin: "0 auto 18px", maxWidth: 480, color: G.gray, lineHeight: 1.6, fontSize: 13.5 }}>El equipo coordinará contigo la recepción. Guarda este código como referencia; el registro no significa que el aporte ya se haya recibido.</p>
+              <div style={{ display: "inline-flex", gap: 10, alignItems: "center", padding: "12px 18px", borderRadius: 12, background: G.grayLight }}><span style={{ fontSize: 12, color: G.gray }}>Código</span><strong style={{ fontSize: 18, color: G.primary, letterSpacing: 1 }}>{referencia}</strong></div>
+            </Card>
+          ) : (
+            <>
+              <Card hover={false} style={{ marginBottom: 14, padding: 0, overflow: "hidden" }}>
+                <div style={{ padding: "24px 22px", background: `linear-gradient(130deg, ${G.primaryDark}, ${G.primary}, ${G.primaryLight})`, color: "#fff" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 10.5, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", opacity: .8 }}><Heart size={13} /> Iglesia Cristo Viene · Campaña</div>
+                  <h1 style={{ margin: "11px 0 8px", fontSize: 27, lineHeight: 1.15, fontFamily: fontTitle }}>{campana.titulo}</h1>
+                  {campana.descripcion && <p style={{ margin: 0, maxWidth: 600, fontSize: 13.5, lineHeight: 1.65, opacity: .92 }}>{campana.descripcion}</p>}
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 15 }}>
+                    {campana.fecha_evento && <span style={{ borderRadius: 20, background: "#ffffff20", padding: "6px 10px", fontSize: 11.5 }}><Calendar size={12} style={{ verticalAlign: "-2px", marginRight: 4 }} />Evento: {fmtDate(campana.fecha_evento)}</span>}
+                    {campana.fecha_limite && <span style={{ borderRadius: 20, background: "#ffffff20", padding: "6px 10px", fontSize: 11.5 }}>Colabora hasta: {fmtDate(campana.fecha_limite)}</span>}
+                  </div>
+                </div>
+                <div style={{ padding: 20 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                    <h2 style={{ margin: 0, fontSize: 15, fontFamily: fontTitle }}>¿Cómo quieres colaborar?</h2>
+                    <Badge variant="primary">{campana.requerimientos.length} opciones</Badge>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 9 }}>
+                    {campana.requerimientos.map(item => <button key={item.id} onClick={() => setRequerimientoId(item.id)} style={{ textAlign: "left", padding: "12px 13px", borderRadius: 11, border: requerimientoId === item.id ? `2px solid ${G.primary}` : `1px solid ${G.grayMid}`, background: requerimientoId === item.id ? `${G.primary}08` : "#fff", cursor: "pointer", fontFamily: font, color: G.dark }}>
+                      <span style={{ display: "block", fontSize: 13, fontWeight: 700 }}>{item.nombre}</span>
+                      <span style={{ display: "block", marginTop: 4, color: G.gray, fontSize: 11.5 }}>{item.tipo === "dinero" ? "Aporte económico · coordinación directa" : `Insumo · meta ${Number(item.objetivo).toLocaleString("es-PE")} ${item.unidad}`}</span>
+                    </button>)}
+                  </div>
+                </div>
+              </Card>
+              <Card hover={false}>
+                <h2 style={{ margin: "0 0 5px", fontSize: 18, fontFamily: fontTitle }}>Registra tu colaboración</h2>
+                <p style={{ margin: "0 0 18px", color: G.gray, fontSize: 12.5, lineHeight: 1.5 }}>El equipo confirmará el compromiso y coordinará la entrega contigo. No se realizan pagos desde este formulario.</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
+                  <Input label="Nombre y apellido" value={nombre} onChange={e => setNombre(e.target.value)} maxLength={120} required />
+                  <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
+                    <Input label="Teléfono o WhatsApp" value={telefono} onChange={e => setTelefono(e.target.value)} maxLength={30} placeholder="Para coordinar (uno de los dos)" />
+                    <Input label="Correo electrónico" type="email" value={correo} onChange={e => setCorreo(e.target.value)} maxLength={254} placeholder="Opcional si indicas teléfono" />
+                  </div>
+                  {requerimiento && <Input label={requerimiento.tipo === "dinero" ? "Monto que deseas aportar (S/)" : `Cantidad que deseas aportar (${requerimiento.unidad})`} type="number" value={cantidad} onChange={e => setCantidad(e.target.value)} required />}
+                  <TextArea label="Nota para coordinar (opcional)" value={nota} onChange={e => setNota(e.target.value)} rows={3} placeholder="Por ejemplo, horario disponible para la entrega." />
+                </div>
+                {error && <div role="alert" style={{ marginTop: 12, padding: 11, borderRadius: 9, background: G.dangerLight, color: G.danger, fontSize: 12.5 }}>{error}</div>}
+                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}>
+                  <Button variant="primary" size="lg" icon={Send} onClick={enviar} disabled={enviando || !requerimiento}>{enviando ? "Enviando…" : "Enviar colaboración"}</Button>
+                </div>
+                <div style={{ marginTop: 13, color: G.gray, fontSize: 10.5, lineHeight: 1.5 }}>Tus datos de contacto se usarán únicamente para coordinar esta colaboración y no se muestran públicamente.</div>
+              </Card>
+            </>
+          )}
+      </div>
+    </div>
+  );
+};
+
 // ─── ASISTENCIA ─────────────────────────────────────────────────────
 const AsistenciaView = ({ data, setData, toast }) => {
   const [modal, setModal] = useState(false);
@@ -1589,7 +2164,8 @@ const AsistenciaView = ({ data, setData, toast }) => {
   const guardar = async () => {
     if (!editando.servicio || editando.total <= 0) return;
     const exists = data.asistencia.find(a => a.id === editando.id);
-    const saved = await upsertRecord("asistencia", editando, !exists) || editando;
+    const saved = await saveRecord("asistencia", editando, !exists, toast);
+    if (!saved) return;
     if (exists) setData({ ...data, asistencia: data.asistencia.map(a => a.id === editando.id ? saved : a) });
     else setData({ ...data, asistencia: [saved, ...data.asistencia] });
     toast(exists ? "Registro actualizado" : "Asistencia registrada");
@@ -1652,7 +2228,8 @@ const CelulasView = ({ data, setData, toast }) => {
   const guardar = async () => {
     if (!editando.nombre) return;
     const exists = data.celulas.find(c => c.id === editando.id);
-    const saved = await upsertRecord("celulas", editando, !exists) || editando;
+    const saved = await saveRecord("celulas", editando, !exists, toast);
+    if (!saved) return;
     if (exists) setData({ ...data, celulas: data.celulas.map(c => c.id === editando.id ? saved : c) });
     else setData({ ...data, celulas: [saved, ...data.celulas] });
     toast(exists ? "Célula actualizada" : "Célula creada");
@@ -1716,7 +2293,8 @@ const MinisteriosView = ({ data, setData, toast }) => {
   const guardar = async () => {
     if (!editando.nombre) return;
     const exists = data.ministerios.find(m => m.id === editando.id);
-    const saved = await upsertRecord("ministerios", editando, !exists) || editando;
+    const saved = await saveRecord("ministerios", editando, !exists, toast);
+    if (!saved) return;
     if (exists) setData({ ...data, ministerios: data.ministerios.map(m => m.id === editando.id ? saved : m) });
     else setData({ ...data, ministerios: [saved, ...data.ministerios] });
     toast(exists ? "Ministerio actualizado" : "Ministerio creado");
@@ -1782,7 +2360,8 @@ const TiendaView = ({ data, setData, toast }) => {
   const guardar = async () => {
     if (!editando.titulo) return;
     const exists = data.productos.find(p => p.id === editando.id);
-    const saved = await upsertRecord("productos", editando, !exists) || editando;
+    const saved = await saveRecord("productos", editando, !exists, toast);
+    if (!saved) return;
     if (exists) setData({ ...data, productos: data.productos.map(p => p.id === editando.id ? saved : p) });
     else setData({ ...data, productos: [saved, ...data.productos] });
     toast(exists ? "Producto actualizado" : "Producto agregado");
@@ -1854,7 +2433,8 @@ const BlogView = ({ data, setData, toast, readOnly = false }) => {
   const guardar = async () => {
     if (!editando.titulo) return;
     const exists = data.publicaciones.find(p => p.id === editando.id);
-    const saved = await upsertRecord("publicaciones", editando, !exists) || editando;
+    const saved = await saveRecord("publicaciones", editando, !exists, toast);
+    if (!saved) return;
     if (exists) setData({ ...data, publicaciones: data.publicaciones.map(p => p.id === editando.id ? saved : p) });
     else setData({ ...data, publicaciones: [saved, ...data.publicaciones] });
     toast(exists ? "Publicación actualizada" : "Publicación creada");
@@ -1862,7 +2442,7 @@ const BlogView = ({ data, setData, toast, readOnly = false }) => {
   };
 
   const confirmarEliminar = async () => {
-    await removeRecord("publicaciones", eliminar.id);
+    if (!await deleteRecord("publicaciones", eliminar.id, toast)) return;
     setData({ ...data, publicaciones: data.publicaciones.filter(p => p.id !== eliminar.id) });
     toast("Publicación eliminada");
     setEliminar(null);
@@ -2063,9 +2643,9 @@ const ActasAdolescentes = ({ data, setData, toast }) => {
 
   // Guarda en Supabase; si falla, avisa y no finge que se guardó
   const persistir = async (acta) => {
-    const saved = await upsertRecord("actas", acta, esNueva(acta));
-    if (!saved && isSupabaseConfigured()) { toast("No se pudo guardar el acta. Revisa tu conexión o permisos.", "error"); return null; }
-    const final = saved || acta;
+    const saved = await saveRecord("actas", acta, esNueva(acta), toast);
+    if (!saved) return null;
+    const final = saved;
     setData(d => ({ ...d, actas: esNueva(acta) ? [final, ...(d.actas || [])] : (d.actas || []).map(x => x.id === acta.id ? final : x) }));
     return final;
   };
@@ -2080,8 +2660,7 @@ const ActasAdolescentes = ({ data, setData, toast }) => {
   };
   const toggleTarea = (acta, idx) => persistir({ ...acta, tareas: acta.tareas.map((t, i) => i === idx ? { ...t, hecho: !t.hecho } : t) });
   const confirmarEliminar = async () => {
-    const ok = await removeRecord("actas", eliminar.id);
-    if (ok === false) { toast("No se pudo eliminar el acta", "error"); return; }
+    if (!await deleteRecord("actas", eliminar.id, toast)) return;
     setData(d => ({ ...d, actas: (d.actas || []).filter(x => x.id !== eliminar.id) }));
     toast("Acta eliminada"); setEliminar(null);
   };
@@ -2179,6 +2758,117 @@ const ActasAdolescentes = ({ data, setData, toast }) => {
   );
 };
 
+const SeguimientoAdolescentes = ({ data, setData, toast }) => {
+  const [periodo, setPeriodo] = useState(today().slice(0, 7));
+  const [guardando, setGuardando] = useState(false);
+  const revision = (data.evaluaciones || []).find(item => item.periodo?.slice(0, 7) === periodo);
+  const [borrador, setBorrador] = useState({ asistencia_promedio: "", nuevos: "", constantes: "", reuniones_realizadas: "", observaciones: "" });
+
+  useEffect(() => {
+    setBorrador({
+      asistencia_promedio: revision?.asistencia_promedio ?? "",
+      nuevos: revision?.nuevos ?? "",
+      constantes: revision?.constantes ?? "",
+      reuniones_realizadas: revision?.reuniones_realizadas ?? "",
+      observaciones: revision?.observaciones || "",
+    });
+  }, [periodo, revision?.id]);
+
+  const guardar = async () => {
+    if (!/^\d{4}-\d{2}$/.test(periodo)) {
+      toast("Selecciona un mes válido", "error");
+      return;
+    }
+    const camposNumericos = ["asistencia_promedio", "nuevos", "constantes", "reuniones_realizadas"];
+    const valores = Object.fromEntries(camposNumericos.map(campo => [
+      campo,
+      borrador[campo] === "" ? null : Number(borrador[campo]),
+    ]));
+    const conteosInvalidos = ["nuevos", "constantes", "reuniones_realizadas"].some(campo =>
+      valores[campo] !== null && (!Number.isInteger(valores[campo]) || valores[campo] < 0)
+    );
+    if (conteosInvalidos || (valores.asistencia_promedio !== null && (!Number.isFinite(valores.asistencia_promedio) || valores.asistencia_promedio < 0))) {
+      toast("Registra valores numéricos válidos, sin negativos", "error");
+      return;
+    }
+
+    setGuardando(true);
+    const registro = {
+      id: revision?.id || newUUID(),
+      periodo: `${periodo}-01`,
+      ...valores,
+      observaciones: borrador.observaciones.trim(),
+    };
+    const saved = await saveRecord("evaluaciones", registro, !revision, toast);
+    setGuardando(false);
+    if (!saved) return;
+    setData(d => ({
+      ...d,
+      evaluaciones: revision
+        ? (d.evaluaciones || []).map(item => item.id === saved.id ? saved : item)
+        : [saved, ...(d.evaluaciones || [])],
+    }));
+    toast("Seguimiento mensual guardado");
+  };
+
+  const mes = new Date(`${periodo}-01T12:00:00`).toLocaleDateString("es-PE", { month: "long", year: "numeric" });
+  const campoNumero = (label, campo, step = "1") => (
+    <Input
+      label={label}
+      type="number"
+      min="0"
+      step={step}
+      value={borrador[campo]}
+      onChange={e => setBorrador(b => ({ ...b, [campo]: e.target.value }))}
+    />
+  );
+
+  return (
+    <div>
+      <Card hover={false} style={{ marginBottom: 16, background: G.primary + "0a", borderLeft: `3px solid ${G.primary}` }}>
+        <div style={{ fontSize: 13, color: G.dark, lineHeight: 1.6 }}>
+          <strong>Seguimiento del plan Teens</strong> — registra los resultados reales del mes y las observaciones del equipo. El material de planificación no define metas numéricas, así que no se precargan objetivos ni cifras.
+        </div>
+      </Card>
+      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "end", gap: 12, marginBottom: 14 }}>
+        <div style={{ flex: "1 1 220px", maxWidth: 320 }}>
+          <Input label="Mes de seguimiento" type="month" value={periodo} onChange={e => setPeriodo(e.target.value)} />
+        </div>
+        <div style={{ fontSize: 12, color: G.gray, paddingBottom: 10, textTransform: "capitalize" }}>{mes}</div>
+      </div>
+      <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(155px, 1fr))", gap: 12, marginBottom: 16 }}>
+        <StatCard label="Reuniones realizadas" value={borrador.reuniones_realizadas === "" ? "—" : borrador.reuniones_realizadas} icon={Calendar} color={G.primary} />
+        <StatCard label="Asistencia promedio" value={borrador.asistencia_promedio === "" ? "—" : borrador.asistencia_promedio} icon={Users} color={G.primaryLight} />
+        <StatCard label="Nuevos" value={borrador.nuevos === "" ? "—" : borrador.nuevos} icon={UserPlus} color={G.accent} />
+        <StatCard label="Asistencia constante" value={borrador.constantes === "" ? "—" : borrador.constantes} icon={Activity} color={G.success} />
+      </div>
+      <Card hover={false}>
+        <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 800, color: G.dark, fontFamily: fontTitle }}>
+          {revision ? "Actualizar registro" : "Registrar resultados"} · <span style={{ textTransform: "capitalize" }}>{mes}</span>
+        </h3>
+        <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 14 }}>
+          {campoNumero("Reuniones realizadas", "reuniones_realizadas")}
+          {campoNumero("Promedio de asistencia", "asistencia_promedio", "0.01")}
+          {campoNumero("Participantes nuevos", "nuevos")}
+          {campoNumero("Participantes constantes", "constantes")}
+        </div>
+        <TextArea
+          label="Logros, dificultades y próximos pasos"
+          value={borrador.observaciones}
+          onChange={e => setBorrador(b => ({ ...b, observaciones: e.target.value }))}
+          rows={4}
+          placeholder="Anota lo observado por el equipo; las tareas con responsable y fecha pueden gestionarse desde Actas."
+        />
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+          <Button variant="primary" size="md" icon={Save} onClick={guardar} disabled={guardando}>
+            {guardando ? "Guardando…" : "Guardar seguimiento"}
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
+};
+
 const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
   const [modal, setModal] = useState(false);
   const [editando, setEditando] = useState(null);
@@ -2233,9 +2923,9 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
   const guardar = async () => {
     if (!editando.actividad || !editando.fecha) return;
     const exists = cronograma.find(c => c.id === editando.id);
-    const saved = await upsertRecord("cronograma", editando, !exists);
-    if (!saved && isSupabaseConfigured()) { toast("No se pudo guardar: verifica la instalación y permisos del cronograma en Supabase.", "error"); return; }
-    const final = saved || editando;
+    const saved = await saveRecord("cronograma", editando, !exists, toast);
+    if (!saved) return;
+    const final = saved;
     if (exists) setData({ ...data, cronograma: cronograma.map(c => c.id === editando.id ? final : c) });
     else setData({ ...data, cronograma: [final, ...cronograma] });
     toast(exists || baseIds.has(editando.id) ? "Actividad actualizada" : "Actividad agregada");
@@ -2246,11 +2936,11 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
     if (baseIds.has(eliminar.id)) {
       // Una propuesta base no se borra: se marca como eliminada para que no reaparezca.
       const marcada = { ...eliminar, estado: "eliminado" };
-      const saved = await upsertRecord("cronograma", marcada, !exists);
-      if (!saved && isSupabaseConfigured()) { toast("No se pudo eliminar. Revisa tu conexión o permisos.", "error"); return; }
-      setData({ ...data, cronograma: exists ? cronograma.map(c => c.id === eliminar.id ? (saved || marcada) : c) : [saved || marcada, ...cronograma] });
+      const saved = await saveRecord("cronograma", marcada, !exists, toast);
+      if (!saved) return;
+      setData({ ...data, cronograma: exists ? cronograma.map(c => c.id === eliminar.id ? saved : c) : [saved, ...cronograma] });
     } else {
-      if (await removeRecord("cronograma", eliminar.id) === false) { toast("No se pudo eliminar. Revisa tu conexión o permisos.", "error"); return; }
+      if (!await deleteRecord("cronograma", eliminar.id, toast)) return;
       setData({ ...data, cronograma: cronograma.filter(c => c.id !== eliminar.id) });
     }
     toast("Actividad eliminada"); setEliminar(null);
@@ -2261,9 +2951,8 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
     if (!peticion || guardandoPeticion) return;
     setGuardandoPeticion(true);
     const nueva = { id: newUUID(), peticion, incluir_en_post: peticionPublica };
-    const saved = await upsertRecord("peticiones", nueva, true);
-    if (!saved && isSupabaseConfigured()) {
-      toast("No se pudo guardar. Verifica que la tabla de peticiones esté instalada y que tengas permisos.", "error");
+    const saved = await saveRecord("peticiones", nueva, true, toast);
+    if (!saved) {
       setGuardandoPeticion(false);
       return;
     }
@@ -2276,19 +2965,13 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
 
   const cambiarPublicacionPeticion = async (peticion) => {
     const actualizada = { ...peticion, incluir_en_post: !peticion.incluir_en_post };
-    const saved = await upsertRecord("peticiones", actualizada, false);
-    if (!saved && isSupabaseConfigured()) {
-      toast("No se pudo actualizar la publicación de esta petición.", "error");
-      return;
-    }
-    setData(d => ({ ...d, peticiones: (d.peticiones || []).map(p => p.id === peticion.id ? (saved || actualizada) : p) }));
+    const saved = await saveRecord("peticiones", actualizada, false, toast);
+    if (!saved) return;
+    setData(d => ({ ...d, peticiones: (d.peticiones || []).map(p => p.id === peticion.id ? saved : p) }));
   };
 
   const eliminarPeticion = async (peticion) => {
-    if (await removeRecord("peticiones", peticion.id) === false) {
-      toast("No se pudo eliminar la petición.", "error");
-      return;
-    }
+    if (!await deleteRecord("peticiones", peticion.id, toast)) return;
     setData(d => ({ ...d, peticiones: (d.peticiones || []).filter(p => p.id !== peticion.id) }));
     toast("Petición eliminada");
   };
@@ -2509,7 +3192,7 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
 
       {/* Tabs */}
       <div className="tabs-bar" style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
-        {[["calendario", "Calendario", Calendar], ["matutino", "Matutino", Clock], ["temario", "Temario", BookOpen], ["propuestas", "Propuestas", Star], ["plan", "Plan 2027", Target], ["programa", "Reunión", Clock], ...(readOnly ? [] : [["actas", "Actas", FileText]])].map(([id, label, Icon]) => (
+        {[["calendario", "Calendario", Calendar], ["matutino", "Matutino", Clock], ["temario", "Temario", BookOpen], ["propuestas", "Propuestas", Star], ["plan", "Plan 2027", Target], ["programa", "Reunión", Clock], ...(readOnly ? [] : [["seguimiento", "Seguimiento", Activity], ["actas", "Actas", FileText]])].map(([id, label, Icon]) => (
           <button key={id} onClick={() => setTab(id)} style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 16px", borderRadius: 9, border: tab === id ? `2px solid ${G.primary}` : `1.5px solid ${G.grayMid}`, background: tab === id ? G.primary + "10" : "#fff", color: tab === id ? G.primary : G.gray, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: font }}>
             <Icon size={15} /> {label}
           </button>
@@ -2729,6 +3412,7 @@ const AdolescentesView = ({ data, setData, toast, readOnly = false }) => {
 
       {/* ── ACTAS ── */}
       {tab === "actas" && !readOnly && <ActasAdolescentes data={data} setData={setData} toast={toast} />}
+      {tab === "seguimiento" && !readOnly && <SeguimientoAdolescentes data={data} setData={setData} toast={toast} />}
 
       {/* ── PROGRAMA DE REUNIÓN ── */}
       {tab === "programa" && (
@@ -2967,12 +3651,27 @@ const EvangelismoView = () => {
 };
 
 // ─── CONFIGURACIÓN ──────────────────────────────────────────────────
-const ConfiguracionView = ({ config, setConfig, toast, currentUserId }) => {
+const ConfiguracionView = ({ config, setConfig, toast, currentUserId, configStatus, reloadConfig, onConfigSaved }) => {
   const [tab, setTab] = useState("general");
   const [usuarios, setUsuarios] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [updatingRole, setUpdatingRole] = useState(null);
-  const guardar = () => toast("Configuración guardada correctamente");
+  const [savingConfig, setSavingConfig] = useState(false);
+
+  const guardar = async () => {
+    setSavingConfig(true);
+    try {
+      const saved = await saveChurchSettings(config);
+      setConfig({ ...CHURCH_DEFAULT, ...saved });
+      onConfigSaved();
+      toast("Configuración guardada correctamente");
+    } catch (error) {
+      console.error("Error saving church settings:", error);
+      toast(error.message || "No se pudo guardar la configuración", "error");
+    } finally {
+      setSavingConfig(false);
+    }
+  };
 
   useEffect(() => {
     if (tab !== "usuarios") return;
@@ -2996,6 +3695,9 @@ const ConfiguracionView = ({ config, setConfig, toast, currentUserId }) => {
   return (
     <div className="fadein">
       <PageHeader title="Configuración" subtitle="Administra la plataforma y datos de la iglesia" />
+      {configStatus === "loading" && <div role="status" style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 10, background: G.primary + "0c", color: G.primary, fontSize: 13 }}>Cargando la configuración guardada…</div>}
+      {configStatus === "error" && <div role="alert" style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 10, background: G.danger + "0c", color: G.danger, fontSize: 13, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>No se pudo cargar la configuración. Revisa Supabase e inténtalo de nuevo.<Button variant="outline" size="sm" onClick={reloadConfig}>Reintentar</Button></div>}
+      {!isSupabaseConfigured() && <div role="status" style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 10, background: G.warning + "12", color: G.dark, fontSize: 13 }}>Configura Supabase para guardar estos cambios de forma permanente.</div>}
       <TabBar tabs={[
         { id: "general", label: "General", icon: Globe },
         { id: "redes", label: "Redes Sociales", icon: Share2 },
@@ -3066,7 +3768,7 @@ const ConfiguracionView = ({ config, setConfig, toast, currentUserId }) => {
         )}
         {tab !== "usuarios" && (
           <div style={{ marginTop: 28, paddingTop: 20, borderTop: `1px solid ${G.grayMid}40`, display: "flex", justifyContent: "flex-end" }}>
-            <Button variant="primary" size="md" onClick={guardar} icon={Save}>Guardar Cambios</Button>
+            <Button variant="primary" size="md" onClick={guardar} icon={Save} disabled={savingConfig || configStatus !== "ready" || !isSupabaseConfigured()}>{savingConfig ? "Guardando…" : "Guardar Cambios"}</Button>
           </div>
         )}
       </Card>
@@ -3243,14 +3945,33 @@ const PortalUsuario = ({ userProfile, data }) => {
 // ═══════════════════════════════════════════════════════════════════
 // ─── DASHBOARD PRINCIPAL ────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════
-const Dashboard = ({ onLogout, userProfile, seccion }) => {
+const Dashboard = ({ onLogout, userProfile, seccion, config, setConfig, configStatus, reloadConfig, onConfigSaved }) => {
   const isAdmin = userProfile?.rol === "admin";
   const isTeens = userProfile?.rol === "teens"; // Miembro con acceso de edición al ministerio de Adolescentes
   // Recordar la sección abierta para volver a ella al recargar
   const [collapsed, setCollapsed] = useState(false);
   const [toastMsg, setToastMsg] = useState(null);
-  const [config, setConfig] = useState(CHURCH_DEFAULT);
-  const [data, setData] = useState({
+  const [buscarGlobal, setBuscarGlobal] = useState("");
+  const [data, setData] = useState(() => isSupabaseConfigured() ? {
+    miembros: [],
+    donaciones: [],
+    proyectos: [],
+    eventos: [],
+    asistencia: [],
+    celulas: [],
+    ministerios: [],
+    productos: [],
+    publicaciones: [],
+    gastos: [],
+    cronograma: [],
+    actas: [],
+    peticiones: [],
+    evaluaciones: [],
+    campanas: [],
+    campana_requerimientos: [],
+    campana_colaboraciones: [],
+    campana_entregas: [],
+  } : {
     miembros: initMiembros,
     donaciones: initDonaciones,
     proyectos: initProyectos,
@@ -3264,34 +3985,54 @@ const Dashboard = ({ onLogout, userProfile, seccion }) => {
     cronograma: initCronograma,
     actas: [],
     peticiones: [],
+    evaluaciones: [],
+    campanas: [],
+    campana_requerimientos: [],
+    campana_colaboraciones: [],
+    campana_entregas: [],
   });
 
   const [dbLoading, setDbLoading] = useState(false);
+  const showToast = useCallback((msg, type = "success") => { setToastMsg({ msg, type }); }, []);
 
   // Load data from Supabase if configured, otherwise use mock data
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
+    let active = true;
     setDbLoading(true);
-    loadAllData().then(remoteData => {
-      if (remoteData) {
-        const merged = { ...data };
-        Object.keys(remoteData).forEach(key => {
-          if (remoteData[key] && remoteData[key].length > 0) merged[key] = remoteData[key];
+    loadAllData(userProfile?.rol).then(result => {
+      if (!active || !result) return;
+      if (Object.keys(result.data).length > 0) {
+        setData(current => {
+          const merged = { ...current };
+          Object.keys(result.data).forEach(key => {
+            if (Array.isArray(result.data[key])) merged[key] = result.data[key];
+          });
+          return merged;
         });
-        setData(merged);
       }
-      setDbLoading(false);
+      if (result.errors.length > 0) {
+        console.error("Could not load tables:", result.errors);
+        showToast(`No se pudieron cargar algunas secciones: ${result.errors.join(", ")}`, "error");
+      }
+    }).catch(error => {
+      console.error("Error loading dashboard data:", error);
+      if (active) showToast("No se pudieron cargar los datos. Revisa tu conexión y permisos.", "error");
+    }).finally(() => {
+      if (active) setDbLoading(false);
     });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const showToast = useCallback((msg, type = "success") => { setToastMsg({ msg, type }); }, []);
+    return () => { active = false; };
+  }, [userProfile?.rol, showToast]);
 
   const menuItems = isAdmin ? [
     { id: "dashboard", label: "Dashboard", icon: BarChart2 },
     { id: "miembros", label: "Miembros", icon: Users },
     { id: "finanzas", label: "Finanzas", icon: DollarSign },
     { id: "proyectos", label: "Proyectos", icon: Target },
-    { id: "eventos", label: "Eventos", icon: Calendar },
+    { id: "eventos-campanas", label: "Eventos y campañas", icon: Calendar, children: [
+      { id: "eventos", label: "Agenda", icon: Calendar },
+      { id: "campanas", label: "Campañas", icon: Target },
+    ] },
     { id: "asistencia", label: "Asistencia", icon: Activity },
     { id: "celulas", label: "Células", icon: Home },
     { id: "ministerios", label: "Ministerios", icon: Layers },
@@ -3310,9 +4051,28 @@ const Dashboard = ({ onLogout, userProfile, seccion }) => {
     { id: "blog", label: "Blog", icon: FileText },
   ];
 
+  const [eventosMenuOpen, setEventosMenuOpen] = useState(["eventos", "campanas"].includes(seccion));
+  useEffect(() => {
+    if (["eventos", "campanas"].includes(seccion)) setEventosMenuOpen(true);
+  }, [seccion]);
+  const seccionesDisponibles = new Set(menuItems.flatMap(item => (item.children || [item]).map(child => child.id)));
+  const indiceBusqueda = [
+    ...(seccionesDisponibles.has("miembros") ? data.miembros.map(item => ({ titulo: item.nombre, detalle: `${item.rol} · ${item.email}`, seccion: "miembros" })) : []),
+    ...(seccionesDisponibles.has("proyectos") ? data.proyectos.map(item => ({ titulo: item.nombre, detalle: item.responsable, seccion: "proyectos" })) : []),
+    ...data.eventos.map(item => ({ titulo: item.nombre, detalle: `${fmtDate(item.fecha)} · ${item.lugar}`, seccion: "eventos" })),
+    ...(seccionesDisponibles.has("celulas") ? data.celulas.map(item => ({ titulo: item.nombre, detalle: `Célula · ${item.lider}`, seccion: "celulas" })) : []),
+    ...(seccionesDisponibles.has("ministerios") ? data.ministerios.map(item => ({ titulo: item.nombre, detalle: `Ministerio · ${item.lider}`, seccion: "ministerios" })) : []),
+    ...(seccionesDisponibles.has("tienda") ? data.productos.map(item => ({ titulo: item.titulo, detalle: `Producto · ${item.categoria}`, seccion: "tienda" })) : []),
+    ...data.publicaciones.map(item => ({ titulo: item.titulo, detalle: `Publicación · ${item.categoria}`, seccion: "blog" })),
+  ];
+  const consulta = buscarGlobal.trim().toLocaleLowerCase();
+  const resultadosBusqueda = consulta.length < 2 ? [] : indiceBusqueda
+    .filter(item => seccionesDisponibles.has(item.seccion) && `${item.titulo} ${item.detalle}`.toLocaleLowerCase().includes(consulta))
+    .slice(0, 7);
+
   const views = {
     "mi-perfil": <PortalUsuario userProfile={userProfile} data={data} />,
-    dashboard: <DashboardView data={data} />,
+    dashboard: <DashboardView data={data} config={config} />,
     miembros: <MiembrosView data={data} setData={setData} toast={showToast} />,
     finanzas: <FinanzasView data={data} setData={setData} toast={showToast} />,
     proyectos: <ProyectosView data={data} setData={setData} toast={showToast} />,
@@ -3321,16 +4081,18 @@ const Dashboard = ({ onLogout, userProfile, seccion }) => {
     celulas: <CelulasView data={data} setData={setData} toast={showToast} />,
     ministerios: <MinisteriosView data={data} setData={setData} toast={showToast} />,
     adolescentes: <AdolescentesView data={data} setData={setData} toast={showToast} readOnly={!isAdmin && !isTeens} />,
+    campanas: <CampanasView data={data} setData={setData} toast={showToast} userProfile={userProfile} />,
     evangelismo: <EvangelismoView />,
     tienda: <TiendaView data={data} setData={setData} toast={showToast} />,
     blog: <BlogView data={data} setData={setData} toast={showToast} readOnly={!isAdmin} />,
-    configuracion: <ConfiguracionView config={config} setConfig={setConfig} toast={showToast} currentUserId={userProfile?.id} />,
+    configuracion: <ConfiguracionView config={config} setConfig={setConfig} toast={showToast} currentUserId={userProfile?.id} configStatus={configStatus} reloadConfig={reloadConfig} onConfigSaved={onConfigSaved} />,
   };
   // Nunca mostrar una sección que el rol no tiene en su menú (p. ej. una guardada de otra sesión)
-  const seccionVisible = menuItems.some(m => m.id === seccion) ? seccion : menuItems[0].id;
+  const seccionVisible = menuItems.some(m => m.children ? m.children.some(child => child.id === seccion) : m.id === seccion) ? seccion : (menuItems[0].children?.[0]?.id || menuItems[0].id);
+  const seccionActual = menuItems.flatMap(item => [item, ...(item.children || [])]).find(item => item.id === seccionVisible);
   // /panel o una sección sin permiso → se corrige la URL a la sección real
   useEffect(() => { if (seccion !== seccionVisible) navegar(`/panel/${seccionVisible}`, { reemplazar: true }); }, [seccion, seccionVisible]);
-  useEffect(() => { document.title = `${menuItems.find(m => m.id === seccionVisible)?.label} · LADP Admin`; }, [seccionVisible]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { document.title = `${seccionActual?.label} · LADP Admin`; }, [seccionActual?.label]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="dashboard-layout" style={{ display: "flex", height: "100vh", fontFamily: font, background: G.bg }}>
@@ -3345,18 +4107,33 @@ const Dashboard = ({ onLogout, userProfile, seccion }) => {
         </div>
         <nav style={{ flex: 1, padding: "10px 8px", overflowY: "auto", overflowX: "hidden" }}>
           {menuItems.map(item => (
-            <a key={item.id} href={`/panel/${item.id}`} onClick={alClicLink(`/panel/${item.id}`)} className={`sidebar-item ${seccionVisible === item.id ? "active" : ""}`} style={{ justifyContent: collapsed ? "center" : "flex-start", marginBottom: 1, textDecoration: "none" }}>
-              <item.icon size={18} style={{ flexShrink: 0 }} />
-              {!collapsed && <span className="sidebar-label" style={{ whiteSpace: "nowrap" }}>{item.label}</span>}
-            </a>
+            item.children ? (
+              <div key={item.id}>
+                <button type="button" onClick={() => setEventosMenuOpen(open => !open)} className={`sidebar-item ${item.children.some(child => child.id === seccionVisible) ? "active" : ""}`} aria-label={item.label} aria-expanded={eventosMenuOpen} title={item.label} style={{ justifyContent: collapsed ? "center" : "flex-start", marginBottom: 1 }}>
+                  <item.icon size={18} style={{ flexShrink: 0 }} />
+                  {!collapsed && <><span className="sidebar-label" style={{ whiteSpace: "nowrap", flex: 1 }}>{item.label}</span><ChevronDown size={14} style={{ transform: eventosMenuOpen ? "rotate(180deg)" : "none", transition: "transform .2s" }} /></>}
+                </button>
+                {eventosMenuOpen && item.children.map(child => (
+                  <a key={child.id} href={`/panel/${child.id}`} onClick={alClicLink(`/panel/${child.id}`)} className={`sidebar-item ${seccionVisible === child.id ? "active" : ""}`} aria-label={child.label} title={child.label} style={{ justifyContent: collapsed ? "center" : "flex-start", paddingLeft: collapsed ? 14 : 38, marginBottom: 1, textDecoration: "none", fontSize: 12.5 }}>
+                    <child.icon size={16} style={{ flexShrink: 0 }} />
+                    {!collapsed && <span className="sidebar-label" style={{ whiteSpace: "nowrap" }}>{child.label}</span>}
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <a key={item.id} href={`/panel/${item.id}`} onClick={alClicLink(`/panel/${item.id}`)} className={`sidebar-item ${seccionVisible === item.id ? "active" : ""}`} aria-label={item.label} title={item.label} style={{ justifyContent: collapsed ? "center" : "flex-start", marginBottom: 1, textDecoration: "none" }}>
+                <item.icon size={18} style={{ flexShrink: 0 }} />
+                {!collapsed && <span className="sidebar-label" style={{ whiteSpace: "nowrap" }}>{item.label}</span>}
+              </a>
+            )
           ))}
         </nav>
         <div className="sidebar-bottom" style={{ padding: "10px 8px", borderTop: `1px solid ${G.grayMid}40` }}>
-          <button onClick={onLogout} className="sidebar-item" style={{ justifyContent: collapsed ? "center" : "flex-start", marginBottom: 2 }}>
+          <button onClick={onLogout} className="sidebar-item" aria-label="Cerrar sesión" title="Cerrar sesión" style={{ justifyContent: collapsed ? "center" : "flex-start", marginBottom: 2 }}>
             <LogOut size={18} style={{ flexShrink: 0 }} />
             {!collapsed && <span className="sidebar-label">Cerrar Sesión</span>}
           </button>
-          <button onClick={() => setCollapsed(!collapsed)} className="sidebar-item" style={{ justifyContent: collapsed ? "center" : "flex-start" }}>
+          <button onClick={() => setCollapsed(!collapsed)} className="sidebar-item" aria-label={collapsed ? "Expandir menú" : "Colapsar menú"} title={collapsed ? "Expandir menú" : "Colapsar menú"} style={{ justifyContent: collapsed ? "center" : "flex-start" }}>
             <Menu size={18} style={{ flexShrink: 0 }} />
             {!collapsed && <span className="sidebar-label">Colapsar</span>}
           </button>
@@ -3364,10 +4141,22 @@ const Dashboard = ({ onLogout, userProfile, seccion }) => {
       </div>
 
       {/* Main */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+      <div className="dashboard-content" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
         <header className="dashboard-header" style={{ background: "#fff", borderBottom: `1px solid ${G.grayMid}40`, padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexShrink: 0 }}>
-          <div className="search-box" style={{ flex: 1, maxWidth: 360 }}>
-            <Input placeholder="Buscar en la plataforma..." icon={Search} />
+          <div className="search-box" style={{ flex: 1, maxWidth: 360, position: "relative" }}>
+            <Input placeholder="Buscar miembros, eventos, proyectos..." icon={Search} value={buscarGlobal} onChange={e => setBuscarGlobal(e.target.value)} />
+            {consulta.length >= 2 && (
+              <div role="listbox" aria-label="Resultados de búsqueda" style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, zIndex: 20, background: "#fff", border: `1px solid ${G.grayMid}`, borderRadius: 10, boxShadow: "0 12px 30px rgba(15,25,35,0.14)", overflow: "hidden" }}>
+                {resultadosBusqueda.length === 0 ? (
+                  <div style={{ padding: "12px 14px", fontSize: 12.5, color: G.gray }}>No se encontraron resultados</div>
+                ) : resultadosBusqueda.map((item, index) => (
+                  <button key={`${item.seccion}-${item.titulo}-${index}`} role="option" aria-selected="false" onClick={() => { navegar(`/panel/${item.seccion}`); setBuscarGlobal(""); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", border: "none", borderBottom: `1px solid ${G.grayMid}30`, background: "#fff", cursor: "pointer", fontFamily: font }}>
+                    <span style={{ display: "block", fontSize: 13, fontWeight: 700, color: G.dark }}>{item.titulo}</span>
+                    <span style={{ display: "block", marginTop: 2, fontSize: 11.5, color: G.gray }}>{item.detalle}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <button style={{ position: "relative", background: G.grayLight, border: "none", cursor: "pointer", padding: 9, borderRadius: 9 }}>
@@ -3492,7 +4281,10 @@ const TiendaPage = ({ onBack }) => {
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, marginBottom: 6 }}><span style={{ color: G.gray }}>Envío</span><span style={{ fontWeight: 600, color: envio === 0 ? G.success : G.dark }}>{envio === 0 ? "Gratis" : `S/. ${envio.toFixed(2)}`}</span></div>
             {envio > 0 && <p style={{ margin: "0 0 10px", fontSize: 11.5, color: G.success }}>¡Envío gratis en compras mayores a S/. 100!</p>}
             <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 10, borderTop: `1px solid ${G.grayMid}30`, marginBottom: 14 }}><span style={{ fontSize: 15, fontWeight: 800, color: G.dark }}>Total</span><span style={{ fontSize: 22, fontWeight: 800, color: G.primary, fontFamily: fontTitle }}>S/. {(cartTotal + envio).toFixed(2)}</span></div>
-            <button onClick={() => { setShowCart(false); setView("checkout"); setCheckoutStep(1); }} style={{ width: "100%", padding: "14px", fontSize: 14.5, fontWeight: 800, background: `linear-gradient(135deg, ${G.accent}, ${G.accentLight})`, color: "#fff", border: "none", borderRadius: 12, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><CreditCard size={17} /> Proceder al Pago</button>
+            <div role="status" style={{ padding: 11, marginBottom: 10, borderRadius: 9, background: G.warningLight, color: G.dark, fontSize: 12, lineHeight: 1.5 }}>
+              El catálogo es una vista previa. Los pedidos y pagos aún no están disponibles; no ingreses datos personales ni financieros.
+            </div>
+            <button disabled style={{ width: "100%", padding: "14px", fontSize: 14.5, fontWeight: 800, background: G.grayMid, color: G.gray, border: "none", borderRadius: 12, cursor: "not-allowed", fontFamily: font, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><CreditCard size={17} /> Compras no disponibles</button>
             <button onClick={() => { setShowCart(false); setView("catalogo"); }} style={{ width: "100%", padding: "10px", fontSize: 13, fontWeight: 600, background: "none", color: G.gray, border: "none", cursor: "pointer", fontFamily: font, marginTop: 8 }}>Seguir comprando</button>
           </div>
         )}
@@ -3731,13 +4523,39 @@ export default function App() {
   const ruta = useRuta();
   const [userProfile, setUserProfile] = useState(null);
   const [verificando, setVerificando] = useState(isSupabaseConfigured());
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
+  const [config, setConfig] = useState(CHURCH_DEFAULT);
+  const [configStatus, setConfigStatus] = useState(isSupabaseConfigured() ? "loading" : "ready");
 
-  const page = ruta.startsWith("/panel") ? "dashboard"
+  const reloadConfig = useCallback(async () => {
+    if (!isSupabaseConfigured()) {
+      setConfigStatus("ready");
+      return;
+    }
+    setConfigStatus("loading");
+    try {
+      const saved = await getChurchSettings();
+      if (saved) setConfig({ ...CHURCH_DEFAULT, ...saved });
+      setConfigStatus("ready");
+    } catch {
+      setConfigStatus("error");
+    }
+  }, []);
+
+  useEffect(() => {
+    reloadConfig();
+  }, [reloadConfig]);
+
+  const handleConfigSaved = useCallback(() => setConfigStatus("ready"), []);
+
+  const page = ruta.startsWith("/colaborar/") ? "colaboracion"
+    : ruta.startsWith("/panel") ? "dashboard"
     : ruta === "/login" ? "login"
     : ruta === "/registro" ? "register"
     : ruta === "/tienda" ? "tienda"
     : "landing";
   const seccion = ruta.split("/")[2] || "";
+  const slugCampana = page === "colaboracion" ? decodeURIComponent(ruta.split("/")[2] || "") : "";
 
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
@@ -3754,6 +4572,11 @@ export default function App() {
     // INITIAL_SESSION restaura la sesión guardada al recargar; SIGNED_IN cubre el login con Google.
     // No se llama a Supabase dentro del callback (bloquea el cliente): se difiere con setTimeout.
     const { data: { subscription } } = onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY" || (event === "INITIAL_SESSION" && session && new URLSearchParams(window.location.search).get("recovery") === "1")) {
+        setPasswordRecovery(true);
+        setVerificando(false);
+        return;
+      }
       if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session) {
         // Tokens en la URL = regreso del login con Google
         const recienIngresa = event === "SIGNED_IN" || /access_token=/.test(window.location.hash);
@@ -3776,7 +4599,7 @@ export default function App() {
 
   useEffect(() => {
     if (page === "dashboard") return; // el panel pone su propio título
-    document.title = { landing: "LADP - Iglesia Cristo Viene", login: "Iniciar sesión · LADP", register: "Crear cuenta · LADP", tienda: "Tienda · LADP" }[page];
+    document.title = { landing: "LADP - Iglesia Cristo Viene", login: "Iniciar sesión · LADP", register: "Crear cuenta · LADP", tienda: "Tienda · LADP", colaboracion: "Colaborar · Iglesia Cristo Viene" }[page];
     if (page !== "landing") window.scrollTo(0, 0);
   }, [page]);
 
@@ -3792,11 +4615,12 @@ export default function App() {
 
   return (
     <div>
-      {page === "landing" && <LandingPage onLogin={() => navegar("/login")} onTienda={() => navegar("/tienda")} />}
-      {page === "login" && <Login onSuccess={(profile) => { setUserProfile(profile); navegar("/panel"); }} onBack={() => navegar("/")} onRegister={() => navegar("/registro")} />}
+      {page === "landing" && <LandingPage onLogin={() => navegar("/login")} onTienda={() => navegar("/tienda")} config={config} />}
+      {page === "login" && <Login onSuccess={(profile) => { setUserProfile(profile); navegar("/panel"); }} onBack={() => navegar("/")} onRegister={() => navegar("/registro")} passwordRecovery={passwordRecovery} onPasswordRecoveryComplete={() => setPasswordRecovery(false)} />}
       {page === "register" && <Register onSuccess={() => navegar("/login")} onBack={() => navegar("/login")} />}
-      {page === "dashboard" && <Dashboard onLogout={handleLogout} userProfile={userProfile} seccion={seccion} />}
+      {page === "dashboard" && <Dashboard onLogout={handleLogout} userProfile={userProfile} seccion={seccion} config={config} setConfig={setConfig} configStatus={configStatus} reloadConfig={reloadConfig} onConfigSaved={handleConfigSaved} />}
       {page === "tienda" && <TiendaPage onBack={() => navegar("/")} />}
+      {page === "colaboracion" && <CampanaPublicaView slug={slugCampana} onBack={() => navegar("/")} />}
     </div>
   );
 }

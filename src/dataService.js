@@ -16,6 +16,11 @@ const TABLE_MAP = {
   cronograma: "cronograma_adolescentes",
   actas: "actas_adolescentes",
   peticiones: "peticiones_oracion",
+  evaluaciones: "evaluaciones_teens",
+  campanas: "campanas",
+  campana_requerimientos: "campana_requerimientos",
+  campana_colaboraciones: "campana_colaboraciones",
+  campana_entregas: "campana_entregas",
 };
 
 // ─── FETCH ALL ─────────────────────────────────────────────────────
@@ -29,7 +34,7 @@ export async function fetchAll(key) {
     .order("created_at", { ascending: false });
   if (error) {
     console.error(`Error fetching ${key}:`, { message: error.message, code: error.code, details: error.details, hint: error.hint });
-    return null;
+    throw new Error(`No se pudo cargar ${key}`);
   }
   return data;
 }
@@ -46,7 +51,7 @@ export async function insertRow(key, row) {
     .single();
   if (error) {
     console.error(`Error inserting into ${key}:`, { message: error.message, code: error.code, details: error.details, hint: error.hint });
-    return null;
+    throw new Error(`No se pudo guardar ${key}`);
   }
   return data;
 }
@@ -64,7 +69,7 @@ export async function updateRow(key, id, updates) {
     .single();
   if (error) {
     console.error(`Error updating ${key}:`, { message: error.message, code: error.code, details: error.details, hint: error.hint });
-    return null;
+    throw new Error(`No se pudo actualizar ${key}`);
   }
   return data;
 }
@@ -76,8 +81,8 @@ export async function deleteRow(key, id) {
   if (!table) return null;
   const { error } = await supabase.from(table).delete().eq("id", id);
   if (error) {
-    console.error(`Error deleting from ${key}:`, error.message);
-    return false;
+    console.error(`Error deleting from ${key}:`, { message: error.message, code: error.code, details: error.details, hint: error.hint });
+    throw new Error(`No se pudo eliminar ${key}`);
   }
   return true;
 }
@@ -94,17 +99,72 @@ export async function removeRecord(key, id) {
   return deleteRow(key, id);
 }
 
-// ─── LOAD ALL DATA ─────────────────────────────────────────────────
-// Loads all tables at once, returns null values for tables that fail
-export async function loadAllData() {
-  if (!isSupabaseConfigured()) return null;
-  const keys = Object.keys(TABLE_MAP);
-  const results = await Promise.all(keys.map((k) => fetchAll(k)));
-  const data = {};
-  keys.forEach((k, i) => {
-    data[k] = results[i];
+export async function fetchPublicCampaign(slug) {
+  if (!isSupabaseConfigured()) throw new Error("La plataforma no tiene conexión con Supabase.");
+  const { data: campaign, error: campaignError } = await supabase
+    .from("campanas")
+    .select("id, slug, titulo, descripcion, fecha_evento, fecha_limite, estado")
+    .eq("slug", slug)
+    .eq("estado", "abierta")
+    .maybeSingle();
+  if (campaignError) {
+    console.error("Error fetching public campaign:", { message: campaignError.message, code: campaignError.code });
+    throw new Error("No se pudo cargar la campaña.");
+  }
+  if (!campaign) return null;
+
+  const { data: needs, error: needsError } = await supabase
+    .from("campana_requerimientos")
+    .select("id, nombre, tipo, unidad, objetivo")
+    .eq("campana_id", campaign.id)
+    .order("created_at", { ascending: true });
+  if (needsError) {
+    console.error("Error fetching public campaign needs:", { message: needsError.message, code: needsError.code });
+    throw new Error("No se pudieron cargar los requerimientos.");
+  }
+  return { ...campaign, requerimientos: needs || [] };
+}
+
+export async function submitPublicCampaignContribution(contribution) {
+  if (!isSupabaseConfigured()) throw new Error("El registro de colaboraciones no está disponible.");
+  const { error } = await supabase.from("campana_colaboraciones").insert({
+    id: contribution.id,
+    referencia: contribution.referencia,
+    campana_id: contribution.campana_id,
+    requerimiento_id: contribution.requerimiento_id,
+    nombre_colaborador: contribution.nombre_colaborador,
+    telefono: contribution.telefono || null,
+    correo: contribution.correo || null,
+    cantidad: contribution.cantidad,
+    nota: contribution.nota || null,
+    estado: "pendiente",
   });
-  return data;
+  if (error) {
+    console.error("Error submitting public campaign contribution:", { message: error.message, code: error.code });
+    throw new Error("No se pudo registrar la colaboración. Verifica los datos e inténtalo nuevamente.");
+  }
+  return true;
+}
+
+// ─── LOAD DATA FOR ROLE ────────────────────────────────────────────
+// RLS remains the security boundary; this limits unnecessary requests.
+export async function loadAllData(role = "usuario") {
+  if (!isSupabaseConfigured()) return null;
+  const keysByRole = {
+    admin: Object.keys(TABLE_MAP),
+    teens: ["cronograma", "actas", "peticiones", "evaluaciones"],
+    usuario: ["miembros", "eventos", "publicaciones", "cronograma"],
+  };
+  const keys = keysByRole[role] || keysByRole.usuario;
+  const results = await Promise.allSettled(keys.map((k) => fetchAll(k)));
+  const data = {};
+  const errors = [];
+  keys.forEach((key, index) => {
+    const result = results[index];
+    if (result.status === "fulfilled") data[key] = result.value;
+    else errors.push(key);
+  });
+  return { data, errors };
 }
 
 // ─── AUTH ──────────────────────────────────────────────────────────
@@ -132,6 +192,26 @@ export async function signIn(email, password) {
   } catch (e) {
     console.error("Login error:", e);
     return null;
+  }
+}
+
+export async function requestPasswordReset(email) {
+  if (!isSupabaseConfigured()) throw new Error("Supabase no está configurado");
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/login?recovery=1`,
+  });
+  if (error) {
+    console.error("Password reset request error:", error.message);
+    throw new Error("No se pudo enviar el enlace de recuperación");
+  }
+}
+
+export async function updatePassword(password) {
+  if (!isSupabaseConfigured()) throw new Error("Supabase no está configurado");
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) {
+    console.error("Password update error:", error.message);
+    throw new Error("No se pudo actualizar la contraseña");
   }
 }
 
@@ -219,6 +299,34 @@ export async function updateUserRole(userId, rol) {
     .eq("id", userId);
   if (error) { console.error("Error updating role:", error.message); return false; }
   return true;
+}
+
+export async function getChurchSettings() {
+  if (!isSupabaseConfigured()) return null;
+  const { data, error } = await supabase
+    .from("church_settings")
+    .select("config")
+    .eq("id", true)
+    .maybeSingle();
+  if (error) {
+    console.error("Error fetching church settings:", { message: error.message, code: error.code, details: error.details, hint: error.hint });
+    throw new Error("No se pudo cargar la configuración de la iglesia");
+  }
+  return data?.config || null;
+}
+
+export async function saveChurchSettings(config) {
+  if (!isSupabaseConfigured()) throw new Error("Supabase no está configurado");
+  const { data, error } = await supabase
+    .from("church_settings")
+    .upsert({ id: true, config }, { onConflict: "id" })
+    .select("config")
+    .single();
+  if (error) {
+    console.error("Error saving church settings:", { message: error.message, code: error.code, details: error.details, hint: error.hint });
+    throw new Error("No se pudo guardar la configuración de la iglesia");
+  }
+  return data.config;
 }
 
 export function onAuthStateChange(callback) {
