@@ -72,14 +72,25 @@ CREATE UNIQUE INDEX IF NOT EXISTS un_solo_admin ON user_profiles ((rol)) WHERE r
 UPDATE user_profiles SET rol = 'teens'
 WHERE id = (SELECT id FROM auth.users WHERE lower(email) = 'teens@icv.pe');
 
+-- ─── 3.1. CONFIGURACIÓN DE LA IGLESIA ───────────────────────────────
+CREATE TABLE IF NOT EXISTS church_settings (
+  id BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (id),
+  config JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+ALTER TABLE church_settings ENABLE ROW LEVEL SECURITY;
+
 -- ─── 4. ESCRITURA: solo admin en tablas generales ───────────────────
 DO $$
 DECLARE t TEXT;
 BEGIN
   FOREACH t IN ARRAY ARRAY['miembros', 'donaciones', 'gastos', 'proyectos', 'eventos', 'asistencia', 'celulas', 'ministerios', 'productos', 'publicaciones'] LOOP
+    EXECUTE format('DROP POLICY IF EXISTS "Public read" ON %I', t);
+    EXECUTE format('DROP POLICY IF EXISTS "Admin read" ON %I', t);
     EXECUTE format('DROP POLICY IF EXISTS "Auth insert" ON %I', t);
     EXECUTE format('DROP POLICY IF EXISTS "Auth update" ON %I', t);
     EXECUTE format('DROP POLICY IF EXISTS "Auth delete" ON %I', t);
+    EXECUTE format('CREATE POLICY "Admin read" ON %I FOR SELECT USING (is_admin())', t);
     EXECUTE format('DROP POLICY IF EXISTS "Admin insert" ON %I', t);
     EXECUTE format('DROP POLICY IF EXISTS "Admin update" ON %I', t);
     EXECUTE format('DROP POLICY IF EXISTS "Admin delete" ON %I', t);
@@ -89,10 +100,38 @@ BEGIN
   END LOOP;
 END $$;
 
+DROP POLICY IF EXISTS "Public read" ON church_settings;
+DROP POLICY IF EXISTS "Admin read" ON church_settings;
+DROP POLICY IF EXISTS "Admin insert" ON church_settings;
+DROP POLICY IF EXISTS "Admin update" ON church_settings;
+DROP POLICY IF EXISTS "Admin delete" ON church_settings;
+CREATE POLICY "Public read" ON church_settings FOR SELECT USING (true);
+CREATE POLICY "Admin insert" ON church_settings FOR INSERT WITH CHECK (is_admin());
+CREATE POLICY "Admin update" ON church_settings FOR UPDATE USING (is_admin()) WITH CHECK (is_admin());
+CREATE POLICY "Admin delete" ON church_settings FOR DELETE USING (is_admin());
+
+DROP POLICY IF EXISTS "Miembro lee su ficha" ON miembros;
+CREATE POLICY "Miembro lee su ficha" ON miembros FOR SELECT
+  USING (lower(email) = lower(auth.jwt() ->> 'email'));
+
+DROP POLICY IF EXISTS "Usuario autenticado lee eventos" ON eventos;
+CREATE POLICY "Usuario autenticado lee eventos" ON eventos FOR SELECT
+  USING (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Usuario autenticado lee publicaciones publicadas" ON publicaciones;
+CREATE POLICY "Usuario autenticado lee publicaciones publicadas" ON publicaciones FOR SELECT
+  USING (auth.role() = 'authenticated' AND estado = 'publicado');
+
 -- ─── 5. CRONOGRAMA DE ADOLESCENTES: admin + teens ───────────────────
 ALTER TABLE cronograma_adolescentes ADD COLUMN IF NOT EXISTS ministerio TEXT;
 ALTER TABLE cronograma_adolescentes ADD COLUMN IF NOT EXISTS hora TEXT;
 ALTER TABLE cronograma_adolescentes ADD COLUMN IF NOT EXISTS reflexion TEXT;
+DROP POLICY IF EXISTS "Public read" ON cronograma_adolescentes;
+DROP POLICY IF EXISTS "Usuario autenticado lee cronograma" ON cronograma_adolescentes;
+DROP POLICY IF EXISTS "Admin read" ON cronograma_adolescentes;
+CREATE POLICY "Admin read" ON cronograma_adolescentes FOR SELECT USING (is_admin());
+CREATE POLICY "Usuario autenticado lee cronograma" ON cronograma_adolescentes FOR SELECT
+  USING (auth.role() = 'authenticated');
 DROP POLICY IF EXISTS "Auth insert" ON cronograma_adolescentes;
 DROP POLICY IF EXISTS "Auth update" ON cronograma_adolescentes;
 DROP POLICY IF EXISTS "Auth delete" ON cronograma_adolescentes;
@@ -139,6 +178,9 @@ CREATE TABLE IF NOT EXISTS peticiones_oracion (
 ALTER TABLE peticiones_oracion ADD COLUMN IF NOT EXISTS creado_por UUID DEFAULT auth.uid();
 ALTER TABLE peticiones_oracion ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Public read" ON peticiones_oracion;
+DROP POLICY IF EXISTS "Admin read" ON peticiones_oracion;
+CREATE POLICY "Admin read" ON peticiones_oracion FOR SELECT USING (is_admin());
 DROP POLICY IF EXISTS "Teens leen peticiones" ON peticiones_oracion;
 DROP POLICY IF EXISTS "Teens crean peticiones" ON peticiones_oracion;
 DROP POLICY IF EXISTS "Teens editan peticiones" ON peticiones_oracion;
@@ -147,6 +189,163 @@ CREATE POLICY "Teens leen peticiones" ON peticiones_oracion FOR SELECT USING (pu
 CREATE POLICY "Teens crean peticiones" ON peticiones_oracion FOR INSERT WITH CHECK (puede_editar_teens());
 CREATE POLICY "Teens editan peticiones" ON peticiones_oracion FOR UPDATE USING (puede_editar_teens()) WITH CHECK (puede_editar_teens());
 CREATE POLICY "Teens borran peticiones" ON peticiones_oracion FOR DELETE USING (puede_editar_teens());
+
+-- ─── 8. SEGUIMIENTO MENSUAL TEENS (solo admin + rol teens) ──────────
+CREATE TABLE IF NOT EXISTS evaluaciones_teens (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  periodo DATE NOT NULL UNIQUE,
+  asistencia_promedio NUMERIC(6,2) CHECK (asistencia_promedio IS NULL OR asistencia_promedio >= 0),
+  nuevos INTEGER CHECK (nuevos IS NULL OR nuevos >= 0),
+  constantes INTEGER CHECK (constantes IS NULL OR constantes >= 0),
+  reuniones_realizadas INTEGER CHECK (reuniones_realizadas IS NULL OR reuniones_realizadas >= 0),
+  observaciones TEXT NOT NULL DEFAULT '',
+  creado_por UUID DEFAULT auth.uid(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+ALTER TABLE evaluaciones_teens ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admin read" ON evaluaciones_teens;
+DROP POLICY IF EXISTS "Admin insert" ON evaluaciones_teens;
+DROP POLICY IF EXISTS "Admin update" ON evaluaciones_teens;
+DROP POLICY IF EXISTS "Admin delete" ON evaluaciones_teens;
+DROP POLICY IF EXISTS "Teens leen evaluaciones" ON evaluaciones_teens;
+DROP POLICY IF EXISTS "Teens crean evaluaciones" ON evaluaciones_teens;
+DROP POLICY IF EXISTS "Teens editan evaluaciones" ON evaluaciones_teens;
+DROP POLICY IF EXISTS "Teens borran evaluaciones" ON evaluaciones_teens;
+CREATE POLICY "Teens leen evaluaciones" ON evaluaciones_teens FOR SELECT USING (puede_editar_teens());
+CREATE POLICY "Teens crean evaluaciones" ON evaluaciones_teens FOR INSERT WITH CHECK (puede_editar_teens());
+CREATE POLICY "Teens editan evaluaciones" ON evaluaciones_teens FOR UPDATE USING (puede_editar_teens()) WITH CHECK (puede_editar_teens());
+CREATE POLICY "Teens borran evaluaciones" ON evaluaciones_teens FOR DELETE USING (puede_editar_teens());
+
+-- ─── 9. CAMPAÑAS, COLABORACIONES Y ENTREGAS ────────────────────────
+CREATE TABLE IF NOT EXISTS campanas (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  slug TEXT NOT NULL UNIQUE,
+  titulo TEXT NOT NULL CHECK (char_length(titulo) BETWEEN 3 AND 120),
+  descripcion TEXT NOT NULL DEFAULT '',
+  fecha_evento DATE,
+  fecha_limite DATE,
+  estado TEXT NOT NULL DEFAULT 'borrador' CHECK (estado IN ('borrador', 'abierta', 'cerrada', 'completada')),
+  creado_por UUID DEFAULT auth.uid(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS campana_requerimientos (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  campana_id UUID NOT NULL REFERENCES campanas(id),
+  nombre TEXT NOT NULL CHECK (char_length(nombre) BETWEEN 2 AND 120),
+  tipo TEXT NOT NULL CHECK (tipo IN ('dinero', 'insumo')),
+  unidad TEXT NOT NULL DEFAULT 'unidad' CHECK (char_length(unidad) BETWEEN 1 AND 30),
+  objetivo NUMERIC(12,2) NOT NULL CHECK (objetivo > 0),
+  UNIQUE (campana_id, id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS campana_colaboraciones (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  referencia TEXT NOT NULL UNIQUE,
+  campana_id UUID NOT NULL REFERENCES campanas(id),
+  requerimiento_id UUID NOT NULL,
+  nombre_colaborador TEXT NOT NULL CHECK (char_length(nombre_colaborador) BETWEEN 2 AND 120),
+  telefono TEXT CHECK (telefono IS NULL OR char_length(telefono) <= 30),
+  correo TEXT CHECK (correo IS NULL OR char_length(correo) <= 254),
+  cantidad NUMERIC(12,2) NOT NULL CHECK (cantidad > 0),
+  nota TEXT CHECK (nota IS NULL OR char_length(nota) <= 500),
+  estado TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'confirmada', 'rechazada')),
+  confirmada_por UUID REFERENCES auth.users(id),
+  confirmada_en TIMESTAMPTZ,
+  creada_por UUID DEFAULT auth.uid(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  FOREIGN KEY (campana_id, requerimiento_id) REFERENCES campana_requerimientos(campana_id, id)
+);
+
+CREATE TABLE IF NOT EXISTS campana_entregas (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  colaboracion_id UUID NOT NULL REFERENCES campana_colaboraciones(id),
+  cantidad NUMERIC(12,2) NOT NULL CHECK (cantidad > 0),
+  fecha_entrega DATE NOT NULL DEFAULT CURRENT_DATE,
+  recibida_por TEXT NOT NULL CHECK (char_length(recibida_por) BETWEEN 2 AND 120),
+  nota TEXT CHECK (nota IS NULL OR char_length(nota) <= 500),
+  registrada_por UUID DEFAULT auth.uid(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE campanas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE campana_requerimientos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE campana_colaboraciones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE campana_entregas ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admin manage campaigns" ON campanas;
+DROP POLICY IF EXISTS "Public read open campaigns" ON campanas;
+CREATE POLICY "Admin manage campaigns" ON campanas FOR ALL USING (is_admin()) WITH CHECK (is_admin());
+CREATE POLICY "Public read open campaigns" ON campanas FOR SELECT
+  USING (estado = 'abierta' AND (fecha_limite IS NULL OR fecha_limite >= CURRENT_DATE));
+
+DROP POLICY IF EXISTS "Admin manage campaign needs" ON campana_requerimientos;
+DROP POLICY IF EXISTS "Public read open campaign needs" ON campana_requerimientos;
+CREATE POLICY "Admin manage campaign needs" ON campana_requerimientos FOR ALL USING (is_admin()) WITH CHECK (is_admin());
+CREATE POLICY "Public read open campaign needs" ON campana_requerimientos FOR SELECT
+  USING (EXISTS (SELECT 1 FROM campanas c WHERE c.id = campana_id AND c.estado = 'abierta' AND (c.fecha_limite IS NULL OR c.fecha_limite >= CURRENT_DATE)));
+
+DROP POLICY IF EXISTS "Admin read campaign contributions" ON campana_colaboraciones;
+DROP POLICY IF EXISTS "Admin update campaign contributions" ON campana_colaboraciones;
+DROP POLICY IF EXISTS "Public submit campaign contribution" ON campana_colaboraciones;
+CREATE POLICY "Admin read campaign contributions" ON campana_colaboraciones FOR SELECT USING (is_admin());
+CREATE POLICY "Admin update campaign contributions" ON campana_colaboraciones FOR UPDATE USING (is_admin()) WITH CHECK (is_admin());
+CREATE POLICY "Public submit campaign contribution" ON campana_colaboraciones FOR INSERT
+  WITH CHECK (
+    estado = 'pendiente'
+    AND creada_por IS NULL
+    AND confirmada_por IS NULL
+    AND confirmada_en IS NULL
+    AND EXISTS (
+      SELECT 1 FROM campanas c
+      JOIN campana_requerimientos r ON r.campana_id = c.id
+      WHERE c.id = campana_colaboraciones.campana_id
+        AND c.estado = 'abierta'
+        AND (c.fecha_limite IS NULL OR c.fecha_limite >= CURRENT_DATE)
+        AND r.id = campana_colaboraciones.requerimiento_id
+    )
+  );
+
+DROP POLICY IF EXISTS "Admin read campaign deliveries" ON campana_entregas;
+DROP POLICY IF EXISTS "Admin add campaign deliveries" ON campana_entregas;
+CREATE POLICY "Admin read campaign deliveries" ON campana_entregas FOR SELECT USING (is_admin());
+CREATE POLICY "Admin add campaign deliveries" ON campana_entregas FOR INSERT WITH CHECK (is_admin());
+
+GRANT SELECT ON campanas, campana_requerimientos TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON campanas, campana_requerimientos TO authenticated;
+GRANT INSERT ON campana_colaboraciones TO anon, authenticated;
+GRANT SELECT, UPDATE ON campana_colaboraciones TO authenticated;
+GRANT SELECT, INSERT ON campana_entregas TO authenticated;
+
+CREATE OR REPLACE FUNCTION validar_entrega_campana()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_colaboracion campana_colaboraciones%ROWTYPE;
+  v_recibido NUMERIC(12,2);
+BEGIN
+  SELECT * INTO v_colaboracion
+  FROM campana_colaboraciones
+  WHERE id = NEW.colaboracion_id
+  FOR UPDATE;
+  IF NOT FOUND OR v_colaboracion.estado <> 'confirmada' THEN
+    RAISE EXCEPTION 'Solo se pueden registrar entregas de colaboraciones confirmadas';
+  END IF;
+  SELECT COALESCE(SUM(cantidad), 0) INTO v_recibido
+  FROM campana_entregas
+  WHERE colaboracion_id = NEW.colaboracion_id;
+  IF v_recibido + NEW.cantidad > v_colaboracion.cantidad THEN
+    RAISE EXCEPTION 'La entrega supera la cantidad comprometida';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+DROP TRIGGER IF EXISTS validar_entrega_campana ON campana_entregas;
+CREATE TRIGGER validar_entrega_campana BEFORE INSERT ON campana_entregas
+FOR EACH ROW EXECUTE FUNCTION validar_entrega_campana();
 
 -- ─── Verificación ───────────────────────────────────────────────────
 SELECT u.email, p.rol FROM user_profiles p JOIN auth.users u ON u.id = p.id ORDER BY p.rol, u.email;

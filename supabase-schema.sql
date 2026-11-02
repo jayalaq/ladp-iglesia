@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS proyectos (
   descripcion TEXT,
   presupuesto NUMERIC(10,2) DEFAULT 0,
   gastado NUMERIC(10,2) DEFAULT 0,
-  progreso INTEGER DEFAULT 0,
+  avance INTEGER DEFAULT 0,
   estado TEXT DEFAULT 'activo',
   prioridad TEXT DEFAULT 'media',
   responsable TEXT,
@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS celulas (
   direccion TEXT,
   miembros INTEGER DEFAULT 0,
   zona TEXT,
-  estado TEXT DEFAULT 'activa',
+  estado TEXT DEFAULT 'activo',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -168,6 +168,72 @@ CREATE TABLE IF NOT EXISTS peticiones_oracion (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS evaluaciones_teens (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  periodo DATE NOT NULL UNIQUE,
+  asistencia_promedio NUMERIC(6,2) CHECK (asistencia_promedio IS NULL OR asistencia_promedio >= 0),
+  nuevos INTEGER CHECK (nuevos IS NULL OR nuevos >= 0),
+  constantes INTEGER CHECK (constantes IS NULL OR constantes >= 0),
+  reuniones_realizadas INTEGER CHECK (reuniones_realizadas IS NULL OR reuniones_realizadas >= 0),
+  observaciones TEXT NOT NULL DEFAULT '',
+  creado_por UUID DEFAULT auth.uid(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ─── CAMPAÑAS Y COLABORACIONES ─────────────────────────────────────
+CREATE TABLE IF NOT EXISTS campanas (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  slug TEXT NOT NULL UNIQUE,
+  titulo TEXT NOT NULL CHECK (char_length(titulo) BETWEEN 3 AND 120),
+  descripcion TEXT NOT NULL DEFAULT '',
+  fecha_evento DATE,
+  fecha_limite DATE,
+  estado TEXT NOT NULL DEFAULT 'borrador' CHECK (estado IN ('borrador', 'abierta', 'cerrada', 'completada')),
+  creado_por UUID DEFAULT auth.uid(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS campana_requerimientos (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  campana_id UUID NOT NULL REFERENCES campanas(id),
+  nombre TEXT NOT NULL CHECK (char_length(nombre) BETWEEN 2 AND 120),
+  tipo TEXT NOT NULL CHECK (tipo IN ('dinero', 'insumo')),
+  unidad TEXT NOT NULL DEFAULT 'unidad' CHECK (char_length(unidad) BETWEEN 1 AND 30),
+  objetivo NUMERIC(12,2) NOT NULL CHECK (objetivo > 0),
+  UNIQUE (campana_id, id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS campana_colaboraciones (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  referencia TEXT NOT NULL UNIQUE,
+  campana_id UUID NOT NULL REFERENCES campanas(id),
+  requerimiento_id UUID NOT NULL,
+  nombre_colaborador TEXT NOT NULL CHECK (char_length(nombre_colaborador) BETWEEN 2 AND 120),
+  telefono TEXT CHECK (telefono IS NULL OR char_length(telefono) <= 30),
+  correo TEXT CHECK (correo IS NULL OR char_length(correo) <= 254),
+  cantidad NUMERIC(12,2) NOT NULL CHECK (cantidad > 0),
+  nota TEXT CHECK (nota IS NULL OR char_length(nota) <= 500),
+  estado TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'confirmada', 'rechazada')),
+  confirmada_por UUID REFERENCES auth.users(id),
+  confirmada_en TIMESTAMPTZ,
+  creada_por UUID DEFAULT auth.uid(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  FOREIGN KEY (campana_id, requerimiento_id) REFERENCES campana_requerimientos(campana_id, id)
+);
+
+CREATE TABLE IF NOT EXISTS campana_entregas (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  colaboracion_id UUID NOT NULL REFERENCES campana_colaboraciones(id),
+  cantidad NUMERIC(12,2) NOT NULL CHECK (cantidad > 0),
+  fecha_entrega DATE NOT NULL DEFAULT CURRENT_DATE,
+  recibida_por TEXT NOT NULL CHECK (char_length(recibida_por) BETWEEN 2 AND 120),
+  nota TEXT CHECK (nota IS NULL OR char_length(nota) <= 500),
+  registrada_por UUID DEFAULT auth.uid(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- ─── SINCRONIZACIÓN DE COLUMNAS (seguro de re-ejecutar) ────────────
 -- Asegura que las columnas que usa la app existan, también en bases ya creadas.
 ALTER TABLE donaciones ADD COLUMN IF NOT EXISTS estado TEXT DEFAULT 'completado';
@@ -181,6 +247,13 @@ ALTER TABLE celulas ADD COLUMN IF NOT EXISTS lugar TEXT;
 ALTER TABLE cronograma_adolescentes ADD COLUMN IF NOT EXISTS ministerio TEXT;
 ALTER TABLE cronograma_adolescentes ADD COLUMN IF NOT EXISTS hora TEXT;
 ALTER TABLE cronograma_adolescentes ADD COLUMN IF NOT EXISTS reflexion TEXT;
+
+-- ─── CONFIGURACIÓN DE LA IGLESIA ────────────────────────────────────
+CREATE TABLE IF NOT EXISTS church_settings (
+  id BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (id),
+  config JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
 -- ─── ROW LEVEL SECURITY ───────────────────────────────────────────
 -- Habilitar RLS en todas las tablas
@@ -196,62 +269,12 @@ ALTER TABLE productos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE publicaciones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cronograma_adolescentes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE peticiones_oracion ENABLE ROW LEVEL SECURITY;
-
--- Políticas: lectura pública, escritura autenticada
-CREATE POLICY "Public read" ON miembros FOR SELECT USING (true);
-CREATE POLICY "Auth insert" ON miembros FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "Auth update" ON miembros FOR UPDATE USING (auth.role() = 'authenticated');
-CREATE POLICY "Auth delete" ON miembros FOR DELETE USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Public read" ON donaciones FOR SELECT USING (true);
-CREATE POLICY "Auth insert" ON donaciones FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "Auth update" ON donaciones FOR UPDATE USING (auth.role() = 'authenticated');
-CREATE POLICY "Auth delete" ON donaciones FOR DELETE USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Public read" ON gastos FOR SELECT USING (true);
-CREATE POLICY "Auth insert" ON gastos FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "Auth update" ON gastos FOR UPDATE USING (auth.role() = 'authenticated');
-CREATE POLICY "Auth delete" ON gastos FOR DELETE USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Public read" ON proyectos FOR SELECT USING (true);
-CREATE POLICY "Auth insert" ON proyectos FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "Auth update" ON proyectos FOR UPDATE USING (auth.role() = 'authenticated');
-CREATE POLICY "Auth delete" ON proyectos FOR DELETE USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Public read" ON eventos FOR SELECT USING (true);
-CREATE POLICY "Auth insert" ON eventos FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "Auth update" ON eventos FOR UPDATE USING (auth.role() = 'authenticated');
-CREATE POLICY "Auth delete" ON eventos FOR DELETE USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Public read" ON asistencia FOR SELECT USING (true);
-CREATE POLICY "Auth insert" ON asistencia FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "Auth update" ON asistencia FOR UPDATE USING (auth.role() = 'authenticated');
-CREATE POLICY "Auth delete" ON asistencia FOR DELETE USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Public read" ON celulas FOR SELECT USING (true);
-CREATE POLICY "Auth insert" ON celulas FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "Auth update" ON celulas FOR UPDATE USING (auth.role() = 'authenticated');
-CREATE POLICY "Auth delete" ON celulas FOR DELETE USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Public read" ON ministerios FOR SELECT USING (true);
-CREATE POLICY "Auth insert" ON ministerios FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "Auth update" ON ministerios FOR UPDATE USING (auth.role() = 'authenticated');
-CREATE POLICY "Auth delete" ON ministerios FOR DELETE USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Public read" ON productos FOR SELECT USING (true);
-CREATE POLICY "Auth insert" ON productos FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "Auth update" ON productos FOR UPDATE USING (auth.role() = 'authenticated');
-CREATE POLICY "Auth delete" ON productos FOR DELETE USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Public read" ON publicaciones FOR SELECT USING (true);
-CREATE POLICY "Auth insert" ON publicaciones FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "Auth update" ON publicaciones FOR UPDATE USING (auth.role() = 'authenticated');
-CREATE POLICY "Auth delete" ON publicaciones FOR DELETE USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Public read" ON cronograma_adolescentes FOR SELECT USING (true);
-CREATE POLICY "Auth insert" ON cronograma_adolescentes FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "Auth update" ON cronograma_adolescentes FOR UPDATE USING (auth.role() = 'authenticated');
-CREATE POLICY "Auth delete" ON cronograma_adolescentes FOR DELETE USING (auth.role() = 'authenticated');
+ALTER TABLE evaluaciones_teens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE campanas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE campana_requerimientos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE campana_colaboraciones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE campana_entregas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE church_settings ENABLE ROW LEVEL SECURITY;
 
 -- ─── USER PROFILES ──────────────────────────────────────────────────
 -- Tabla para perfiles de usuario con roles (admin / usuario)
@@ -278,12 +301,138 @@ RETURNS BOOLEAN AS $$
   SELECT EXISTS (
     SELECT 1 FROM user_profiles WHERE id = auth.uid() AND rol = 'admin'
   );
-$$ LANGUAGE sql SECURITY DEFINER STABLE;
+$$ LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public;
 
 -- Políticas RLS: cada usuario ve su propio perfil; admin ve todos
 CREATE POLICY "Ver propio perfil" ON user_profiles FOR SELECT USING (auth.uid() = id OR is_admin());
-CREATE POLICY "Crear propio perfil" ON user_profiles FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "Crear propio perfil" ON user_profiles FOR INSERT WITH CHECK (auth.uid() = id AND rol = 'usuario');
 CREATE POLICY "Editar propio perfil" ON user_profiles FOR UPDATE USING (auth.uid() = id OR is_admin());
+
+CREATE OR REPLACE FUNCTION proteger_rol()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.rol IS DISTINCT FROM OLD.rol AND auth.uid() IS NOT NULL AND NOT is_admin() THEN
+    RAISE EXCEPTION 'Solo el Super Administrador puede cambiar roles';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+DROP TRIGGER IF EXISTS proteger_rol ON user_profiles;
+CREATE TRIGGER proteger_rol BEFORE UPDATE ON user_profiles FOR EACH ROW EXECUTE FUNCTION proteger_rol();
+
+-- ─── POLÍTICAS DE ACCESO ────────────────────────────────────────────
+-- Los datos administrativos y financieros son privados por defecto.
+DO $$
+DECLARE t TEXT;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['donaciones', 'gastos', 'proyectos', 'asistencia', 'celulas', 'ministerios', 'productos'] LOOP
+    EXECUTE format('CREATE POLICY "Admin read" ON %I FOR SELECT USING (is_admin())', t);
+    EXECUTE format('CREATE POLICY "Admin insert" ON %I FOR INSERT WITH CHECK (is_admin())', t);
+    EXECUTE format('CREATE POLICY "Admin update" ON %I FOR UPDATE USING (is_admin()) WITH CHECK (is_admin())', t);
+    EXECUTE format('CREATE POLICY "Admin delete" ON %I FOR DELETE USING (is_admin())', t);
+  END LOOP;
+END $$;
+
+CREATE POLICY "Admin read" ON miembros FOR SELECT USING (is_admin());
+CREATE POLICY "Miembro lee su ficha" ON miembros FOR SELECT
+  USING (lower(email) = lower(auth.jwt() ->> 'email'));
+CREATE POLICY "Admin insert" ON miembros FOR INSERT WITH CHECK (is_admin());
+CREATE POLICY "Admin update" ON miembros FOR UPDATE USING (is_admin()) WITH CHECK (is_admin());
+CREATE POLICY "Admin delete" ON miembros FOR DELETE USING (is_admin());
+
+CREATE POLICY "Admin read" ON eventos FOR SELECT USING (is_admin());
+CREATE POLICY "Usuario autenticado lee eventos" ON eventos FOR SELECT
+  USING (auth.role() = 'authenticated');
+CREATE POLICY "Admin insert" ON eventos FOR INSERT WITH CHECK (is_admin());
+CREATE POLICY "Admin update" ON eventos FOR UPDATE USING (is_admin()) WITH CHECK (is_admin());
+CREATE POLICY "Admin delete" ON eventos FOR DELETE USING (is_admin());
+
+CREATE POLICY "Admin read" ON publicaciones FOR SELECT USING (is_admin());
+CREATE POLICY "Usuario autenticado lee publicaciones publicadas" ON publicaciones FOR SELECT
+  USING (auth.role() = 'authenticated' AND estado = 'publicado');
+CREATE POLICY "Admin insert" ON publicaciones FOR INSERT WITH CHECK (is_admin());
+CREATE POLICY "Admin update" ON publicaciones FOR UPDATE USING (is_admin()) WITH CHECK (is_admin());
+CREATE POLICY "Admin delete" ON publicaciones FOR DELETE USING (is_admin());
+
+CREATE POLICY "Usuario autenticado lee cronograma" ON cronograma_adolescentes FOR SELECT
+  USING (auth.role() = 'authenticated');
+CREATE POLICY "Admin insert" ON cronograma_adolescentes FOR INSERT WITH CHECK (is_admin());
+CREATE POLICY "Admin update" ON cronograma_adolescentes FOR UPDATE USING (is_admin()) WITH CHECK (is_admin());
+CREATE POLICY "Admin delete" ON cronograma_adolescentes FOR DELETE USING (is_admin());
+
+CREATE POLICY "Admin read" ON peticiones_oracion FOR SELECT USING (is_admin());
+CREATE POLICY "Admin insert" ON peticiones_oracion FOR INSERT WITH CHECK (is_admin());
+CREATE POLICY "Admin update" ON peticiones_oracion FOR UPDATE USING (is_admin()) WITH CHECK (is_admin());
+CREATE POLICY "Admin delete" ON peticiones_oracion FOR DELETE USING (is_admin());
+
+CREATE POLICY "Admin read" ON evaluaciones_teens FOR SELECT USING (is_admin());
+CREATE POLICY "Admin insert" ON evaluaciones_teens FOR INSERT WITH CHECK (is_admin());
+CREATE POLICY "Admin update" ON evaluaciones_teens FOR UPDATE USING (is_admin()) WITH CHECK (is_admin());
+CREATE POLICY "Admin delete" ON evaluaciones_teens FOR DELETE USING (is_admin());
+
+CREATE POLICY "Admin manage campaigns" ON campanas FOR ALL USING (is_admin()) WITH CHECK (is_admin());
+CREATE POLICY "Public read open campaigns" ON campanas FOR SELECT
+  USING (estado = 'abierta' AND (fecha_limite IS NULL OR fecha_limite >= CURRENT_DATE));
+CREATE POLICY "Admin manage campaign needs" ON campana_requerimientos FOR ALL USING (is_admin()) WITH CHECK (is_admin());
+CREATE POLICY "Public read open campaign needs" ON campana_requerimientos FOR SELECT
+  USING (EXISTS (SELECT 1 FROM campanas c WHERE c.id = campana_id AND c.estado = 'abierta' AND (c.fecha_limite IS NULL OR c.fecha_limite >= CURRENT_DATE)));
+CREATE POLICY "Admin read campaign contributions" ON campana_colaboraciones FOR SELECT USING (is_admin());
+CREATE POLICY "Admin update campaign contributions" ON campana_colaboraciones FOR UPDATE USING (is_admin()) WITH CHECK (is_admin());
+CREATE POLICY "Public submit campaign contribution" ON campana_colaboraciones FOR INSERT
+  WITH CHECK (
+    estado = 'pendiente'
+    AND creada_por IS NULL
+    AND confirmada_por IS NULL
+    AND confirmada_en IS NULL
+    AND EXISTS (
+      SELECT 1 FROM campanas c
+      JOIN campana_requerimientos r ON r.campana_id = c.id
+      WHERE c.id = campana_colaboraciones.campana_id
+        AND c.estado = 'abierta'
+        AND (c.fecha_limite IS NULL OR c.fecha_limite >= CURRENT_DATE)
+        AND r.id = campana_colaboraciones.requerimiento_id
+    )
+  );
+CREATE POLICY "Admin read campaign deliveries" ON campana_entregas FOR SELECT USING (is_admin());
+CREATE POLICY "Admin add campaign deliveries" ON campana_entregas FOR INSERT WITH CHECK (is_admin());
+
+GRANT SELECT ON campanas, campana_requerimientos TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON campanas, campana_requerimientos TO authenticated;
+GRANT INSERT ON campana_colaboraciones TO anon, authenticated;
+GRANT SELECT, UPDATE ON campana_colaboraciones TO authenticated;
+GRANT SELECT, INSERT ON campana_entregas TO authenticated;
+
+CREATE OR REPLACE FUNCTION validar_entrega_campana()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_colaboracion campana_colaboraciones%ROWTYPE;
+  v_recibido NUMERIC(12,2);
+BEGIN
+  SELECT * INTO v_colaboracion
+  FROM campana_colaboraciones
+  WHERE id = NEW.colaboracion_id
+  FOR UPDATE;
+  IF NOT FOUND OR v_colaboracion.estado <> 'confirmada' THEN
+    RAISE EXCEPTION 'Solo se pueden registrar entregas de colaboraciones confirmadas';
+  END IF;
+  SELECT COALESCE(SUM(cantidad), 0) INTO v_recibido
+  FROM campana_entregas
+  WHERE colaboracion_id = NEW.colaboracion_id;
+  IF v_recibido + NEW.cantidad > v_colaboracion.cantidad THEN
+    RAISE EXCEPTION 'La entrega supera la cantidad comprometida';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+DROP TRIGGER IF EXISTS validar_entrega_campana ON campana_entregas;
+CREATE TRIGGER validar_entrega_campana BEFORE INSERT ON campana_entregas
+FOR EACH ROW EXECUTE FUNCTION validar_entrega_campana();
+
+CREATE POLICY "Public read" ON church_settings FOR SELECT USING (true);
+CREATE POLICY "Admin insert" ON church_settings FOR INSERT WITH CHECK (is_admin());
+CREATE POLICY "Admin update" ON church_settings FOR UPDATE USING (is_admin()) WITH CHECK (is_admin());
 
 -- ─── PROMOVER A ADMIN ────────────────────────────────────────────────
 -- Ejecutar en Supabase SQL Editor para convertir tu cuenta en admin:
