@@ -94,6 +94,16 @@ Este documento es una línea base para Claude Code, no una confirmación de que 
 - **Trabajo necesario:** definir pruebas prioritarias para permisos, persistencia y compra; después extraer módulos/componentes en cambios graduales.
 - **Aceptación:** los flujos críticos cuentan con pruebas ejecutables desde scripts del repositorio y la extracción no altera el comportamiento existente.
 
+## Revisión de código del PR #32 (2026-11-02)
+
+**Corregido:** fechas vacías a `null`; RLS de colaboraciones con sesión iniciada; `deleteRow` falla si no borra filas; CSV de teléfonos; ficha propia exige correo verificado (`email_verificado()`); cierre del flujo de recuperación de contraseña; borrado admin y tope de `cantidad` (≤ 100 000) en `campana_colaboraciones`; búsqueda global sin "null" y bajo demanda; aviso "Excede el objetivo" en campañas.
+
+**Pendiente:**
+- **P1 — Formulario anónimo de colaboraciones sin límite de frecuencia.** Evidencia: `submitPublicCampaignContribution` en `src/dataService.js` y `GRANT INSERT ... TO anon` en los SQL. Mitigación actual: moderación manual con el borrado admin. Siguiente paso recomendado si aparece spam: captcha (p. ej. Turnstile) verificado en el servidor. Aceptación: un script que repite el POST no puede llenar la tabla.
+- **P2 — Decidir si las entregas que superan el objetivo se bloquean** (hoy solo se avisa).
+- **P3 — Carga por sección.** `loadAllData` pide hasta 18 tablas al admin en cada montaje; mover a carga bajo demanda tras validar el PR.
+- **Validación:** ejecutar los SQL en Supabase y probar con una cuenta de cada rol (cuenta con y sin correo confirmado, y recuperación de contraseña con `/login?recovery=1` permitido).
+
 ## Por validar fuera del repositorio
 
 - Qué migraciones y políticas RLS están realmente instaladas en el proyecto Supabase.
